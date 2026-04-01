@@ -1163,10 +1163,184 @@ function drawSig(doc,data,bx,by,bw,bh){
   }catch(e){}
 }
 
+
+// ── MULTI-MUESTREO SYSTEM ──
+const STORAGE_KEY = 'aarms_muestreos_v1';
+
+function getMuestreos(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }
+  catch(e){ return []; }
+}
+
+function saveMuestreoActual(){
+  if(!omar.folio) return;
+  const lista = getMuestreos();
+  const id = omar.ts || Date.now();
+  const entry = {
+    id,
+    folio: omar.folio,
+    empresa: omar.empresa,
+    sitio: omar.idMuestra,
+    fecha: omar.fechaIni,
+    tipo: omar.tipo,
+    muestreador: omar.muestreador,
+    ts: id,
+    tomas: tomas.map(t=>({
+      id:t.id, hora:t.hora, ph:t.ph, cond:t.cond,
+      tagua:t.tagua, tamb:t.tamb, ls:t.ls, mat:t.mat,
+      color:t.color, olor:t.olor,
+      params:[...t.params]
+    })),
+    omar: JSON.stringify(omar),
+    sigData: sigData||null,
+    sigData2: sigData2||null,
+  };
+  const existing = lista.findIndex(m=>m.id===id);
+  if(existing>=0) lista[existing]=entry;
+  else lista.unshift(entry);
+  // Keep max 50 muestreos
+  if(lista.length>50) lista.splice(50);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
+}
+
+function nuevoMuestreo(){
+  // Save current before clearing
+  saveMuestreoActual();
+  // Clear everything
+  omar={};
+  tomas=[];
+  sigData=null; sigData2=null;
+  lastPDFBlob=null; lastPDFClienteBlob=null;
+  // Clear all form fields
+  document.querySelectorAll('input,select,textarea').forEach(el=>{
+    if(el.type==='checkbox'||el.type==='radio') el.checked=false;
+    else el.value='';
+  });
+  // Clear signatures
+  ['sigCanvas','sigCanvas2'].forEach(id=>{
+    const c=document.getElementById(id);
+    if(c) c.getContext('2d').clearRect(0,0,c.width,c.height);
+  });
+  ['cvswrap','cvswrap2'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.remove('signed');
+  });
+  ['cvsover','cvsover2'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.remove('hide');
+  });
+  ['sigst','sigst2'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.textContent='Sin firma';el.className='sigst';}
+  });
+  // Reset share row
+  const sr=document.getElementById('shareRow');
+  if(sr) sr.style.display='none';
+  // Go back to OMAR
+  localStorage.removeItem('aarms_omar');
+  showPage(0);
+  document.getElementById('omarForm').style.display='block';
+  document.getElementById('omarResumen').style.display='none';
+  toast('Nuevo muestreo listo ✓','g');
+}
+
+function verMuestreos(){
+  const lista = getMuestreos();
+  const modal = document.createElement('div');
+  modal.id = 'modalMuestreos';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(7,8,15,.95);z-index:9999;display:flex;flex-direction:column;padding:0;overflow:hidden';
+
+  const empty = lista.length===0;
+  modal.innerHTML = `
+    <div style="background:var(--bg2);border-bottom:1px solid var(--ln2);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-family:var(--syne);font-size:18px;font-weight:800;color:var(--w)">Muestreos guardados</div>
+      <button onclick="document.getElementById('modalMuestreos').remove()" style="background:none;border:1px solid var(--g3);border-radius:8px;color:var(--g2);font-size:13px;padding:7px 14px;cursor:pointer">Cerrar</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:16px">
+      ${empty ? `
+        <div style="text-align:center;padding:60px 20px;color:var(--g2)">
+          <div style="font-size:40px;margin-bottom:12px">📋</div>
+          <div style="font-family:var(--syne);font-size:16px;font-weight:700;color:var(--g1);margin-bottom:8px">Sin muestreos guardados</div>
+          <div style="font-size:13px">Los muestreos se guardan automáticamente cuando generas un PDF o inicias uno nuevo.</div>
+        </div>
+      ` : lista.map((m,i) => {
+        const fecha = m.fecha ? m.fecha.replace('T',' ').substring(0,16) : '—';
+        const nTomas = m.tomas ? m.tomas.length : 0;
+        return `
+          <div style="background:var(--bg2);border:1px solid var(--ln2);border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer" onclick="cargarMuestreo(${m.id})">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+              <div style="font-family:var(--syne);font-size:14px;font-weight:800;color:var(--w)">${m.empresa||'Sin empresa'}</div>
+              <div style="font-family:var(--dm);font-size:11px;color:var(--g2);background:var(--bg3);padding:3px 8px;border-radius:6px">OMAR-${m.folio||'—'}</div>
+            </div>
+            <div style="font-size:12px;color:var(--g2);margin-bottom:4px">${m.sitio||'—'} &nbsp;·&nbsp; ${m.tipo||'—'}</div>
+            <div style="display:flex;gap:12px;font-size:11px;color:var(--g3)">
+              <span>${fecha}</span>
+              <span>${nTomas} toma${nTomas!==1?'s':''}</span>
+              <span style="color:var(--accent)">${m.muestreador||'—'}</span>
+            </div>
+            <div style="margin-top:10px;display:flex;gap:8px">
+              <button onclick="event.stopPropagation();cargarMuestreo(${m.id})" 
+                style="flex:1;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-family:var(--syne);font-size:12px;font-weight:700;cursor:pointer">
+                Abrir
+              </button>
+              <button onclick="event.stopPropagation();eliminarMuestreo(${m.id})" 
+                style="padding:8px 14px;background:none;border:1px solid rgba(248,113,113,.3);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer">
+                Eliminar
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function cargarMuestreo(id){
+  const lista = getMuestreos();
+  const entry = lista.find(m=>m.id===id);
+  if(!entry){ toast('No encontrado','w'); return; }
+  
+  // Restore omar
+  try{ 
+    omar = JSON.parse(entry.omar);
+    localStorage.setItem('aarms_omar', entry.omar);
+  }catch(e){ toast('Error al cargar','w'); return; }
+
+  // Restore tomas
+  tomas = (entry.tomas||[]).map(t=>({
+    ...t,
+    params: new Set(t.params||[])
+  }));
+
+  // Restore signatures
+  if(entry.sigData){ sigData=entry.sigData; updSig&&updSig(); }
+  if(entry.sigData2){ sigData2=entry.sigData2; updSig2&&updSig2(); }
+
+  // Close modal and go to hoja de campo
+  document.getElementById('modalMuestreos')?.remove();
+  loadCampoFromOMAR();
+  showPage(1);
+  toast('Muestreo cargado ✓','g');
+}
+
+function eliminarMuestreo(id){
+  const lista = getMuestreos().filter(m=>m.id!==id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
+  document.getElementById('modalMuestreos')?.remove();
+  verMuestreos();
+  toast('Muestreo eliminado','g');
+}
+
+// Auto-save when generating PDF
+const _origGenPDF = genPDF;
+
 function genPDF(tipo='lab'){
   if(!sigData||sigData==='p'){toast('El cliente debe firmar primero','w');return;}
   if(!document.getElementById('fn_nom').value.trim()){toast('Ingresa el nombre del cliente','w');return;}
 
+  // Auto-save muestreo before generating PDF
+  saveMuestreoActual();
   window._pdfTipo=tipo;
   const btn=tipo==='cliente'?document.getElementById('btnPDFCliente'):document.getElementById('btnPDFLab');
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
@@ -1303,40 +1477,30 @@ async function buildPDF(){
   const fixHdrs=['MUESTRA','HORA','%VOL','L/s','T.AMB','T.AGUA','pH25°C','MAT.FL','COND.µS','COLOR','OLOR','CLORO'];
   const th=10,th2=9;
 
-  // Header row 1: fixed + params span
+  // SINGLE unified header row — fixed cols + param cols all at same height
+  const thH=13; // single header row height, tall enough for all labels
   let x=M;
-  doc.setFillColor(...MGRAY);
+  // Fixed columns
   fixHdrs.forEach((h,i)=>{
-    doc.rect(x,y,fixW[i],th,'F');
-    doc.setDrawColor(180,190,200);doc.setLineWidth(0.2);doc.rect(x,y,fixW[i],th,'S');
-    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
-    doc.text(h,x+fixW[i]/2,y+6.5,{align:'center'});
+    doc.setFillColor(208,216,228);
+    doc.rect(x,y,fixW[i],thH,'F');
+    doc.setDrawColor(160,172,188);doc.setLineWidth(0.2);doc.rect(x,y,fixW[i],thH,'S');
+    doc.setTextColor(26,58,107);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+    doc.text(h,x+fixW[i]/2,y+thH/2+2,{align:'center'});
     x+=fixW[i];
   });
-  // Params mega-header
-  const pTotalW=pW*PARAMS.length;
-  // No mega header - params names go directly in header row
-  // (removed black bar that was visually breaking the table)
-
-  // Header row 2: individual param names
-  x=M;
-  doc.setFillColor(...MGRAY);
-  fixHdrs.forEach((h,i)=>{
-    doc.rect(x,y,fixW[i],th2,'F');
-    doc.setDrawColor(180,190,200);doc.setLineWidth(0.2);doc.rect(x,y,fixW[i],th2,'S');
-    x+=fixW[i];
-  });
+  // Param columns
   PARAMS.forEach((p,i)=>{
     const isS=SIMPLES.includes(p);
-    doc.setFillColor(...(isS?[220,242,235]:MGRAY));
-    doc.rect(x,y,pW,th2,'F');
-    doc.setDrawColor(180,190,200);doc.setLineWidth(0.2);doc.rect(x,y,pW,th2,'S');
-    doc.setTextColor(...(isS?TEAL:NAVY));
+    doc.setFillColor(...(isS?[210,238,228]:[208,216,228]));
+    doc.rect(x,y,pW,thH,'F');
+    doc.setDrawColor(160,172,188);doc.setLineWidth(0.2);doc.rect(x,y,pW,thH,'S');
+    doc.setTextColor(...(isS?[0,100,80]:[26,58,107]));
     doc.setFont('helvetica','bold');doc.setFontSize(5);
-    doc.text(p,x+pW/2,y+6,{align:'center'});
+    doc.text(p,x+pW/2,y+thH/2+2,{align:'center'});
     x+=pW;
   });
-  y+=th2;
+  y+=thH;
 
   // Toma rows
   const tomaH=12;
@@ -1397,19 +1561,84 @@ async function buildPDF(){
     y+=tomaH;
   });
 
-  // Tipo frasco + observaciones row
-  doc.setFillColor(...LGRAY);doc.rect(M,y,CW,11,'F');
-  doc.setDrawColor(...MGRAY);doc.rect(M,y,CW,11,'S');
-  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(7);
-  doc.text('TIPO DE FRASCO:',M+3,y+7.5);
-  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);
-  doc.text('Simple  |  Compuesta',M+72,y+7.5);
-  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');
-  doc.text('Observaciones:',M+200,y+7.5);
-  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);
+  // ── TIPO DE FRASCO rows (one per tipo: Simple + Compuesta) ──
+  // Frasco codes per parameter from official F-AA-45A-12 codification
+  // Codificación de tipo de envase — F-AA-45A-12
+  // 1=Vidrio BA 1L, 2=Plástico 1L, 3=Plástico 4L, 4=Plástico 500mL
+  // 5=Plástico 5L, 6=Bolsa Estéril 300mL, 7=Bolsa c/Tiosulfato 300mL
+  // 8=Ámbar 1L, 9=Bolsa c/Tiosulfato 100mL, 10=Ámbar 40mL
+  // 11=Ámbar 250mL, 12=Bolsa Estéril 100mL, 13=Plástico 2L
+  const FRASCO_MAP={
+    'FQ':3,        // Frasco Plástico 4Lt
+    'TOC':8,       // Frasco Vidrio Ámbar 1Lt
+    'Hg':4,        // Frasco Plástico 500mL
+    'MP':4,        // Frasco Plástico 500mL
+    'CIAN':4,      // Frasco Plástico 500mL
+    'FOS.':4,      // Frasco Plástico 500mL
+    'SAAM':2,      // Frasco Plástico 1Lt
+    'GYA':1,       // Frasco boca ancha vidrio 1Lt
+    'DQO':4,       // Frasco Plástico 500mL
+    'DBO5':2,      // Frasco Plástico 1Lt
+    'N.TOT':13,    // Frasco Plástico 2Lt
+    'CTYF':6,      // Bolsa Estéril 300mL
+    'ENTE.':6,     // Bolsa Estéril 300mL
+    'NO2':4,       // Frasco Plástico 500mL
+    'NO3':4,       // Frasco Plástico 500mL
+    'H.HELM':5,    // Frasco Plástico 5Lt
+    'COLOR':11,    // Frasco Vidrio Ámbar 250mL
+    'E.COLI':7,    // Bolsa Estéril 300mL c/Tiosulfato
+    'TOX.AG.':10,  // Frasco Vidrio Ámbar 40mL
+    'CLORU.':4,    // Frasco Plástico 500mL
+    'CR.HEX.':11,  // Frasco Vidrio Ámbar 250mL
+  };
+  const tipoH=10;
+  const labelW=fixW.reduce((a,b)=>a+b,0); // total fixed cols width
+
+  // SIMPLE / COMPUESTA rows — active params show frasco number, inactive get diagonal
+  ['SIMPLE','COMPUESTA'].forEach((tipo,ri)=>{
+    doc.setFillColor(...(ri===0?LGRAY:[240,244,250]));
+    doc.rect(M,y,CW,tipoH,'F');
+    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,CW,tipoH,'S');
+    // Row label spanning fixed cols
+    doc.setFillColor(200,208,220);
+    doc.rect(M,y,labelW,tipoH,'F');
+    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,labelW,tipoH,'S');
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
+    doc.text(tipo,M+3,y+tipoH/2+2);
+    // Frasco cell per param
+    let px=M+labelW;
+    PARAMS.forEach(p=>{
+      const num=FRASCO_MAP[p]||'—';
+      const hasP=tomas.some(t=>t.params.has(p))||SIMPLES.includes(p);
+      if(hasP){
+        // Active — show frasco number
+        doc.setFillColor(...(ri===0?[235,242,255]:[228,240,230]));
+        doc.rect(px,y,pW,tipoH,'F');
+        doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(px,y,pW,tipoH,'S');
+        doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(7);
+        doc.text(String(num),px+pW/2,y+tipoH/2+2,{align:'center'});
+      }else{
+        // Cancelled — gray bg + diagonal line
+        doc.setFillColor(228,232,240);
+        doc.rect(px,y,pW,tipoH,'F');
+        doc.setDrawColor(195,204,216);doc.setLineWidth(0.2);doc.rect(px,y,pW,tipoH,'S');
+        doc.setDrawColor(195,204,216);doc.setLineWidth(0.4);
+        doc.line(px+1,y+1,px+pW-1,y+tipoH-1);
+      }
+      px+=pW;
+    });
+    y+=tipoH;
+  });
+
+  // Observaciones row
+  doc.setFillColor(...LGRAY);doc.rect(M,y,CW,10,'F');
+  doc.setDrawColor(...MGRAY);doc.rect(M,y,CW,10,'S');
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6.5);
+  doc.text('Observaciones:',M+3,y+7);
+  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(7);
   const obs=gv('h_obs');
-  doc.text(obs.substring(0,80),M+268,y+7.5);
-  y+=11;
+  if(obs) doc.text(obs.substring(0,120),M+58,y+7);
+  y+=10;
 
   // ── GPS ──
   y+=3;
@@ -1887,18 +2116,24 @@ async function buildPDFCliente(){
   const allP=[...new Set([...tomas.flatMap(t=>[...t.params]),...SIMPLES])];
   const CLW=100,CCW=105,CTW=Math.floor((CW-CLW-CCW)/6);
 
-  // Header
-  doc.setFillColor(...K.rowBg);
-  [['Parámetro',CLW],['Conservador',CCW]].forEach(([h,w],i)=>{
-    const cx=i===0?ML:ML+CLW;
-    doc.rect(cx,y,w,TRR,'F');doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(cx,y,w,TRR,'S');
-    doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(7);doc.text(h,cx+3,y+9);
-  });
+  // Header — fill entire row first to avoid gaps
+  doc.setFillColor(...K.rowBg);doc.rect(ML,y,CW,TRR,'F');
+  // Param label
+  doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(ML,y,CLW,TRR,'S');
+  doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(7);
+  doc.text('Parámetro',ML+3,y+9);
+  // Conservador label
+  doc.rect(ML+CLW,y,CCW,TRR,'S');
+  doc.text('Conservador',ML+CLW+3,y+9);
+  // T1..T6 headers — only draw for tomas that exist, grey out rest
   for(let ti=0;ti<6;ti++){
     const cx=ML+CLW+CCW+ti*CTW;
-    doc.setFillColor(...K.rowBg);doc.rect(cx,y,CTW,TRR,'F');
+    const exists=tomas[ti]!=null;
+    doc.setFillColor(...(exists?K.rowBg:[228,232,240]));
+    doc.rect(cx,y,CTW,TRR,'F');
     doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(cx,y,CTW,TRR,'S');
-    doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    doc.setTextColor(...(exists?[51,51,51]:[170,178,190]));
+    doc.setFont('helvetica','bold');doc.setFontSize(7);
     doc.text('T'+(ti+1),cx+CTW/2,y+9,{align:'center'});
   }
   y+=TRR;
@@ -2037,7 +2272,14 @@ function toast(msg,t=''){
   const el=document.getElementById('toast');el.textContent=msg;el.className=t;el.classList.add('show');
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2800);
 }
-window.addEventListener('load',()=>{initCanvas();initCanvas2();});
+window.addEventListener('load',()=>{
+  // Show muestreos count on button
+  const lista = getMuestreos();
+  if(lista.length>0){
+    const btn = document.getElementById('btnVerMuestreos');
+    if(btn) btn.textContent = `Ver muestreos guardados (${lista.length})`;
+  }
+initCanvas();initCanvas2();});
 let sigData2=null;
 function initCanvas2(){
   const c=document.getElementById('sigCanvas2'),ctx=c.getContext('2d');
