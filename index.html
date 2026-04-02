@@ -1017,19 +1017,82 @@ function syncCampoToCustodia(){
 }
 
 // ── CUSTODIA ──
+// Pre-filled data per analito (same as PDF)
+const CADENA_DATA={
+  'FQ':    {pres:'1',  vol:'4000', env:'3',  ph:'<2'},
+  'TOC':   {pres:'2',  vol:'1000', env:'8',  ph:'>12'},
+  'Hg':    {pres:'9',  vol:'500',  env:'4',  ph:'<2'},
+  'MP':    {pres:'6',  vol:'500',  env:'4',  ph:'<2'},
+  'CIAN':  {pres:'2',  vol:'1000', env:'2',  ph:'>12'},
+  'FOS.':  {pres:'1',  vol:'500',  env:'4',  ph:'<2'},
+  'SAAM':  {pres:'4',  vol:'1000', env:'2',  ph:'N/A'},
+  'GYA':   {pres:'1/8',vol:'1000', env:'1',  ph:'<2'},
+  'DQO':   {pres:'1',  vol:'500',  env:'4',  ph:'<2'},
+  'DBO5':  {pres:'4',  vol:'1000', env:'2',  ph:'N/A'},
+  'N.TOT': {pres:'1',  vol:'2000', env:'13', ph:'<2'},
+  'CTYF':  {pres:'7',  vol:'100',  env:'9',  ph:'N/A'},
+  'ENTE.': {pres:'7',  vol:'250',  env:'7',  ph:'N/A'},
+  'NO2':   {pres:'4',  vol:'500',  env:'4',  ph:'N/A'},
+  'NO3':   {pres:'1',  vol:'500',  env:'4',  ph:'<2'},
+  'H.HELM':{pres:'13', vol:'5000', env:'5',  ph:'N/A'},
+  'COLOR': {pres:'4',  vol:'250',  env:'11', ph:'N/A'},
+  'E.COLI':{pres:'7',  vol:'100',  env:'9',  ph:'N/A'},
+  'TOX.AG.':{pres:'4', vol:'40',   env:'10', ph:'N/A'},
+  'CLORU.':{pres:'4',  vol:'500',  env:'4',  ph:'N/A'},
+  'CR.HEX.':{pres:'4', vol:'250',  env:'11', ph:'N/A'},
+};
+const CADENA_SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AG.'];
+
 function buildCusTable(){
-  const cols=(omar.analitos&&omar.analitos.length)?omar.analitos.slice(0,22):PARAMS_TOMA;
-  const rows=['Cód. Preservación','Volumen (mL)','Tipo de envase','N° de frascos','pH Preservación','Analizó','Enviada a sucursal'];
-  const soC=CONS_O.map(([v,l])=>`<option value="${v}">${v}-${l}</option>`).join('');
-  const soE=ENV_O.map(([v,l])=>`<option value="${v}">${v}-${l}</option>`).join('');
-  document.getElementById('ctHead').innerHTML=`<th class="sth">Parámetros</th>`+cols.map(c=>`<th>${c.length>10?c.substring(0,10)+'…':c}</th>`).join('');
-  document.getElementById('ctBody').innerHTML=rows.map((r,ri)=>`<tr><td class="stl">${r}</td>${cols.map((c,ci)=>{
-    const id=`cc_${ri}_${ci}`;
-    if(ri===0)return`<td><select id="${id}">${soC}</select></td>`;
-    if(ri===1)return`<td><input id="${id}" type="text" value="${VOLS[c]||500}"></td>`;
-    if(ri===2)return`<td><select id="${id}">${soE}</select></td>`;
-    return`<td><input id="${id}" type="text" placeholder="—"></td>`;
-  }).join('')}</tr>`).join('');
+  // Active params from tomas
+  const activeSet=new Set([
+    ...tomas.flatMap(t=>[...t.params]),
+    ...CADENA_SIMPLES
+  ]);
+  const allParams=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','H.HELM','COLOR','E.COLI','TOX.AG.','CLORU.','CR.HEX.'];
+
+  // Build header
+  document.getElementById('ctHead').innerHTML=
+    `<th class="sth">Parámetro</th>`+
+    allParams.map(p=>{
+      const active=activeSet.has(p);
+      const isS=CADENA_SIMPLES.includes(p);
+      return `<th style="background:${active?(isS?'#d2eee8':'#e8eef5'):'#f0f2f5'};color:${active?(isS?'#007a60':'#0a1628'):'#aaa'}">${p}</th>`;
+    }).join('');
+
+  // Build rows
+  const ROWS=[
+    ['Cód. Preserv.',  p=>CADENA_DATA[p]?.pres||'—'],
+    ['Volumen (mL)',    p=>CADENA_DATA[p]?.vol||'—'],
+    ['Tipo de Envase', p=>CADENA_DATA[p]?.env||'—'],
+    ['N° Frascos',     p=>CADENA_DATA[p]?.env?'1':'—'],
+    ['pH Preserv.',    p=>CADENA_DATA[p]?.ph||'—'],
+    ['Analizó',        p=>''],
+    ['A Sucursal',     p=>''],
+  ];
+
+  document.getElementById('ctBody').innerHTML=ROWS.map(([ lbl,fn],ri)=>
+    `<tr>
+      <td class="stl" style="font-weight:700;font-size:11px">${lbl}</td>
+      ${allParams.map((p,ci)=>{
+        const active=activeSet.has(p);
+        const isS=CADENA_SIMPLES.includes(p);
+        const val=fn(p);
+        const id=`cc_${ri}_${ci}`;
+        if(!active){
+          // Cancelled cell - gray with diagonal
+          return`<td style="background:#e4e8f0;position:relative;overflow:hidden">
+            <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,transparent,transparent 4px,rgba(0,0,0,.06) 4px,rgba(0,0,0,.06) 5px)"></div>
+          </td>`;
+        }
+        if(ri>=5){
+          // Editable rows
+          return`<td><input id="${id}" type="text" style="width:100%;border:none;background:${isS?'#e8f5f0':'#fff'};text-align:center;font-size:11px;padding:2px" placeholder="—"></td>`;
+        }
+        return`<td style="text-align:center;font-weight:700;font-size:12px;background:${isS?'#d2eee8':'#fff'};color:${isS?'#007a60':'#334155'}">${val}</td>`;
+      }).join('')}
+    </tr>`
+  ).join('');
 }
 function setTransp(t){
   document.getElementById('hb').classList.toggle('on',t==='hielera');
@@ -1245,7 +1308,13 @@ function nuevoMuestreo(){
   showPage(0);
   document.getElementById('omarForm').style.display='block';
   document.getElementById('omarResumen').style.display='none';
-  toast('Nuevo muestreo listo ✓','g');
+  // Update muestreos count button
+  try{
+    const lista=getMuestreos();
+    const btn=document.getElementById('btnVerMuestreos');
+    if(btn) btn.textContent=lista.length>0?`Ver muestreos guardados (${lista.length})`:'Ver muestreos guardados';
+  }catch(e){}
+  toast('Nuevo muestreo listo — '+getMuestreos().length+' guardado(s)','g');
 }
 
 function verMuestreos(){
@@ -2282,10 +2351,15 @@ function genCadena(){
   toast('Generando Cadena de Custodia...','');
   const btn=document.getElementById('btnCadena');
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
-  const run=()=>{
-    buildPDFCadena()
-      .then(()=>{if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}})
-      .catch(e=>{console.error(e);toast('Error al generar Cadena','w');if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}});
+  const run=async()=>{
+    try{
+      await buildPDFCadena();
+      if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}
+    }catch(e){
+      console.error('Cadena error:',e);
+      toast('Error: '+e.message,'w');
+      if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}
+    }
   };
   if(typeof window.jspdf==='undefined'){
     const s=document.createElement('script');
@@ -2603,11 +2677,13 @@ function toast(msg,t=''){
 }
 window.addEventListener('load',()=>{
   // Show muestreos count on button
-  const lista = getMuestreos();
-  if(lista.length>0){
-    const btn = document.getElementById('btnVerMuestreos');
-    if(btn) btn.textContent = `Ver muestreos guardados (${lista.length})`;
-  }
+  try{
+    const lista = getMuestreos();
+    if(lista.length>0){
+      const btn = document.getElementById('btnVerMuestreos');
+      if(btn) btn.textContent = `Ver muestreos guardados (${lista.length})`;
+    }
+  }catch(e){}
 initCanvas();initCanvas2();});
 let sigData2=null;
 function initCanvas2(){
