@@ -1594,41 +1594,34 @@ async function buildPDF(){
   const tipoH=10;
   const labelW=fixW.reduce((a,b)=>a+b,0); // total fixed cols width
 
-  // SIMPLE / COMPUESTA rows — active params show frasco number, inactive get diagonal
-  ['SIMPLE','COMPUESTA'].forEach((tipo,ri)=>{
-    doc.setFillColor(...(ri===0?LGRAY:[240,244,250]));
-    doc.rect(M,y,CW,tipoH,'F');
-    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,CW,tipoH,'S');
-    // Row label spanning fixed cols
-    doc.setFillColor(200,208,220);
-    doc.rect(M,y,labelW,tipoH,'F');
-    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,labelW,tipoH,'S');
-    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
-    doc.text(tipo,M+3,y+tipoH/2+2);
-    // Frasco cell per param
-    let px=M+labelW;
-    PARAMS.forEach(p=>{
-      const num=FRASCO_MAP[p]||'—';
-      const hasP=tomas.some(t=>t.params.has(p))||SIMPLES.includes(p);
-      if(hasP){
-        // Active — show frasco number
-        doc.setFillColor(...(ri===0?[235,242,255]:[228,240,230]));
-        doc.rect(px,y,pW,tipoH,'F');
-        doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(px,y,pW,tipoH,'S');
-        doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(7);
-        doc.text(String(num),px+pW/2,y+tipoH/2+2,{align:'center'});
-      }else{
-        // Cancelled — gray bg + diagonal line
-        doc.setFillColor(228,232,240);
-        doc.rect(px,y,pW,tipoH,'F');
-        doc.setDrawColor(195,204,216);doc.setLineWidth(0.2);doc.rect(px,y,pW,tipoH,'S');
-        doc.setDrawColor(195,204,216);doc.setLineWidth(0.4);
-        doc.line(px+1,y+1,px+pW-1,y+tipoH-1);
-      }
-      px+=pW;
-    });
-    y+=tipoH;
+  // ── TIPO DE FRASCO row — single row, frasco number per active param ──
+  doc.setFillColor(...LGRAY);doc.rect(M,y,CW,tipoH,'F');
+  doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,CW,tipoH,'S');
+  // Label
+  doc.setFillColor(200,208,220);doc.rect(M,y,labelW,tipoH,'F');
+  doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,labelW,tipoH,'S');
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
+  doc.text('TIPO DE FRASCO',M+3,y+tipoH/2+2);
+  // Frasco number per param
+  let fpx=M+labelW;
+  PARAMS.forEach(p=>{
+    const num=FRASCO_MAP[p]||'—';
+    const hasP=tomas.some(t=>t.params.has(p))||SIMPLES.includes(p);
+    if(hasP){
+      doc.setFillColor(235,242,255);
+      doc.rect(fpx,y,pW,tipoH,'F');
+      doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(fpx,y,pW,tipoH,'S');
+      doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(7);
+      doc.text(String(num),fpx+pW/2,y+tipoH/2+2,{align:'center'});
+    }else{
+      doc.setFillColor(228,232,240);doc.rect(fpx,y,pW,tipoH,'F');
+      doc.setDrawColor(195,204,216);doc.setLineWidth(0.2);doc.rect(fpx,y,pW,tipoH,'S');
+      doc.setDrawColor(195,204,216);doc.setLineWidth(0.4);
+      doc.line(fpx+1,y+1,fpx+pW-1,y+tipoH-1);
+    }
+    fpx+=pW;
   });
+  y+=tipoH;
 
   // Observaciones row
   doc.setFillColor(...LGRAY);doc.rect(M,y,CW,10,'F');
@@ -1639,6 +1632,44 @@ async function buildPDF(){
   const obs=gv('h_obs');
   if(obs) doc.text(obs.substring(0,120),M+58,y+7);
   y+=10;
+
+  // ── CODIFICACIÓN DE TIPO DE ENVASE ──
+  // Full table from F-AA-45A-12
+  y+=3;
+  const ENVASES=[
+    ['1','Frasco boca ancha vidrio 1Lt'],['2','Frasco Plástico 1Lt'],
+    ['3','Frasco Plástico 4Lt'],['4','Frasco Plástico 500mL'],
+    ['5','Frasco Plástico 5Lt'],['6','Bolsa Estéril 300mL'],
+    ['7','Bolsa Estéril 300mL c/Tiosulfato'],['8','Frasco Vidrio Ámbar 1Lt'],
+    ['9','Bolsa Estéril 100mL c/Tiosulfato'],['10','Frasco Vidrio Ámbar 40mL'],
+    ['11','Frasco Vidrio Ámbar 250mL'],['12','Bolsa Estéril 100mL'],
+    ['13','Frasco Plástico 2Lt'],
+  ];
+  // Section header
+  doc.setFillColor(...NAVY);doc.rect(M,y,CW,10,'F');
+  doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(7);
+  doc.text('CODIFICACIÓN DE TIPO DE ENVASE',M+4,y+7.5);
+  y+=10;
+  // Draw in 2 columns
+  const eColW=CW/2-2;
+  const eH=8;
+  ENVASES.forEach(([num,desc],i)=>{
+    const col=i%2;
+    const row=Math.floor(i/2);
+    const ex=M+col*(eColW+4);
+    const ey=y+row*eH;
+    const bg=row%2===0?LGRAY:WHITE;
+    doc.setFillColor(...bg);doc.rect(ex,ey,eColW,eH,'F');
+    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(ex,ey,eColW,eH,'S');
+    // Number badge
+    doc.setFillColor(...ACCENT);doc.rect(ex,ey,12,eH,'F');
+    doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(6.5);
+    doc.text(num,ex+6,ey+6,{align:'center'});
+    // Description
+    doc.setTextColor(...DGRAY);doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+    doc.text(desc,ex+15,ey+6);
+  });
+  y+=Math.ceil(ENVASES.length/2)*eH+3;
 
   // ── GPS ──
   y+=3;
@@ -2239,6 +2270,300 @@ async function buildPDFCliente(){
   toast('Informe para cliente listo — toca Compartir','g');
 }
 
+
+// ─── CADENA DE CUSTODIA PDF ───────────────────────────────────────────────
+let lastPDFCadenaBlob = null;
+
+function genCadena(){
+  toast('Generando Cadena de Custodia...','');
+  const btn=document.getElementById('btnCadena');
+  if(btn){btn.disabled=true;btn.textContent='Generando...';}
+  const run=()=>{
+    buildPDFCadena()
+      .then(()=>{if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}})
+      .catch(e=>{console.error(e);toast('Error al generar Cadena','w');if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}});
+  };
+  if(typeof window.jspdf==='undefined'){
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload=run; s.onerror=()=>toast('Sin conexión','w');
+    document.head.appendChild(s);
+  }else{ run(); }
+}
+
+async function buildPDFCadena(){
+  const {jsPDF}=window.jspdf;
+  // Landscape US Letter
+  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'letter'});
+  const W=792,H=612,M=14,CW=W-M*2; // 764
+
+  const NAVY=[10,22,40],BLUE=[26,58,107],ACCENT=[37,99,235];
+  const MGRAY=[192,202,216],LGRAY=[232,238,245],DGRAY=[60,72,88];
+  const WHITE=[255,255,255],TEAL=[0,122,96],TEAL_L=[210,238,228];
+  const AMBER=[255,251,224],AMBER2=[255,243,176];
+
+  const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+  const now=new Date();
+  const dStr=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const tStr=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+
+  // ── DATA ──
+  const PARAMS=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','H.HELM','COLOR','E.COLI','TOX.AG.','CLORU.','CR.HEX.','OTROS'];
+  const SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AG.'];
+  const DATA={
+    'FQ':{pres:'1',vol:'4000',env:'3',ph:'<2'},
+    'TOC':{pres:'2',vol:'1000',env:'8',ph:'>12'},
+    'Hg':{pres:'9',vol:'500',env:'4',ph:'<2'},
+    'MP':{pres:'6',vol:'500',env:'4',ph:'<2'},
+    'CIAN':{pres:'2',vol:'1000',env:'2',ph:'>12'},
+    'FOS.':{pres:'1',vol:'500',env:'4',ph:'<2'},
+    'SAAM':{pres:'4',vol:'1000',env:'2',ph:'N/A'},
+    'GYA':{pres:'1/8',vol:'1000',env:'1',ph:'<2'},
+    'DQO':{pres:'1',vol:'500',env:'4',ph:'<2'},
+    'DBO5':{pres:'4',vol:'1000',env:'2',ph:'N/A'},
+    'N.TOT':{pres:'1',vol:'2000',env:'13',ph:'<2'},
+    'CTYF':{pres:'7',vol:'100',env:'9',ph:'N/A'},
+    'ENTE.':{pres:'7',vol:'250',env:'7',ph:'N/A'},
+    'NO2':{pres:'4',vol:'500',env:'4',ph:'N/A'},
+    'NO3':{pres:'1',vol:'500',env:'4',ph:'<2'},
+    'H.HELM':{pres:'13',vol:'5000',env:'5',ph:'N/A'},
+    'COLOR':{pres:'4',vol:'250',env:'11',ph:'N/A'},
+    'E.COLI':{pres:'7',vol:'100',env:'9',ph:'N/A'},
+    'TOX.AG.':{pres:'4',vol:'40',env:'10',ph:'N/A'},
+    'CLORU.':{pres:'4',vol:'500',env:'4',ph:'N/A'},
+    'CR.HEX.':{pres:'4',vol:'250',env:'11',ph:'N/A'},
+    'OTROS':{pres:'',vol:'',env:'',ph:''},
+  };
+
+  // Active params from tomas
+  const activeSet=new Set([...tomas.flatMap(t=>[...t.params]),...SIMPLES]);
+
+  // ── LAYOUT ──
+  const LABEL_W=76;
+  const N_PARAMS=PARAMS.length; // 22
+  const PCOL=Math.floor((CW-LABEL_W)/N_PARAMS); // ~31pt per param
+  const TABLE_W=LABEL_W+PCOL*N_PARAMS;
+  const TH=12; // param header height
+  const RH=11; // data row height
+  const colWidths=[LABEL_W,...PARAMS.map(()=>PCOL)];
+
+  // ── HELPERS ──
+  const line=(x1,y1,x2,y2,c=MGRAY,lw=0.3)=>{
+    doc.setDrawColor(...c);doc.setLineWidth(lw);doc.line(x1,y1,x2,y2);
+  };
+  const outerRect=(x,y,w,h,c=[0,0,0],lw=0.6)=>{
+    doc.setDrawColor(...c);doc.setLineWidth(lw);doc.rect(x,y,w,h,'S');
+  };
+  const fillRect=(x,y,w,h,fill)=>{
+    doc.setFillColor(...fill);doc.rect(x,y,w,h,'F');
+  };
+
+  // ── HEADER ──
+  let y=M;
+
+  // Logo
+  try{doc.addImage(LOGO_PDF_URI,'PNG',M,y,48,36,'','FAST');}catch(e){}
+
+  // Company
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(7);
+  doc.text('Asesoría y Análisis, S.C.',M+52,y+9);
+  doc.setFont('helvetica','normal');doc.setFontSize(5.5);doc.setTextColor(...DGRAY);
+  doc.text('Calle 12 Ave. Serdán Ext.465 Int.201, Edif. Puertas del Sol, Col. Centro C.P. 85400  Tel: 622 224 0910',M+52,y+17);
+
+  // Title centered
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(11);
+  doc.text('CADENA DE CUSTODIA INTERNA AR',W/2,y+14,{align:'center'});
+  doc.setFont('helvetica','normal');doc.setFontSize(5.5);doc.setTextColor(...MGRAY);
+  doc.text('F-AA-01A-15',W/2,y+22,{align:'center'});
+
+  // Folios right
+  const fX=W-M-110;
+  doc.setDrawColor(...MGRAY);doc.setLineWidth(0.4);
+  doc.line(fX,y,fX,y+36);
+  [['FOLIO CCIAR:',gv('h_cciar')],['FOLIO OMAR:',gv('h_omar')],['FOLIO HCAR:',gv('h_hcar')]].forEach(([l,v],i)=>{
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+    doc.text(l,fX+4,y+6+i*11);
+    doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6.5);
+    doc.text(v||'__________',fX+38,y+6+i*11);
+  });
+  y+=40;
+
+  // ── IDENTIFICACIÓN ──
+  fillRect(M,y,CW,10,LGRAY);
+  outerRect(M,y,CW,10);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
+  doc.text('IDENTIFICACIÓN DE LA MUESTRA:',M+3,y+7);
+  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6.5);
+  doc.text(gv('h_idm')||'___________________________',M+75,y+7);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
+  doc.text('TIPO:',M+250,y+7);
+  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);
+  doc.text(gv('h_tipo')||'____________',M+265,y+7);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');
+  doc.text('TIEMPOS:',M+370,y+7);
+  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);
+  doc.text(gv('h_int')||'_______',M+400,y+7);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');
+  doc.text('TRANSPORTA EN HIELERA: □  OTRO:',M+460,y+7);
+  y+=10;
+
+  // ── PARAMS TABLE ──
+  // Header row
+  fillRect(M,y,LABEL_W,TH,NAVY);
+  doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+  doc.text('PARÁMETROS',M+LABEL_W/2,y+8.5,{align:'center'});
+  outerRect(M,y,LABEL_W,TH);
+
+  let px=M+LABEL_W;
+  PARAMS.forEach(p=>{
+    const isS=SIMPLES.includes(p);
+    const active=activeSet.has(p);
+    fillRect(px,y,PCOL,TH,isS?TEAL_L:LGRAY);
+    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(px,y,PCOL,TH,'S');
+    doc.setTextColor(...(active?(isS?TEAL:NAVY):[170,180,195]));
+    doc.setFont('helvetica','bold');doc.setFontSize(4.5);
+    doc.text(p,px+PCOL/2,y+8.5,{align:'center'});
+    px+=PCOL;
+  });
+  outerRect(M,y,TABLE_W,TH);
+  y+=TH;
+
+  // Data rows
+  const ROWS=[
+    ['COD. PRESERVACIÓN', p=>DATA[p]?.pres||'', AMBER2],
+    ['VOLUMEN (mL)',       p=>DATA[p]?.vol||'',  LGRAY],
+    ['TIPO DE ENVASE',    p=>DATA[p]?.env||'',  LGRAY],
+    ['No. DE FRASCOS',   p=>DATA[p]?.env?'1':'',LGRAY],
+    ['pH PRESERVACIÓN',  p=>DATA[p]?.ph||'',   LGRAY],
+    ['ANALIZO:',         p=>'',                 LGRAY],
+    ['MUESTRA A SUCURSAL',p=>'',               LGRAY],
+  ];
+
+  ROWS.forEach(([lbl,fn,lblFill])=>{
+    fillRect(M,y,CW,RH,[255,255,255]);
+    fillRect(M,y,LABEL_W,RH,lblFill);
+    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,LABEL_W,RH,'S');
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
+    doc.text(lbl,M+3,y+7.5);
+
+    let px=M+LABEL_W;
+    PARAMS.forEach(p=>{
+      const val=fn(p);
+      const isS=SIMPLES.includes(p);
+      const active=activeSet.has(p);
+      if(active||isS){
+        fillRect(px,y,PCOL,RH,isS?TEAL_L:[255,255,255]);
+        doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(px,y,PCOL,RH,'S');
+        if(val){
+          doc.setTextColor(...(isS?TEAL:DGRAY));doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+          doc.text(String(val),px+PCOL/2,y+7.5,{align:'center'});
+        }
+      }else{
+        // Cancelled
+        fillRect(px,y,PCOL,RH,[228,232,240]);
+        doc.setDrawColor(195,204,216);doc.setLineWidth(0.2);doc.rect(px,y,PCOL,RH,'S');
+        doc.setDrawColor(195,204,216);doc.setLineWidth(0.3);
+        doc.line(px+1,y+1,px+PCOL-1,y+RH-1);
+      }
+      px+=PCOL;
+    });
+    outerRect(M,y,TABLE_W,RH);
+    y+=RH;
+  });
+
+  // ── NOTAS CODIFICACIÓN ──
+  y+=2;
+  const notaH=18;
+  fillRect(M,y,CW,notaH,AMBER);
+  outerRect(M,y,CW,notaH);
+  doc.setTextColor([80,60,0]);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
+  doc.text('PRESERVACIÓN:',M+3,y+6.5);
+  doc.setFont('helvetica','normal');doc.setFontSize(4.5);
+  doc.text('1-H₂SO₄  2-NaOH  3-K₂Cr₂O₇25%  4-Hielo4°C  5-NA  6-HNO₃  7-Bolsas c/Tiosulfato  8-HCl  9-HNO₃Sup  10-H₂SO₄25%  11-Bolsas s/Tiosulfato  12-Dil.Buffer  13-Formaldehído10%  14-Otro:_____',M+38,y+6.5);
+  doc.setFont('helvetica','bold');doc.text('TIPO ENVASE:',M+3,y+14);
+  doc.setFont('helvetica','normal');
+  doc.text('1-V.Ancho1L  2-Plást.1L  3-Plást.4L  4-Plást.500mL  5-Plást.5L  6-B.Est.300mL  7-B.Est.300mL c/Tios.  8-V.Ámb.1L  9-B.Est.100mL c/Tios.  10-V.Ámb.40mL  11-V.Ámb.250mL  12-B.Est.100mL  13-Plást.2L',M+35,y+14);
+  y+=notaH+2;
+
+  // ── FIRMAS MATRIZ ──
+  const FW=CW/3;
+  const firmaH=40;
+  [['TRANSPORTA Y ENTREGA EN MATRIZ:',LGRAY],['INSPECCIONA EN MATRIZ:',[255,255,255]],['RECIBE EN MATRIZ:',LGRAY]].forEach(([lbl,fill],i)=>{
+    const fx=M+i*FW;
+    fillRect(fx,y,FW,firmaH,fill);
+    outerRect(fx,y,FW,firmaH);
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+    doc.text(lbl,fx+4,y+8);
+    doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6);
+    doc.text('NOMBRE: _______________________',fx+4,y+17);
+    doc.text('FIRMA:    _______________________',fx+4,y+26);
+    doc.text('FECHA: ______________  HORA: ______',fx+4,y+35);
+  });
+  y+=firmaH;
+
+  // ── RESPONSABLE + OBSERVACIONES ──
+  const respH=30;
+  fillRect(M,y,CW*0.36,respH,NAVY);
+  outerRect(M,y,CW*0.36,respH);
+  doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+  doc.text('RESPONSABLE DE MUESTREO:',M+4,y+9);
+  doc.setFont('helvetica','normal');doc.setFontSize(6);
+  doc.text('NOMBRE: '+gv('mn_nom'),M+4,y+18);
+  doc.text('FIRMA: _______________________________',M+4,y+27);
+
+  const obsX=M+CW*0.36;
+  fillRect(obsX,y,CW*0.64,respH,LGRAY);
+  outerRect(obsX,y,CW*0.64,respH);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+  doc.text('OBSERVACIONES:',obsX+4,y+9);
+  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6);
+  const obsText=gv('h_obs');
+  if(obsText)doc.text(obsText.substring(0,100),obsX+4,y+18);
+  y+=respH;
+
+  // ── SUCURSAL ──
+  const sucH=38;
+  [['TRANSPORTA Y ENTREGA DE MUESTRAS Y OTAR — FOLIO: ________  EN SUCURSAL:',LGRAY],['INSPECCIONA EN SUCURSAL:',[255,255,255]],['RECIBIDO EN SUCURSAL:',LGRAY]].forEach(([lbl,fill],i)=>{
+    const fx=M+i*FW;
+    fillRect(fx,y,FW,sucH,fill);
+    outerRect(fx,y,FW,sucH);
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
+    const lblLines=doc.splitTextToSize(lbl,FW-8);
+    doc.text(lblLines,fx+4,y+8);
+    doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6);
+    doc.text('NOMBRE: ___________________  FIRMA: ___________',fx+4,y+22);
+    doc.text('FECHA: ____________  HORA: _______',fx+4,y+31);
+  });
+  y+=sucH;
+
+  // ── PIE FINAL ──
+  const pieH=22;
+  fillRect(M,y,CW,pieH,LGRAY);
+  outerRect(M,y,CW,pieH);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+  doc.text('ENVÍO DE OTAR CON FOLIO:',M+4,y+8);
+  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);
+  doc.text('____________  Y CCIAR CON FOLIO: ____________  A LABORATORIO MATRIZ',M+75,y+8);
+  doc.setFont('helvetica','normal');doc.setFontSize(5.5);
+  doc.text('PERSONA QUE TRANSPORTA EN LAB. MATRIZ: _______________________  FIRMA: ________________  FECHA: ____________  HORA: _______',M+4,y+16);
+  doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);
+  doc.text('F-AA-01A-15',W-M-4,y+16,{align:'right'});
+
+  // ── SAVE ──
+  const folio=gv('h_omar')||'000';
+  const fecha=now.toISOString().split('T')[0];
+  const empresa=(omar.empresa||gv('h_emp')||'').substring(0,20).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
+  const fname='Cadena de Custodia - '+empresa+' ('+fecha+').pdf';
+  const blob=doc.output('blob');
+  lastPDFCadenaBlob=blob; lastPDFCadenaBlob.name=fname;
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=fname;a.style.display='none';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},3000);
+  document.getElementById('shareRow').style.display='flex';
+  toast('Cadena de Custodia generada ✓','g');
+}
 
 function fmtF(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`;}
 // Store last PDF blob for sharing
