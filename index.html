@@ -679,6 +679,10 @@ const LOGO_PDF_URI='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAADiCAYAAA
              Entregar al cliente
           </button>
         </div>
+        <div style="display:flex;gap:8px;width:100%">
+          <button class="btn btn-g" onclick="genCadena()" id="btnCadena" style="flex:1;font-size:12px;border-color:rgba(99,179,237,.3);color:#63b3ed">Cadena de Custodia</button>
+          <button class="btn btn-g" onclick="nuevoMuestreo()" style="flex:1;font-size:13px;border-color:rgba(134,239,172,.3);color:var(--green);font-weight:800">+ Nuevo muestreo</button>
+        </div>
         <div style="display:flex;gap:8px;width:100%;display:none" id="shareRow">
           <button class="btn btn-g" onclick="compartirPDF('lab')" style="flex:1;font-size:12px">
             📤 Compartir registro
