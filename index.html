@@ -379,8 +379,9 @@ const LOGO_PDF_URI='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAADiCAYAAA
         </div>
       </div>
 
-      <div class="bbar">
-        <button class="btn btn-p" onclick="guardarOMAR()">Confirmar OMAR →</button>
+      <div class="bbar" style="flex-direction:column;gap:8px;padding:10px 16px 16px">
+        <button class="btn btn-p" onclick="guardarOMAR()" style="width:100%">Confirmar OMAR →</button>
+        <button class="btn btn-g" onclick="verMuestreos()" id="btnVerMuestreos" style="width:100%;font-size:13px">Ver muestreos guardados</button>
       </div>
     </div>
   </div>
@@ -1040,8 +1041,10 @@ const CADENA_DATA={
   'TOX.AG.':{pres:'4', vol:'40',   env:'10', ph:'N/A'},
   'CLORU.':{pres:'4',  vol:'500',  env:'4',  ph:'N/A'},
   'CR.HEX.':{pres:'4', vol:'250',  env:'11', ph:'N/A'},
+  'TOX.AGUDA':{pres:'4',vol:'40', env:'10', ph:'N/A'},
+  'CLORUROS':{pres:'4', vol:'500', env:'4',  ph:'N/A'},
 };
-const CADENA_SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AG.'];
+const CADENA_SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AGUDA'];
 
 function buildCusTable(){
   // Active params from tomas
@@ -1049,15 +1052,17 @@ function buildCusTable(){
     ...tomas.flatMap(t=>[...t.params]),
     ...CADENA_SIMPLES
   ]);
-  const allParams=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','H.HELM','COLOR','E.COLI','TOX.AG.','CLORU.','CR.HEX.'];
+  const allParams=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','H.HELM','COLOR','E.COLI','TOX.AGUDA','CLORUROS','CR.HEX.'];
 
   // Build header
   document.getElementById('ctHead').innerHTML=
-    `<th class="sth">Parámetro</th>`+
-    allParams.map(p=>{
-      const active=activeSet.has(p);
-      const isS=CADENA_SIMPLES.includes(p);
-      return `<th style="background:${active?(isS?'#d2eee8':'#e8eef5'):'#f0f2f5'};color:${active?(isS?'#007a60':'#0a1628'):'#aaa'}">${p}</th>`;
+    '<th class="sth">Parámetro</th>'+
+    allParams.map(function(p){
+      var active=activeSet.has(p);
+      var isS=CADENA_SIMPLES.includes(p);
+      var bg=active?(isS?'#d2eee8':'#e8eef5'):'#f0f2f5';
+      var tc=active?(isS?'#007a60':'#0a1628'):'#aaa';
+      return '<th style="background:'+bg+';color:'+tc+'">'+p+'</th>';
     }).join('');
 
   // Build rows
@@ -1071,28 +1076,26 @@ function buildCusTable(){
     ['A Sucursal',     p=>''],
   ];
 
-  document.getElementById('ctBody').innerHTML=ROWS.map(([ lbl,fn],ri)=>
-    `<tr>
-      <td class="stl" style="font-weight:700;font-size:11px">${lbl}</td>
-      ${allParams.map((p,ci)=>{
-        const active=activeSet.has(p);
-        const isS=CADENA_SIMPLES.includes(p);
-        const val=fn(p);
-        const id=`cc_${ri}_${ci}`;
-        if(!active){
-          // Cancelled cell - gray with diagonal
-          return`<td style="background:#e4e8f0;position:relative;overflow:hidden">
-            <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,transparent,transparent 4px,rgba(0,0,0,.06) 4px,rgba(0,0,0,.06) 5px)"></div>
-          </td>`;
-        }
-        if(ri>=5){
-          // Editable rows
-          return`<td><input id="${id}" type="text" style="width:100%;border:none;background:${isS?'#e8f5f0':'#fff'};text-align:center;font-size:11px;padding:2px" placeholder="—"></td>`;
-        }
-        return`<td style="text-align:center;font-weight:700;font-size:12px;background:${isS?'#d2eee8':'#fff'};color:${isS?'#007a60':'#334155'}">${val}</td>`;
-      }).join('')}
-    </tr>`
-  ).join('');
+  document.getElementById('ctBody').innerHTML=ROWS.map(function(rowDef,ri){
+    var lbl=rowDef[0], fn=rowDef[1];
+    var cells=allParams.map(function(p,ci){
+      var active=activeSet.has(p);
+      var isS=CADENA_SIMPLES.includes(p);
+      var val=fn(p);
+      var id='cc_'+ri+'_'+ci;
+      if(!active){
+        return '<td style="background:#e4e8f0;position:relative;overflow:hidden"><div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,transparent,transparent 4px,rgba(0,0,0,.06) 4px,rgba(0,0,0,.06) 5px)"></div></td>';
+      }
+      if(ri>=5){
+        var bg=isS?'#e8f5f0':'#fff';
+        return '<td><input id="'+id+'" type="text" style="width:100%;border:none;background:'+bg+';text-align:center;font-size:11px;padding:2px" placeholder="—"></td>';
+      }
+      var bg2=isS?'#d2eee8':'#fff';
+      var tc=isS?'#007a60':'#334155';
+      return '<td style="text-align:center;font-weight:700;font-size:12px;background:'+bg2+';color:'+tc+'">'+val+'</td>';
+    });
+    return '<tr><td class="stl" style="font-weight:700;font-size:11px">'+lbl+'</td>'+cells.join('')+'</tr>';
+  }).join('');
 }
 function setTransp(t){
   document.getElementById('hb').classList.toggle('on',t==='hielera');
@@ -1542,8 +1545,8 @@ async function buildPDF(){
   doc.text('REGISTRO DE TOMAS — PARÁMETROS DE CAMPO',M+4,y+7.5);
   y+=11;
 
-  const PARAMS=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','H.HELM','COLOR','E.COLI','TOX.AG.','CLORU.','CR.HEX.','OTROS'];
-  const SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AG.'];
+  const PARAMS=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','H.HELM','COLOR','E.COLI','TOX.AGUDA','CLORUROS','CR.HEX.','OTROS'];
+  const SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AGUDA'];
   const fixW=[26,34,22,22,28,30,30,38,34,28,26,26]; // 12 cols = 344
   const fixSum=fixW.reduce((a,b)=>a+b,0);
   const pW=Math.floor((CW-fixSum)/PARAMS.length); // ~18.4
@@ -2216,7 +2219,7 @@ async function buildPDFCliente(){
     'NO3':'H2SO4','H.HELM':'Formaldehido','COLOR':'N/A',
     'E.COLI':'Bolsa c/Tios.','TOX.AG.':'Bolsa','CLORU.':'N/A','CR.HEX.':'N/A'
   };
-  const SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AG.'];
+  const SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AGUDA'];
   const allP=[...new Set([...tomas.flatMap(t=>[...t.params]),...SIMPLES])];
   const CLW=100,CCW=105,CTW=Math.floor((CW-CLW-CCW)/6);
 
@@ -2379,6 +2382,7 @@ async function buildPDFCadena(){
   const MGRAY=[192,202,216],LGRAY=[232,238,245],DGRAY=[60,72,88];
   const WHITE=[255,255,255],TEAL=[0,122,96],TEAL_L=[210,238,228];
   const AMBER=[255,251,224],AMBER2=[255,243,176];
+  const AMBER_TXT=[80,60,0],BLACK=[0,0,0];
 
   const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
   const now=new Date();
@@ -2386,8 +2390,8 @@ async function buildPDFCadena(){
   const tStr=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
 
   // ── DATA ──
-  const PARAMS=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','H.HELM','COLOR','E.COLI','TOX.AG.','CLORU.','CR.HEX.','OTROS'];
-  const SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AG.'];
+  const PARAMS=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','H.HELM','COLOR','E.COLI','TOX.AGUDA','CLORUROS','CR.HEX.','OTROS'];
+  const SIMPLES=['GYA','CTYF','ENTE.','E.COLI','TOX.AGUDA'];
   const DATA={
     'FQ':{pres:'1',vol:'4000',env:'3',ph:'<2'},
     'TOC':{pres:'2',vol:'1000',env:'8',ph:'>12'},
@@ -2410,6 +2414,8 @@ async function buildPDFCadena(){
     'TOX.AG.':{pres:'4',vol:'40',env:'10',ph:'N/A'},
     'CLORU.':{pres:'4',vol:'500',env:'4',ph:'N/A'},
     'CR.HEX.':{pres:'4',vol:'250',env:'11',ph:'N/A'},
+    'TOX.AGUDA':{pres:'4',vol:'40',env:'10',ph:'N/A'},
+    'CLORUROS':{pres:'4',vol:'500',env:'4',ph:'N/A'},
     'OTROS':{pres:'',vol:'',env:'',ph:''},
   };
 
@@ -2554,7 +2560,7 @@ async function buildPDFCadena(){
   const notaH=18;
   fillRect(M,y,CW,notaH,AMBER);
   outerRect(M,y,CW,notaH);
-  doc.setTextColor([80,60,0]);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
+  doc.setTextColor(...AMBER_TXT);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
   doc.text('PRESERVACIÓN:',M+3,y+6.5);
   doc.setFont('helvetica','normal');doc.setFontSize(4.5);
   doc.text('1-H₂SO₄  2-NaOH  3-K₂Cr₂O₇25%  4-Hielo4°C  5-NA  6-HNO₃  7-Bolsas c/Tiosulfato  8-HCl  9-HNO₃Sup  10-H₂SO₄25%  11-Bolsas s/Tiosulfato  12-Dil.Buffer  13-Formaldehído10%  14-Otro:_____',M+38,y+6.5);
