@@ -154,15 +154,25 @@ function addLogoProportional(doc, logo, x, y, maxW, maxH){
 }
 
 const PARAMS_TOMA=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','HELM','CLR','ECOL','TOX','CLOR','CrHx','OTRS'];
-const CONS_O=[['1','H2SO4'],['2','NaOH'],['3','K2Cr2O7 25%'],['4','Hielo 4C'],['5','NA'],['6','HNO3'],['7','Bolsa c/tios.'],['8','HCl'],['9','HNO3 Sup.'],['10','H2SO4 25%'],['11','Bolsa s/tios.'],['12','Buffer'],['13','Formald.'],['14','Otro']];
-const ENV_O=[['1','Vidrio BA 1L'],['2','Plást 1L'],['3','Plást 4L'],['4','Plást 500mL'],['5','Plást 5L'],['6','Bolsa 300mL'],['7','Bolsa+Tios 300mL'],['8','V.Amb 1L'],['9','Bolsa+Tios 100mL'],['10','V.Amb 40mL'],['11','V.Amb 250mL'],['12','Bolsa 100mL'],['13','Plást 2L']];
+const CONS_O=[['1','H2SO4'],['2','NaOH'],['3','K2Cr2O7 25%'],['4','Hielo 4C'],['5','NA'],['6','HNO3'],['7','Tiosulfato'],['8','HCl'],['9','HNO3 Sup.'],['10','H2SO4 25%'],['12','Buffer'],['13','Formald.'],['14','Otro']];
+const ENV_O=[['1','Vidrio BA 1L'],['2','Plást 1L'],['3','Plást 4L'],['4','Plást 500mL'],['5','Plást 5L'],['6','Bolsa Est. 300mL'],['8','V.Amb 1L'],['9','Bolsa Est. 100mL'],['10','V.Amb 40mL'],['11','V.Amb 250mL'],['13','Plást 2L']];
 const VOLS={FQ:4000,TOC:1000,Hg:500,MP:500,CIAN:1000,'FOS.':500,SAAM:1000,GYA:1000,DQO:500,DBO5:1000,'N.TOT':2000,CTYF:100,'ENTE.':250,NO2:500,NO3:500,HELM:5000,CLR:250,ECOL:100,TOX:40,CLOR:500,CrHx:500,OTRS:500};
 
-let omar={},tomas=[],tid=1,analitosSel=new Set(),sigData=null,toastT;
+let omar={},tomas=[],tid=1,analitosSel=new Set(),sigData=null,sigData2=null,toastT;
+let lastPDFBlob=null,lastPDFClienteBlob=null,lastPDFCadenaBlob=null;
 
 // ── INIT ──
-window.addEventListener('DOMContentLoaded',()=>{
+
+// ── PWA SERVICE WORKER ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
+window.addEventListener('DOMContentLoaded',async ()=>{
   document.getElementById('o_fecha').value=new Date().toISOString().split('T')[0];
+  await refreshCache();
+  renderHome();
   loadSaved();
 });
 
@@ -190,19 +200,199 @@ function loadSaved(){
       if(analitosSel.has(el.dataset.a))el.classList.add('on');
     });
     document.getElementById('acnt').textContent=analitosSel.size+' seleccionados';
-    showOmarRes();
+    renderHome();
   }catch(e){console.error(e);}
 }
 
 // ── PAGE NAV ──
+const PAGES=['pgHome','pg0','pg1'];
 function showPage(n){
-  document.querySelectorAll('.page').forEach((p,i)=>p.classList.toggle('on',i===n));
+  PAGES.forEach((id,i)=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',i===n);});
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
+function goHome(){
+  closeFabMenu();
+  renderHome();
+  showPage(0);
+}
+
+function iniciarNuevoMuestreo(){
+  // Limpiar cualquier modal o overlay que pueda estar activo
+  document.getElementById('modalMuestreos')?.remove();
+  closeFabMenu();
+  saveMuestreoActual();
+  // Reset estado
+  omar={};tomas=[];sigData=null;sigData2=null;
+  lastPDFBlob=null;lastPDFClienteBlob=null;lastPDFCadenaBlob=null;
+  // Limpiar solo el formulario OMAR
+  document.querySelectorAll('#omarForm input,#omarForm select,#omarForm textarea').forEach(el=>{
+    if(el.type==='checkbox'||el.type==='radio')el.checked=false;
+    else el.value='';
+  });
+  // Restaurar fecha de hoy
+  const fd=document.getElementById('o_fecha');
+  if(fd)fd.value=new Date().toISOString().split('T')[0];
+  // Limpiar analitos
+  analitosSel=new Set();
+  document.querySelectorAll('.ai.on').forEach(el=>el.classList.remove('on'));
+  const acnt=document.getElementById('acnt');
+  if(acnt)acnt.textContent='0 seleccionados';
+  // Limpiar firmas
+  ['sigCanvas','sigCanvas2'].forEach(id=>{
+    const cv=document.getElementById(id);
+    if(cv)cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+  });
+  ['cvswrap','cvswrap2'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.classList.remove('signed');
+  });
+  // Limpiar omar global
+  omar={};
+  localStorage.removeItem('aarms_omar');
+  // Limpiar pill
+  const topOmar=document.getElementById('topOmar');
+  const topOmar2=document.getElementById('topOmar2');
+  if(topOmar)topOmar.textContent='—';
+  if(topOmar2)topOmar2.textContent='—';
+  // Mostrar form, ocultar resumen
+  const form=document.getElementById('omarForm');
+  const res=document.getElementById('omarRes');
+  if(form)form.style.display='block';
+  if(res)res.style.display='none';
+  // Resetear tipo
+  const tbSimp=document.getElementById('tb_simp');
+  const tbComp=document.getElementById('tb_comp');
+  if(tbSimp){tbSimp.classList.remove('btn-p');tbSimp.classList.add('btn-g');}
+  if(tbComp){tbComp.classList.remove('btn-p');tbComp.classList.add('btn-g');}
+  const intField=document.getElementById('intField');
+  const tomasField=document.getElementById('tomasField');
+  if(intField)intField.style.display='none';
+  if(tomasField)tomasField.style.display='none';
+  document.querySelectorAll('#intChips .chip').forEach(c=>c.classList.remove('on'));
+  renderHome();
+  showPage(1);
+}
+
+function renderHome(){
+  const lista=getMuestreos();
+  const cnt=document.getElementById('homeCnt');
+  const div=document.getElementById('homeLista');
+  if(!cnt||!div)return;
+  cnt.textContent=lista.length;
+  if(lista.length===0){
+    div.innerHTML='<div style="text-align:center;padding:24px;color:var(--g2);font-size:13px">Sin muestreos guardados aún</div>';
+    return;
+  }
+  div.innerHTML='';
+  lista.forEach(m=>{
+    const omarObj=m.omar?JSON.parse(m.omar):{};
+    const nTomas=m.tomas?m.tomas.length:0;
+    const ntotal=parseInt(omarObj.ntomas)||0;
+    const tieneFlujoPend=m.tomas?m.tomas.some(t=>!t.ls):false;
+    const tieneLab=omarObj.lab&&(omarObj.lab.tnom||omarObj.lab.renom);
+    const tieneSig=m.sigData&&m.sigData.length>10;
+    let estado,color,dot;
+    if(!nTomas){estado='Sin tomas';color='var(--g2)';dot='#3d6080';}
+    else if(tieneFlujoPend){estado='En campo';color='var(--amber)';dot='#fbbf24';}
+    else if(!tieneSig){estado='Pendiente firma';color='#a78bfa';dot='#a78bfa';}
+    else if(!tieneLab){estado='Pendiente lab';color='var(--acc)';dot='#4a9eff';}
+    else{estado='Completo';color='var(--green)';dot='#86efac';}
+    const fecha=omarObj.fecha||m.fecha||'';
+    const fmtFecha=fecha?new Date(fecha+'T00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):'—';
+    const el=document.createElement('div');
+    el.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--ln);cursor:pointer;-webkit-tap-highlight-color:transparent';
+    el.innerHTML=`
+      <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;box-shadow:0 0 6px ${dot}88"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">OMAR-${m.folio||'—'} · ${omarObj.empresa||'—'}</div>
+        <div style="font-size:11px;color:var(--g1);margin-top:2px">${fmtFecha} · ${nTomas}${ntotal?'/'+ntotal:''} tomas · <span style="color:${color}">${estado}</span></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--g2)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <button class="del-btn" data-id="${m.id}" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;color:#f87171;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>`;
+    el.addEventListener('click',e=>{
+      const delBtn=e.target.closest('.del-btn');
+      if(delBtn){
+        e.stopPropagation();
+        const mid=delBtn.dataset.id;
+        if(confirm('¿Eliminar este muestreo? No se puede deshacer.')){
+          eliminarMuestreo(isNaN(mid)?mid:parseInt(mid));
+        }
+        return;
+      }
+      cargarMuestreo(m.id);
+    });
+    el.addEventListener('touchstart',()=>el.style.background='var(--bg3)',{passive:true});
+    el.addEventListener('touchend',()=>el.style.background='',{passive:true});
+    div.appendChild(el);
+  });
+}
+
+function cargarMuestreo(id){
+  const lista=getMuestreos();
+  const m=lista.find(x=>String(x.id)===String(id));
+  if(!m){toast('No se encontró el registro','r');return;}
+  if(m.omar){
+    omar=JSON.parse(m.omar);
+    localStorage.setItem('aarms_omar',m.omar);
+    analitosSel=new Set(omar.analitos||[]);
+    document.querySelectorAll('.ai').forEach(el=>{
+      el.classList.toggle('on',analitosSel.has(el.dataset.a));
+    });
+    document.getElementById('acnt').textContent=analitosSel.size+' seleccionados';
+  }
+  tomas=(m.tomas||[]).map(t=>({...t,params:new Set(t.params||[])}));
+  sigData=m.sigData||null;
+  sigData2=m.sigData2||null;
+  if(sigData){try{updSig&&updSig();}catch(e){}}
+  if(sigData2){try{updSig2&&updSig2();}catch(e){}}
+  document.getElementById('modalMuestreos')?.remove();
+  loadCampoFromOMAR();
+  buildCusTable();
+  renderTomas();
+  updTCnt();
+  showPage(2);
+  goSec(0);
+  toast('Muestreo cargado ✓','g');
+}
+
+function abrirListaMuestreos(){
+  goHome();
+  setTimeout(()=>{
+    const el=document.getElementById('homeLista');
+    if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+  },200);
+}
+
+function closeFabMenu(){
+  const m=document.getElementById('fabMenu');
+  const o=document.getElementById('fabOverlay');
+  if(m)m.classList.remove('menu-open');
+  if(o)o.style.display='none';
+}
+
+function toggleFabMenu(){
+  const menu=document.getElementById('fabMenu');
+  const overlay=document.getElementById('fabOverlay');
+  if(!menu)return;
+  const isOpen=menu.classList.contains('menu-open');
+  menu.classList.toggle('menu-open',!isOpen);
+  if(overlay)overlay.style.display=isOpen?'none':'block';
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closeFabMenu();
+});
+
+
 // ── SECTION NAV (dentro de pg1) ──
+const SECS=['sec0','sec1','sec2'];
 function goSec(n){
-  document.querySelectorAll('#pg1 .sec').forEach((s,i)=>s.classList.toggle('on',i===n));
+  SECS.forEach((id,i)=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',i===n);});
   document.querySelectorAll('#stepsBar .stp').forEach((t,i)=>{
     t.classList.remove('on','done');
     if(i<n)t.classList.add('done');
@@ -213,6 +403,7 @@ function goSec(n){
 }
 
 // ── OMAR ──
+const TOMAS_POR_INTERVALO={'<4h':2,'4-8h':4,'8-12h':4,'12-18h':6,'18-24h':6};
 function setTipo(t,silent){
   document.getElementById('o_tipo').value=t;
   document.getElementById('tb_simp').classList.toggle('btn-p',t==='Simple');
@@ -220,14 +411,56 @@ function setTipo(t,silent){
   document.getElementById('tb_comp').classList.toggle('btn-p',t==='Compuesto');
   document.getElementById('tb_comp').classList.toggle('btn-g',t!=='Compuesto');
   document.getElementById('intField').style.display=t==='Compuesto'?'block':'none';
+  document.getElementById('tomasField').style.display=t==='Simple'?'block':'none';
+  if(t==='Compuesto'){
+    document.getElementById('o_ntomas').value='';
+    document.getElementById('tomasAuto').textContent='';
+  }
 }
 function setInt(el,v){
   document.querySelectorAll('#intChips .chip').forEach(c=>c.classList.remove('on'));
-  el.classList.add('on');document.getElementById('o_int').value=v;
+  el.classList.add('on');
+  document.getElementById('o_int').value=v;
+  const n=TOMAS_POR_INTERVALO[v]||0;
+  document.getElementById('o_ntomas').value=n;
+  const lbl=document.getElementById('tomasAuto');
+  if(lbl)lbl.textContent=n+' tomas automáticas para intervalo '+v;
 }
+// Metales que activan MP automáticamente (excepto Hg y Cromo Hexavalente)
+const MP_TRIGGER=['Aluminio','Arsénico','Bario','Cadmio','Cobre','Cromo Total','Fierro','Níquel','Plata','Plomo','Zinc'];
+// Analitos que activan FQ automáticamente
+const FQ_TRIGGER=['Sólidos Susp. Totales','Sólidos Sedimentables'];
+
+function autoSelect(key, activate){
+  const el=document.querySelector(`[data-a="${key}"]`);
+  if(!el) return;
+  if(activate && !analitosSel.has(key)){
+    analitosSel.add(key);
+    el.classList.add('on');
+  } else if(!activate && analitosSel.has(key)){
+    // Solo desactivar automático si no hay otros triggers activos
+    const stillNeeded = activate;
+    if(!stillNeeded){
+      analitosSel.delete(key);
+      el.classList.remove('on');
+    }
+  }
+}
+
 function togA(el,a){
-  if(analitosSel.has(a)){analitosSel.delete(a);el.classList.remove('on');}
-  else{analitosSel.add(a);el.classList.add('on');}
+  if(analitosSel.has(a)){
+    analitosSel.delete(a);
+    el.classList.remove('on');
+  } else {
+    analitosSel.add(a);
+    el.classList.add('on');
+  }
+  // Lógica automática FQ
+  const needsFQ=FQ_TRIGGER.some(t=>analitosSel.has(t));
+  autoSelect('FQ', needsFQ);  // FQ es parámetro de cadena, marcamos visualmente
+  // Lógica automática MP
+  const needsMP=MP_TRIGGER.some(t=>analitosSel.has(t));
+  autoSelect('MP', needsMP);
   document.getElementById('acnt').textContent=analitosSel.size+' seleccionados';
 }
 document.getElementById('o_norma').addEventListener('change',function(){
@@ -242,16 +475,33 @@ function getNorma(){
 }
 
 function guardarOMAR(){
-  const g=id=>document.getElementById(id).value.trim();
-  if(!g('o_omar')||!g('o_muest')||!g('o_emp')||!g('o_sitio')||!g('o_tipo')){
-    toast('Completa los campos obligatorios (*)','w');return;
+  const g=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
+  // Limpiar marcas anteriores
+  ['o_omar','o_muest','o_emp','o_sitio'].forEach(id=>{
+    const e=document.getElementById(id);
+    if(e)e.style.borderColor='';
+  });
+  const tipoEl=document.getElementById('tb_simp');
+  let faltantes=[];
+  if(!g('o_omar')){faltantes.push('Folio OMAR');const e=document.getElementById('o_omar');if(e)e.style.borderColor='#f87171';}
+  if(!g('o_emp')){faltantes.push('Empresa');const e=document.getElementById('o_emp');if(e)e.style.borderColor='#f87171';}
+  if(!g('o_muest')){faltantes.push('Muestreador');const e=document.getElementById('o_muest');if(e)e.style.borderColor='#f87171';}
+  if(!g('o_sitio')){faltantes.push('Sitio de muestreo');const e=document.getElementById('o_sitio');if(e)e.style.borderColor='#f87171';}
+  if(!g('o_tipo')){faltantes.push('Tipo de muestreo (Simple/Compuesto)');}
+  if(faltantes.length>0){
+    toast('Faltan: '+faltantes.join(', '),'w');
+    return;
   }
-  omar={folio:g('o_omar'),ssar:g('o_ssar'),muestreador:g('o_muest'),empresa:g('o_emp'),
+  omar={folio:g('o_omar'),ssar:g('o_ssar'),muestreador:g('o_muest'),elaboro:g('o_elab'),empresa:g('o_emp'),
     contacto:g('o_cont'),puesto:g('o_puest'),direccion:g('o_dir'),municipio:g('o_mun'),
     telefono:g('o_tel'),sitio:g('o_sitio'),idmuestra:g('o_idm'),norma:getNorma(),
     mat:document.getElementById('o_mat').value,fecha:g('o_fecha'),tipo:g('o_tipo'),
     intervalo:g('o_int'),ndesc:g('o_ndesc'),ntomas:g('o_ntomas'),
     analitos:[...analitosSel],reglas:g('o_reglas'),ts:Date.now()};
+  // Limpiar bordes rojos al guardar exitoso
+  ['o_omar','o_muest','o_emp','o_sitio'].forEach(id=>{
+    const e=document.getElementById(id);if(e)e.style.borderColor='';
+  });
   localStorage.setItem('aarms_omar',JSON.stringify(omar));
   showOmarRes();
   toast('OMAR guardada ✓','g');
@@ -275,14 +525,48 @@ function editOMAR(){
   document.getElementById('omarForm').style.display='block';
   document.getElementById('omarRes').style.display='none';
 }
+// Mapa de analitos OMAR → parámetros de hoja de campo
+const ANALITO_A_PARAM={
+  'Sólidos Susp. Totales':'FQ','Sólidos Sedimentables':'FQ',
+  'Acidez':'FQ','Alcalinidad Total':'FQ','Bicarbonato':'FQ',
+  'Calcio':'FQ','Carbonato':'FQ','Cloro':'FQ','Cloro Libre':'FQ',
+  'Conductividad Eléctrica':'FQ','DBO5':'DBO5','DQO':'DQO','COT':'TOC',
+  'Dureza Ca':'FQ','Dureza Mg':'FQ','Dureza Total':'FQ',
+  'Fluoruros':'FQ','Fosfatos':'FOS.','Fósforo Total':'FOS.',
+  'Grasas y Aceites':'GYA','Magnesio':'FQ','Materia Flotante':'FQ',
+  'Nitratos':'NO3','Nitritos':'NO2','Nitrógeno Amoniacal':'N.TOT',
+  'NTK':'N.TOT','Oxígeno Disuelto':'FQ','pH':'FQ',
+  'SAAM':'SAAM','Salinidad':'FQ','SDT':'FQ','Color':'CLR',
+  'Cloruros':'CLOR','Sodio':'FQ','Sulfatos':'FQ','Temperatura':'FQ',
+  'Toxicidad Aguda':'TOX','Turbidez':'FQ',
+  'Coliformes Fecales':'CTYF','Coliformes Totales':'CTYF',
+  'E. Coli':'ECOL','E.coli':'ECOL','Enterobacterias':'CTYF',
+  'Enterococos':'ENTE.','Huevos Helminto':'HELM',
+  'Salmonella spp.':'CTYF','Vibrio Cholerae':'CTYF',
+  'Aluminio':'MP','Arsénico':'MP','Bario':'MP','Cadmio':'MP',
+  'Cianuro':'CIAN','Cobre':'MP','Cromo Hexavalente':'CrHx',
+  'Cromo Total':'MP','Fierro':'MP','Manganeso':'MP',
+  'Mercurio':'Hg','Níquel':'MP','Plata':'MP','Plomo':'MP','Zinc':'MP',
+};
+
+function getParamsFromOMAR(){
+  const params=new Set();
+  (omar.analitos||[]).forEach(a=>{
+    const p=ANALITO_A_PARAM[a];
+    if(p) params.add(p);
+  });
+  return params;
+}
+
 function irCampo(){
+  closeFabMenu();
   if(!omar.folio){toast('Primero confirma la OMAR','w');return;}
   loadCampoFromOMAR();
   buildCusTable();
-  showPage(1);
+  showPage(2);
   goSec(0);
 }
-function irOMAR(){showPage(0);}
+function irOMAR(){closeFabMenu();showPage(1);}
 
 // ── LOAD CAMPO FROM OMAR ──
 function loadCampoFromOMAR(){
@@ -302,13 +586,25 @@ function loadCampoFromOMAR(){
   document.getElementById('topOmar2').textContent='OMAR-'+(omar.folio||'—');
   const now=new Date().toISOString().slice(0,16);
   if(!document.getElementById('h_ini').value)document.getElementById('h_ini').value=now;
+  // Cargar datos de laboratorio si ya existen
+  if(omar.lab){
+    const l=omar.lab;
+    const sv=(id,v)=>{const e=document.getElementById(id);if(e&&v)e.value=v;};
+    sv('c_tnom',l.tnom);sv('c_tfir',l.tfir);sv('c_tfec',l.tfec);sv('c_thor',l.thor);
+    sv('c_inom',l.inom);sv('c_ifir',l.ifir);sv('c_ifec',l.ifec);sv('c_ihor',l.ihor);
+    sv('c_renom',l.renom);sv('c_refir',l.refir);sv('c_refec',l.refec);sv('c_rehor',l.rehor);
+    sv('c_fotar',l.fotar);sv('c_snom',l.snom);sv('c_sfec',l.sfec);sv('c_shor',l.shor);
+    sv('c_ltnom',l.ltnom);sv('c_ltfir',l.ltfir);sv('c_ltfec',l.ltfec);sv('c_lthor',l.lthor);
+    sv('c_sup',l.sup);
+  }
 }
 
 // ── TOMAS ──
 function addToma(){
   const id=tid++;
   const now=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',hour12:false});
-  tomas.push({id,hora:now,pct:'',ls:'',tamb:'',tagua:'',ph:'',mat:'',cond:'',color:'',olor:null,cloro:null,params:new Set()});
+  const params=getParamsFromOMAR(); // Pre-seleccionar params de la OMAR
+  tomas.push({id,hora:now,pct:'',ls:'',tamb:'',tagua:'',ph:'',mat:'',cond:'',color:'',olor:null,cloro:null,params});
   renderTomas();
   updTCnt();
   setTimeout(()=>{const b=document.getElementById('tb'+id);if(b)b.classList.add('op');},60);
@@ -326,14 +622,20 @@ function togP(tomaId,p){
     el.classList.toggle('on',t.params.has(el.dataset.p));
   });
 }
-function updTCnt(){document.getElementById('tcnt').textContent=tomas.length+' toma'+(tomas.length!==1?'s':'');}
+function updTCnt(){
+  const total=parseInt(omar.ntomas)||0;
+  const actual=tomas.length;
+  const txt=total>0?`${actual} de ${total} tomas`:`${actual} toma${actual!==1?'s':''}`;
+  const el=document.getElementById('tcnt');
+  if(el)el.textContent=txt;
+}
 function renderTomas(){
   const pGrid=PARAMS_TOMA.map(p=>`<div class="pm" onclick="togP(${0},'${p}')" data-p="${p}"><div class="pbox"><svg class="pchk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="pn">${p}</span></div>`).join('');
-  document.getElementById('tomasDiv').innerHTML=tomas.map(t=>`
+  document.getElementById('tomasDiv').innerHTML=tomas.map((t,idx)=>`
 <div class="toma">
   <div class="toma-h" onclick="togToma(${t.id})">
     <div class="toma-hl">
-      <span class="tbadge">T${t.id}</span>
+      <span class="tbadge">T${idx+1}</span>
       <span class="ttime">${t.hora}</span>
       <span class="${t.ph||t.tagua?'tok':'tpend'}">${t.ph?'✓ completa':'pendiente'}</span>
     </div>
@@ -459,6 +761,7 @@ function showGPSHelp(){
   document.body.appendChild(modal);
 }
 function irCustodia(){
+  closeFabMenu();
   if(tomas.length===0){toast('Agrega al menos una toma','w');return;}
   syncCampoToCustodia();
   buildCusTable();
@@ -474,32 +777,45 @@ function syncCampoToCustodia(){
 // ── CUSTODIA ──
 // Pre-filled data per analito (same as PDF)
 const CADENA_DATA={
-  'FQ'  :{pres:'1',  vol:'4000', env:'3',  ph:'<2'},
-  'TOC' :{pres:'2',  vol:'1000', env:'8',  ph:'>12'},
-  'Hg'  :{pres:'9',  vol:'500',  env:'4',  ph:'<2'},
-  'MP'  :{pres:'6',  vol:'500',  env:'4',  ph:'<2'},
-  'CIAN':{pres:'2',  vol:'1000', env:'2',  ph:'>12'},
-  'FOS.':{pres:'1',  vol:'500',  env:'4',  ph:'<2'},
-  'SAAM':{pres:'4',  vol:'1000', env:'2',  ph:'N/A'},
-  'GYA' :{pres:'1/8',vol:'1000', env:'1',  ph:'<2'},
-  'DQO' :{pres:'1',  vol:'500',  env:'4',  ph:'<2'},
-  'DBO5':{pres:'4',  vol:'1000', env:'2',  ph:'N/A'},
-  'N.TOT':{pres:'1', vol:'2000', env:'13', ph:'<2'},
-  'CTYF':{pres:'7',  vol:'100',  env:'9',  ph:'N/A'},
-  'ENTE.':{pres:'7', vol:'250',  env:'7',  ph:'N/A'},
-  'NO2' :{pres:'4',  vol:'500',  env:'4',  ph:'N/A'},
-  'NO3' :{pres:'1',  vol:'500',  env:'4',  ph:'<2'},
-  'HELM':{pres:'13', vol:'5000', env:'5',  ph:'N/A'},
-  'CLR' :{pres:'4',  vol:'250',  env:'11', ph:'N/A'},
-  'ECOL':{pres:'7',  vol:'100',  env:'9',  ph:'N/A'},
-  'TOX' :{pres:'4',  vol:'40',   env:'10', ph:'N/A'},
-  'CLOR':{pres:'4',  vol:'500',  env:'4',  ph:'N/A'},
-  'CrHx':{pres:'4',  vol:'250',  env:'11', ph:'N/A'},
-  'OTRS':{pres:'',   vol:'',     env:'',   ph:''},
+  'FQ'  :{pres:'4',     vol:'4000', env:'3',    ph:''},
+  'TOC' :{pres:'4/10',  vol:'1000', env:'8',    ph:'<2'},
+  'Hg'  :{pres:'4/9/3', vol:'500',  env:'4',    ph:'<2'},
+  'MP'  :{pres:'4/9',   vol:'500',  env:'4',    ph:'<2'},
+  'CIAN':{pres:'4/2',   vol:'1000', env:'2',    ph:'>12'},
+  'FOS.':{pres:'4',     vol:'500',  env:'4',    ph:''},
+  'SAAM':{pres:'4',     vol:'1000', env:'2',    ph:'<2'},
+  'GYA' :{pres:'4/1',   vol:'1000', env:'1',    ph:'<2'},
+  'DQO' :{pres:'4/1',   vol:'500',  env:'4',    ph:'<2'},
+  'DBO5':{pres:'4',     vol:'1000', env:'2',    ph:''},
+  'N.TOT':{pres:'4/1',  vol:'2000', env:'13',   ph:'<2'},
+  'CTYF':{pres:'4/7o11',vol:'100',  env:'12o9', ph:''},
+  'ENTE.':{pres:'4/7o11',vol:'250', env:'6o7',  ph:''},
+  'NO2' :{pres:'4',     vol:'500',  env:'4',    ph:''},
+  'NO3' :{pres:'4',     vol:'500',  env:'4',    ph:''},
+  'HELM':{pres:'4',     vol:'5000', env:'5',    ph:''},
+  'CLR' :{pres:'4',     vol:'250',  env:'11',   ph:''},
+  'ECOL':{pres:'4/7o11',vol:'100',  env:'12o9', ph:''},
+  'TOX' :{pres:'4',     vol:'40',   env:'10',   ph:''},
+  'CLOR':{pres:'4',     vol:'500',  env:'4',    ph:''},
+  'CrHx':{pres:'4/12',  vol:'500',  env:'4',    ph:'9'},
+  'OTRS':{pres:'',      vol:'',     env:'',     ph:''},
 };
 const CADENA_SIMPLES=['GYA','CTYF','ENTE.','ECOL','TOX'];
 
+// Detecta si alguna toma tiene cloro registrado como SI
+function tieneCloro(){
+  return tomas.some(t=>t.cloro===true);
+}
+
 function buildCusTable(){
+  const conCloro=tieneCloro();
+  // Actualizar dinámicamente según cloro
+  CADENA_DATA['CTYF'].pres=conCloro?'4/7':'4';
+  CADENA_DATA['CTYF'].env=conCloro?'9':'12';
+  CADENA_DATA['ENTE.'].pres=conCloro?'4/7':'4';
+  CADENA_DATA['ENTE.'].env=conCloro?'7':'6';
+  CADENA_DATA['ECOL'].pres=conCloro?'4/7':'4';
+  CADENA_DATA['ECOL'].env=conCloro?'9':'12';
   // Active params from tomas — solo los seleccionados por el usuario
   const activeSet=new Set([
     ...tomas.flatMap(t=>[...t.params])
@@ -523,7 +839,7 @@ function buildCusTable(){
     ['Cód. Preserv.',  p=>CADENA_DATA[p]?.pres||'—'],
     ['Volumen (mL)',    p=>CADENA_DATA[p]?.vol||'—'],
     ['Tipo de Envase', p=>CADENA_DATA[p]?.env||'—'],
-    ['N° Frascos',     p=>CADENA_DATA[p]?.env?'1':'—'],
+    ['N° Frascos',     p=>CADENA_DATA[p]?.env?((['GYA','CTYF','ENTE.','ECOL'].includes(p))?String(tomas.length||1):'1'):'—'],
     ['pH Preserv.',    p=>CADENA_DATA[p]?.ph||'—'],
     ['Analizó',        p=>''],
     ['A Sucursal',     p=>''],
@@ -557,6 +873,44 @@ function setTransp(t){
   document.getElementById('c_transp').value=t;
 }
 function irFirma(){goSec(2);toast('Custodia guardada ✓','g');}
+
+
+function checkCamposCompletos(){
+  const faltantes=[];
+  if(!omar.folio) faltantes.push('Folio OMAR');
+  if(!omar.empresa) faltantes.push('Empresa');
+  if(tomas.length===0) faltantes.push('Al menos una toma');
+  const tomasSinPH=tomas.filter(t=>!t.ph).length;
+  const tomasSinFlujo=tomas.filter(t=>!t.ls).length;
+  if(tomasSinPH>0) faltantes.push(`pH en ${tomasSinPH} toma(s)`);
+  if(tomasSinFlujo>0) faltantes.push(`Flujo en ${tomasSinFlujo} toma(s)`);
+  if(!sigData) faltantes.push('Firma del cliente');
+  return faltantes;
+}
+
+function genPDFConCheck(tipo){
+  const faltantes=checkCamposCompletos();
+  if(faltantes.length>0){
+    // Mostrar modal de advertencia
+    const modal=document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;background:rgba(7,8,15,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML=`
+      <div style="background:var(--bg2);border:1px solid var(--ln2);border-radius:16px;padding:24px;max-width:320px;width:100%">
+        <div style="font-family:var(--syne);font-size:16px;font-weight:800;color:var(--amber);margin-bottom:12px">⚠ Campos incompletos</div>
+        <div style="font-size:13px;color:var(--g1);margin-bottom:16px">Faltan los siguientes datos:</div>
+        <ul style="margin:0 0 20px 16px;color:var(--w);font-size:13px;line-height:2">
+          ${faltantes.map(f=>`<li>${f}</li>`).join('')}
+        </ul>
+        <div style="display:flex;gap:10px">
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:10px;border-radius:8px;background:var(--bg3);border:1px solid var(--ln2);color:var(--g1);cursor:pointer;font-family:var(--syne);font-weight:700">Cancelar</button>
+          <button onclick="this.closest('div[style*=fixed]').remove();genPDF('${tipo}')" style="flex:1;padding:10px;border-radius:8px;background:var(--amber);border:none;color:#000;cursor:pointer;font-family:var(--syne);font-weight:800">Generar igual</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    return;
+  }
+  genPDF(tipo);
+}
 
 // ── FIRMA ──
 function initCanvas(){
@@ -688,47 +1042,112 @@ function drawSig(doc,data,bx,by,bw,bh){
 
 
 // ── MULTI-MUESTREO SYSTEM ──
-const STORAGE_KEY = 'aarms_muestreos_v1';
+
+// ── INDEXEDDB ──
+const DB_NAME='aarms_db', DB_VER=1, STORE='muestreos';
+let _db=null;
+
+function openDB(){
+  return new Promise((res,rej)=>{
+    if(_db){res(_db);return;}
+    const req=indexedDB.open(DB_NAME,DB_VER);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains(STORE)){
+        const s=db.createObjectStore(STORE,{keyPath:'id'});
+        s.createIndex('ts','ts',{unique:false});
+      }
+    };
+    req.onsuccess=e=>{_db=e.target.result;res(_db);};
+    req.onerror=e=>rej(e);
+  });
+}
+
+function idbGetAll(){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,'readonly');
+    const req=tx.objectStore(STORE).getAll();
+    req.onsuccess=e=>res(e.target.result.sort((a,b)=>(b.ts||0)-(a.ts||0)));
+    req.onerror=e=>rej(e);
+  }));
+}
+
+function idbPut(record){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,'readwrite');
+    const req=tx.objectStore(STORE).put(record);
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e);
+  }));
+}
+
+function idbDelete(id){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,'readwrite');
+    const req=tx.objectStore(STORE).delete(id);
+    req.onsuccess=e=>res();
+    req.onerror=e=>rej(e);
+  }));
+}
 
 function getMuestreos(){
-  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]'); }
-  catch(e){ return []; }
+  // Sync fallback — returns cached or empty
+  return _cachedMuestreos||[];
+}
+let _cachedMuestreos=[];
+
+async function refreshCache(){
+  _cachedMuestreos=await idbGetAll();
+  // Migrar localStorage si existe
+  try{
+    const old=localStorage.getItem('aarms_muestreos_v1');
+    if(old){
+      const lista=JSON.parse(old);
+      for(const m of lista) await idbPut(m);
+      localStorage.removeItem('aarms_muestreos_v1');
+    }
+  }catch(e){}
+  return _cachedMuestreos;
 }
 
-function saveMuestreoActual(){
+async function saveMuestreoActual(){
   if(!omar.folio) return;
-  const lista = getMuestreos();
-  const id = omar.ts || Date.now();
-  const entry = {
-    id,
-    folio: omar.folio,
-    empresa: omar.empresa,
-    sitio: omar.idMuestra,
-    fecha: omar.fechaIni,
-    tipo: omar.tipo,
-    muestreador: omar.muestreador,
-    ts: id,
-    tomas: tomas.map(t=>({
-      id:t.id, hora:t.hora, ph:t.ph, cond:t.cond,
-      tagua:t.tagua, tamb:t.tamb, ls:t.ls, mat:t.mat,
-      color:t.color, olor:t.olor,
-      params:[...t.params]
-    })),
-    omar: JSON.stringify(omar),
-    sigData: sigData||null,
-    sigData2: sigData2||null,
+  const mid = omar.ts || Date.now();
+  const gv=elId=>{const e=document.getElementById(elId);return e?e.value.trim():'';};
+  omar.lab={
+    tnom:gv('c_tnom'),tfir:gv('c_tfir'),tfec:gv('c_tfec'),thor:gv('c_thor'),
+    inom:gv('c_inom'),ifir:gv('c_ifir'),ifec:gv('c_ifec'),ihor:gv('c_ihor'),
+    renom:gv('c_renom'),refir:gv('c_refir'),refec:gv('c_refec'),rehor:gv('c_rehor'),
+    fotar:gv('c_fotar'),snom:gv('c_snom'),sfec:gv('c_sfec'),shor:gv('c_shor'),
+    ltnom:gv('c_ltnom'),ltfir:gv('c_ltfir'),ltfec:gv('c_ltfec'),lthor:gv('c_lthor'),
+    sup:gv('c_sup'),
   };
-  const existing = lista.findIndex(m=>m.id===id);
-  if(existing>=0) lista[existing]=entry;
-  else lista.unshift(entry);
-  // Keep max 50 muestreos
-  if(lista.length>50) lista.splice(50);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
+  const entry={
+    id:mid, folio:omar.folio, empresa:omar.empresa,
+    fecha:omar.fecha, tipo:omar.tipo, muestreador:omar.muestreador, ts:mid,
+    tomas:tomas.map(t=>({
+      id:t.id,hora:t.hora,ph:t.ph,cond:t.cond,
+      tagua:t.tagua,tamb:t.tamb,ls:t.ls,mat:t.mat,
+      color:t.color,olor:t.olor,cloro:t.cloro,params:[...t.params]
+    })),
+    omar:JSON.stringify(omar),
+    sigData:sigData||null, sigData2:sigData2||null,
+  };
+  await idbPut(entry);
+  await refreshCache();
 }
 
-function soloGuardar(){
+async function eliminarMuestreo(id){
+  await idbDelete(id);
+  await refreshCache();
+  renderHome();
+  toast('Muestreo eliminado','g');
+}
+
+
+async function soloGuardar(){
   if(!omar.folio){toast('Primero confirma la OMAR','w');return;}
-  saveMuestreoActual();
+  await saveMuestreoActual();
   const btn=document.getElementById('btnGuardar');
   if(btn){
     const orig=btn.innerHTML;
@@ -741,142 +1160,15 @@ function soloGuardar(){
 }
 
 function nuevoMuestreo(){
-  // Save current before clearing
-  saveMuestreoActual();
-  // Clear everything
-  omar={};
-  tomas=[];
-  sigData=null; sigData2=null;
-  lastPDFBlob=null; lastPDFClienteBlob=null;
-  // Clear all form fields
-  document.querySelectorAll('input,select,textarea').forEach(el=>{
-    if(el.type==='checkbox'||el.type==='radio') el.checked=false;
-    else el.value='';
-  });
-  // Clear signatures
-  ['sigCanvas','sigCanvas2'].forEach(id=>{
-    const c=document.getElementById(id);
-    if(c) c.getContext('2d').clearRect(0,0,c.width,c.height);
-  });
-  ['cvswrap','cvswrap2'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.classList.remove('signed');
-  });
-  ['cvsover','cvsover2'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.classList.remove('hide');
-  });
-  ['sigst','sigst2'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.textContent='Sin firma';el.className='sigst';}
-  });
-  // Reset share row
-  const sr=document.getElementById('shareRow');
-  if(sr) sr.style.display='none';
-  // Go back to OMAR
-  localStorage.removeItem('aarms_omar');
-  showPage(0);
-  document.getElementById('omarForm').style.display='block';
-  document.getElementById('omarResumen').style.display='none';
-  // Update muestreos count button
-  try{
-    const lista=getMuestreos();
-    const btn=document.getElementById('btnVerMuestreos');
-    if(btn) btn.textContent=lista.length>0?`Ver muestreos guardados (${lista.length})`:'Ver muestreos guardados';
-  }catch(e){}
-  toast('Nuevo muestreo listo — '+getMuestreos().length+' guardado(s)','g');
+  iniciarNuevoMuestreo();
 }
 
 function verMuestreos(){
-  const lista = getMuestreos();
-  const modal = document.createElement('div');
-  modal.id = 'modalMuestreos';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(7,8,15,.95);z-index:9999;display:flex;flex-direction:column;padding:0;overflow:hidden';
-
-  const empty = lista.length===0;
-  modal.innerHTML = `
-    <div style="background:var(--bg2);border-bottom:1px solid var(--ln2);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-      <div style="font-family:var(--syne);font-size:18px;font-weight:800;color:var(--w)">Muestreos guardados</div>
-      <button onclick="document.getElementById('modalMuestreos').remove()" style="background:none;border:1px solid var(--g3);border-radius:8px;color:var(--g2);font-size:13px;padding:7px 14px;cursor:pointer">Cerrar</button>
-    </div>
-    <div style="flex:1;overflow-y:auto;padding:16px">
-      ${empty ? `
-        <div style="text-align:center;padding:60px 20px;color:var(--g2)">
-          <div style="font-size:40px;margin-bottom:12px">📋</div>
-          <div style="font-family:var(--syne);font-size:16px;font-weight:700;color:var(--g1);margin-bottom:8px">Sin muestreos guardados</div>
-          <div style="font-size:13px">Los muestreos se guardan automáticamente cuando generas un PDF o inicias uno nuevo.</div>
-        </div>
-      ` : lista.map((m,i) => {
-        const fecha = m.fecha ? m.fecha.replace('T',' ').substring(0,16) : '—';
-        const nTomas = m.tomas ? m.tomas.length : 0;
-        // Detectar si tiene datos incompletos
-        const tomasConFlujoPendiente = m.tomas ? m.tomas.filter(t=>!t.ls).length : 0;
-        const tomasConPhPendiente = m.tomas ? m.tomas.filter(t=>!t.ph).length : 0;
-        const incompleto = tomasConFlujoPendiente>0 || tomasConPhPendiente>0;
-        const pendientes = [];
-        if(tomasConFlujoPendiente>0) pendientes.push(`flujo en ${tomasConFlujoPendiente} toma${tomasConFlujoPendiente>1?'s':''}`);
-        if(tomasConPhPendiente>0) pendientes.push(`pH en ${tomasConPhPendiente} toma${tomasConPhPendiente>1?'s':''}`);
-        return `
-          <div style="background:var(--bg2);border:1px solid ${incompleto?'rgba(251,191,36,.3)':'var(--ln2)'};border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer" onclick="cargarMuestreo(${m.id})">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-              <div style="font-family:var(--syne);font-size:14px;font-weight:800;color:var(--w)">${m.empresa||'Sin empresa'}</div>
-              <div style="display:flex;gap:6px;align-items:center">
-                ${incompleto?`<div style="font-size:10px;color:#fbbf24;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);padding:2px 7px;border-radius:99px">⚠ Pendiente</div>`:`<div style="font-size:10px;color:#4ade80;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);padding:2px 7px;border-radius:99px">✓ Completo</div>`}
-                <div style="font-family:var(--dm);font-size:11px;color:var(--g2);background:var(--bg3);padding:3px 8px;border-radius:6px">OMAR-${m.folio||'—'}</div>
-              </div>
-            </div>
-            <div style="font-size:12px;color:var(--g2);margin-bottom:4px">${m.sitio||'—'} &nbsp;·&nbsp; ${m.tipo||'—'}</div>
-            <div style="display:flex;gap:12px;font-size:11px;color:var(--g3)">
-              <span>${fecha}</span>
-              <span>${nTomas} toma${nTomas!==1?'s':''}</span>
-              <span style="color:var(--accent)">${m.muestreador||'—'}</span>
-            </div>
-            ${incompleto?`<div style="margin-top:6px;font-size:11px;color:#fbbf24">⚠ Datos pendientes: ${pendientes.join(', ')}</div>`:''}
-            <div style="margin-top:10px;display:flex;gap:8px">
-              <button onclick="event.stopPropagation();cargarMuestreo(${m.id})" 
-                style="flex:1;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-family:var(--syne);font-size:12px;font-weight:700;cursor:pointer">
-                Abrir
-              </button>
-              <button onclick="event.stopPropagation();eliminarMuestreo(${m.id})" 
-                style="padding:8px 14px;background:none;border:1px solid rgba(248,113,113,.3);border-radius:8px;color:var(--red);font-size:12px;cursor:pointer">
-                Eliminar
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-  document.body.appendChild(modal);
-}
-
-function cargarMuestreo(id){
-  const lista = getMuestreos();
-  const entry = lista.find(m=>m.id===id);
-  if(!entry){ toast('No encontrado','w'); return; }
-  
-  // Restore omar
-  try{ 
-    omar = JSON.parse(entry.omar);
-    localStorage.setItem('aarms_omar', entry.omar);
-  }catch(e){ toast('Error al cargar','w'); return; }
-
-  // Restore tomas
-  tomas = (entry.tomas||[]).map(t=>({
-    ...t,
-    params: new Set(t.params||[])
-  }));
-
-  // Restore signatures
-  if(entry.sigData){ sigData=entry.sigData; updSig&&updSig(); }
-  if(entry.sigData2){ sigData2=entry.sigData2; updSig2&&updSig2(); }
-
-  // Close modal and go to hoja de campo
-  document.getElementById('modalMuestreos')?.remove();
-  loadCampoFromOMAR();
-  buildCusTable();
-  showPage(1);
-  toast('Muestreo cargado ✓','g');
+  goHome();
+  setTimeout(()=>{
+    const el=document.getElementById('homeLista');
+    if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
+  },200);
 }
 
 function eliminarMuestreo(id){
@@ -1743,13 +2035,30 @@ async function buildPDFCliente(){
 
   // ════════ CONSERVADORES ════════
   y=secH('Conservadores utilizados por toma',y);
+  const conCloroR=tomas.some(t=>t.cloro===true);
   const CMAP={
-    'FQ':'H2SO4','TOC':'NaOH','Hg':'HNO3 Sup.','MP':'HNO3',
-    'CIAN':'NaOH','FOS.':'H2SO4','SAAM':'N/A','GYA':'H2SO4/HCl',
-    'DQO':'H2SO4','DBO5':'Hielo 4C','N.TOT':'H2SO4',
-    'CTYF':'Bolsa c/Tios.','ENTE.':'Bolsa c/Tios.','NO2':'Hielo',
-    'NO3':'H2SO4','HELM':'Formaldehido','CLR':'N/A',
-    'ECOL':'Bolsa c/Tios.','TOX':'Bolsa','CLOR':'N/A','CrHx':'N/A','OTRS':'N/A'
+    'FQ'  :'Hielo 4C',
+    'TOC' :'Hielo/H2SO4 25%',
+    'Hg'  :'Hielo/HNO3 Sup/K2Cr2O7',
+    'MP'  :'Hielo/HNO3 Sup',
+    'CIAN':'Hielo/NaOH',
+    'FOS.':'Hielo',
+    'SAAM':'Hielo',
+    'GYA' :'Hielo/HCl',
+    'DQO' :'Hielo/H2SO4',
+    'DBO5':'Hielo',
+    'N.TOT':'Hielo/H2SO4',
+    'CTYF':conCloroR?'Hielo/Tiosulfato':'Hielo',
+    'ENTE.':conCloroR?'Hielo/Tiosulfato':'Hielo',
+    'NO2' :'Hielo',
+    'NO3' :'Hielo',
+    'HELM':'Hielo',
+    'CLR' :'Hielo',
+    'ECOL':conCloroR?'Hielo/Tiosulfato':'Hielo',
+    'TOX' :'Hielo',
+    'CLOR':'Hielo',
+    'CrHx':'Hielo/Dil.Buffer',
+    'OTRS':'N/A'
   };
   const SIMPLES=['GYA','CTYF','ENTE.','ECOL','TOX'];
   const allP=[...new Set([...tomas.flatMap(t=>[...t.params])])];
@@ -1880,7 +2189,6 @@ async function buildPDFCliente(){
 
 
 // ─── CADENA DE CUSTODIA PDF ───────────────────────────────────────────────
-let lastPDFCadenaBlob = null;
 
 function genCadena(){
   toast('Generando Cadena de Custodia...','');
@@ -1925,30 +2233,34 @@ async function buildPDFCadena(){
   // ── DATA ──
   const PARAMS=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','HELM','CLR','ECOL','TOX','CLOR','CrHx','OTRS'];
   const SIMPLES=['GYA','CTYF','ENTE.','ECOL','TOX'];
+  const conCloro=tomas.some(t=>t.cloro===true);
   const DATA={
-    'FQ'  :{pres:'1',  vol:'4000', env:'3', ph:'<2'},
-    'TOC' :{pres:'2',  vol:'1000', env:'8', ph:'>12'},
-    'Hg'  :{pres:'9',  vol:'500',  env:'4', ph:'<2'},
-    'MP'  :{pres:'6',  vol:'500',  env:'4', ph:'<2'},
-    'CIAN':{pres:'2',  vol:'1000', env:'2', ph:'>12'},
-    'FOS.':{pres:'1',  vol:'500',  env:'4', ph:'<2'},
-    'SAAM':{pres:'4',  vol:'1000', env:'2', ph:'N/A'},
-    'GYA' :{pres:'1/8',vol:'1000', env:'1', ph:'<2'},
-    'DQO' :{pres:'1',  vol:'500',  env:'4', ph:'<2'},
-    'DBO5':{pres:'4',  vol:'1000', env:'2', ph:'N/A'},
-    'N.TOT':{pres:'1', vol:'2000', env:'13',ph:'<2'},
-    'CTYF':{pres:'7',  vol:'100',  env:'9', ph:'N/A'},
-    'ENTE.':{pres:'7', vol:'250',  env:'7', ph:'N/A'},
-    'NO2' :{pres:'4',  vol:'500',  env:'4', ph:'N/A'},
-    'NO3' :{pres:'1',  vol:'500',  env:'4', ph:'<2'},
-    'HELM':{pres:'13', vol:'5000', env:'5', ph:'N/A'},
-    'CLR' :{pres:'4',  vol:'250',  env:'11',ph:'N/A'},
-    'ECOL':{pres:'7',  vol:'100',  env:'9', ph:'N/A'},
-    'TOX' :{pres:'4',  vol:'40',   env:'10',ph:'N/A'},
-    'CLOR':{pres:'4',  vol:'500',  env:'4', ph:'N/A'},
-    'CrHx':{pres:'4',  vol:'250',  env:'11',ph:'N/A'},
-    'OTRS':{pres:'',   vol:'',     env:'',  ph:''},
+    'FQ'  :{pres:'4',     vol:'4000', env:'3',    ph:''},
+    'TOC' :{pres:'4/10',  vol:'1000', env:'8',    ph:'<2'},
+    'Hg'  :{pres:'4/9/3', vol:'500',  env:'4',    ph:'<2'},
+    'MP'  :{pres:'4/9',   vol:'500',  env:'4',    ph:'<2'},
+    'CIAN':{pres:'4/2',   vol:'1000', env:'2',    ph:'>12'},
+    'FOS.':{pres:'4',     vol:'500',  env:'4',    ph:''},
+    'SAAM':{pres:'4',     vol:'1000', env:'2',    ph:'<2'},
+    'GYA' :{pres:'4/1',   vol:'1000', env:'1',    ph:'<2'},
+    'DQO' :{pres:'4/1',   vol:'500',  env:'4',    ph:'<2'},
+    'DBO5':{pres:'4',     vol:'1000', env:'2',    ph:''},
+    'N.TOT':{pres:'4/1',  vol:'2000', env:'13',   ph:'<2'},
+    'CTYF':{pres:conCloro?'4/7':'4',  vol:'100',  env:conCloro?'9':'12',  ph:''},
+    'ENTE.':{pres:conCloro?'4/7':'4', vol:'250',  env:conCloro?'7':'6',   ph:''},
+    'NO2' :{pres:'4',     vol:'500',  env:'4',    ph:''},
+    'NO3' :{pres:'4',     vol:'500',  env:'4',    ph:''},
+    'HELM':{pres:'4',     vol:'5000', env:'5',    ph:''},
+    'CLR' :{pres:'4',     vol:'250',  env:'11',   ph:''},
+    'ECOL':{pres:conCloro?'4/7':'4',  vol:'100',  env:conCloro?'9':'12',  ph:''},
+    'TOX' :{pres:'4',     vol:'40',   env:'10',   ph:''},
+    'CLOR':{pres:'4',     vol:'500',  env:'4',    ph:''},
+    'CrHx':{pres:'4/12',  vol:'500',  env:'4',    ph:'9'},
+    'OTRS':{pres:'',      vol:'',     env:'',     ph:''},
   };
+  // Parámetros cuyo número de frascos = número de tomas simples
+  const DYNAMIC_FRASCOS=['GYA','CTYF','ENTE.','ECOL'];
+  const nTomas=tomas.length||1;
 
   // Active params from tomas — solo los seleccionados
   const activeSet=new Set([...tomas.flatMap(t=>[...t.params])]);
@@ -2067,7 +2379,7 @@ async function buildPDFCadena(){
     ['COD. PRESERVACIÓN', p=>DATA[p]?.pres||'', AMBER2],
     ['VOLUMEN (mL)',       p=>DATA[p]?.vol||'',  LGRAY],
     ['TIPO DE ENVASE',    p=>DATA[p]?.env||'',  LGRAY],
-    ['No. DE FRASCOS',   p=>DATA[p]?.env?'1':'',LGRAY],
+    ['No. DE FRASCOS',   p=>DATA[p]?.env?(DYNAMIC_FRASCOS.includes(p)?String(nTomas):'1'):'',LGRAY],
     ['pH PRESERVACIÓN',  p=>DATA[p]?.ph||'',   LGRAY],
   ];
   // Filas abiertas — se llenan en laboratorio
@@ -2086,11 +2398,21 @@ async function buildPDFCadena(){
       const isS=SIMPLES.includes(p);
       const active=activeSet.has(p);
       if(active){
-        fillRect(px,y,PCOL,RH,isS?TEAL_L:[255,255,255]);
-        doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(px,y,PCOL,RH,'S');
-        if(val){
-          doc.setTextColor(...(isS?TEAL:DGRAY));doc.setFont('helvetica','bold');doc.setFontSize(5.5);
-          doc.text(String(val),px+PCOL/2,y+7.5,{align:'center'});
+        // Para pH: si está vacío ('') = cancelado con diagonal aunque esté activo
+        const isPH=lbl==='pH PRESERVACIÓN';
+        const showCancel=isPH&&val==='';
+        if(showCancel){
+          fillRect(px,y,PCOL,RH,[228,232,240]);
+          doc.setDrawColor(195,204,216);doc.setLineWidth(0.2);doc.rect(px,y,PCOL,RH,'S');
+          doc.setDrawColor(195,204,216);doc.setLineWidth(0.3);
+          doc.line(px+1,y+1,px+PCOL-1,y+RH-1);
+        }else{
+          fillRect(px,y,PCOL,RH,isS?TEAL_L:[255,255,255]);
+          doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(px,y,PCOL,RH,'S');
+          if(val){
+            doc.setTextColor(...(isS?TEAL:DGRAY));doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+            doc.text(String(val),px+PCOL/2,y+7.5,{align:'center'});
+          }
         }
       }else{
         // Cancelled
@@ -2151,11 +2473,10 @@ async function buildPDFCadena(){
     [['4-Hielo 4°C  ',false]],
     [['5-NA  ',false]],
     [['6-HNO',false],['3',true],['  ',false]],
-    [['7-Bolsas c/Tiosulfato  ',false]],
+    [['7-Tiosulfato  ',false]],
     [['8-HCl  ',false]],
     [['9-HNO',false],['3',true],[' Sup  ',false]],
     [['10-H',false],['2',true],['SO',false],['4',true],[' 25%  ',false]],
-    [['11-Bolsas s/Tiosulfato  ',false]],
     [['12-Dil.Buffer  ',false]],
     [['13-Formaldehido 10%  ',false]],
     [['14-Otro:_____',false]],
@@ -2166,22 +2487,55 @@ async function buildPDFCadena(){
   doc.setFont('helvetica','bold');doc.setFontSize(4.5);
   doc.text('TIPO ENVASE:',M+3,y+16);
   doc.setFont('helvetica','normal');doc.setFontSize(4.2);
-  doc.text('1-V.Ancho1L  2-Plast.1L  3-Plast.4L  4-Plast.500mL  5-Plast.5L  6-B.Est.300mL  7-B.Est.300mL c/Tios.  8-V.Amb.1L  9-B.Est.100mL c/Tios.  10-V.Amb.40mL  11-V.Amb.250mL  12-B.Est.100mL  13-Plast.2L',M+35,y+16);
+  doc.text('1-V.Ancho1L  2-Plast.1L  3-Plast.4L  4-Plast.500mL  5-Plast.5L  6-B.Est.300mL  8-V.Amb.1L  9-B.Est.100mL  10-V.Amb.40mL  11-V.Amb.250mL  13-Plast.2L',M+35,y+16);
   y+=notaH+2;
 
-  // ── FIRMAS MATRIZ ──
+  // ── FIRMAS MATRIZ — campos editables PDF ──
   const FW=CW/3;
   const firmaH=40;
-  [['TRANSPORTA Y ENTREGA EN MATRIZ:',LGRAY],['INSPECCIONA EN MATRIZ:',[255,255,255]],['RECIBE EN MATRIZ:',LGRAY]].forEach(([lbl,fill],i)=>{
+  const lab=omar.lab||{};
+  const fmtDate=v=>v?v.split('-').reverse().join('/'):'';
+  const fmtTime=v=>v||'';
+
+  // Helper para agregar campo de texto editable en el PDF
+  function addField(name, x, y, w, h, value='', fontSize=6){
+    doc.addField({
+      type:'text', name, x, y, w, h,
+      value: value||'',
+      fontSize,
+      fontName:'helvetica',
+      color:[0.2,0.2,0.3],
+      backgroundColor:[0.97,0.98,1],
+      borderColor:[0.7,0.78,0.88],
+      borderWidth:0.5,
+    });
+  }
+
+  [
+    {lbl:'TRANSPORTA Y ENTREGA EN MATRIZ:',fill:LGRAY,
+     nom:lab.tnom,fir:lab.tfir,fec:fmtDate(lab.tfec),hor:fmtTime(lab.thor),
+     pfx:'tm'},
+    {lbl:'INSPECCIONA EN MATRIZ:',fill:[255,255,255],
+     nom:lab.inom,fir:lab.ifir,fec:fmtDate(lab.ifec),hor:fmtTime(lab.ihor),
+     pfx:'im'},
+    {lbl:'RECIBE EN MATRIZ:',fill:LGRAY,
+     nom:lab.renom,fir:lab.refir,fec:fmtDate(lab.refec),hor:fmtTime(lab.rehor),
+     pfx:'rm'},
+  ].forEach(({lbl,fill,nom,fir,fec,hor,pfx},i)=>{
     const fx=M+i*FW;
     fillRect(fx,y,FW,firmaH,fill);
     outerRect(fx,y,FW,firmaH);
     doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
     doc.text(lbl,fx+4,y+8);
     doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6);
-    doc.text('NOMBRE: _______________________',fx+4,y+17);
-    doc.text('FIRMA:    _______________________',fx+4,y+26);
-    doc.text('FECHA: ______________  HORA: ______',fx+4,y+35);
+    doc.text('NOMBRE:',fx+4,y+17);
+    addField(pfx+'_nom',fx+28,y+10,FW-32,9,nom||'');
+    doc.text('FIRMA:',fx+4,y+26);
+    addField(pfx+'_fir',fx+22,y+19,FW-26,9,fir||'');
+    doc.text('FECHA:',fx+4,y+35);
+    addField(pfx+'_fec',fx+22,y+28,FW*0.5-4,9,fec);
+    doc.text('HORA:',fx+FW*0.5+4,y+35);
+    addField(pfx+'_hor',fx+FW*0.5+20,y+28,FW*0.5-24,9,hor);
   });
   y+=firmaH;
 
@@ -2192,7 +2546,7 @@ async function buildPDFCadena(){
   doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
   doc.text('RESPONSABLE DE MUESTREO:',M+4,y+9);
   doc.setFont('helvetica','normal');doc.setFontSize(6);
-  doc.text('NOMBRE: '+gv('mn_nom'),M+4,y+18);
+  doc.text('NOMBRE: '+(gv('mn_nom')||''),M+4,y+18);
   doc.text('FIRMA: _______________________________',M+4,y+27);
 
   const obsX=M+CW*0.36;
@@ -2200,38 +2554,68 @@ async function buildPDFCadena(){
   outerRect(obsX,y,CW*0.64,respH);
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
   doc.text('OBSERVACIONES:',obsX+4,y+9);
-  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6);
-  const obsText=gv('h_obs');
-  if(obsText)doc.text(obsText.substring(0,100),obsX+4,y+18);
+  addField('obs',obsX+4,y+10,CW*0.64-8,17,gv('c_obs')||gv('h_obs')||'');
   y+=respH;
 
-  // ── SUCURSAL ──
+  // ── SUCURSAL — también editable ──
   const sucH=38;
-  [['TRANSPORTA Y ENTREGA DE MUESTRAS Y OTAR — FOLIO: ________  EN SUCURSAL:',LGRAY],['INSPECCIONA EN SUCURSAL:',[255,255,255]],['RECIBIDO EN SUCURSAL:',LGRAY]].forEach(([lbl,fill],i)=>{
+  [
+    {lbl:'TRANSPORTA Y ENTREGA DE MUESTRAS Y OTAR — FOLIO:',fill:LGRAY,
+     nom:lab.snom,fec:fmtDate(lab.sfec),hor:fmtTime(lab.shor),fotar:lab.fotar,pfx:'st'},
+    {lbl:'INSPECCIONA EN SUCURSAL:',fill:[255,255,255],nom:'',fec:'',hor:'',fotar:'',pfx:'is'},
+    {lbl:'RECIBIDO EN SUCURSAL:',fill:LGRAY,nom:'',fec:'',hor:'',fotar:'',pfx:'rs'},
+  ].forEach(({lbl,fill,nom,fec,hor,fotar,pfx},i)=>{
     const fx=M+i*FW;
     fillRect(fx,y,FW,sucH,fill);
     outerRect(fx,y,FW,sucH);
     doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
-    const lblLines=doc.splitTextToSize(lbl,FW-8);
-    doc.text(lblLines,fx+4,y+8);
+    if(i===0){
+      doc.text(lbl,fx+4,y+7);
+      addField('fotar',fx+4,y+7,FW/2,7,fotar||'');
+      doc.text('EN SUCURSAL:',fx+FW/2+6,y+7);
+    } else {
+      doc.text(lbl,fx+4,y+7);
+    }
     doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6);
-    doc.text('NOMBRE: ___________________  FIRMA: ___________',fx+4,y+22);
-    doc.text('FECHA: ____________  HORA: _______',fx+4,y+31);
+    doc.text('NOMBRE:',fx+4,y+20);
+    addField(pfx+'_nom',fx+26,y+13,FW-60,8,nom||'');
+    doc.text('FIRMA:',fx+FW-54,y+20);
+    addField(pfx+'_fir',fx+FW-32,y+13,30,8,'');
+    doc.text('FECHA:',fx+4,y+30);
+    addField(pfx+'_fec',fx+24,y+23,FW*0.5-8,8,fec);
+    doc.text('HORA:',fx+FW*0.5+4,y+30);
+    addField(pfx+'_hor',fx+FW*0.5+20,y+23,FW*0.5-24,8,hor);
   });
   y+=sucH;
 
   // ── PIE FINAL ──
-  const pieH=22;
+  const pieH=28;
   fillRect(M,y,CW,pieH,LGRAY);
   outerRect(M,y,CW,pieH);
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
   doc.text('ENVÍO DE OTAR CON FOLIO:',M+4,y+8);
-  doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);
-  doc.text('____________  Y CCIAR CON FOLIO: ____________  A LABORATORIO MATRIZ',M+75,y+8);
-  doc.setFont('helvetica','normal');doc.setFontSize(5.5);
-  doc.text('PERSONA QUE TRANSPORTA EN LAB. MATRIZ: _______________________  FIRMA: ________________  FECHA: ____________  HORA: _______',M+4,y+16);
+  addField('otar_folio',M+68,y+1,40,9,lab.fotar||'');
+  doc.text('Y CCIAR CON FOLIO:',M+112,y+8);
+  addField('cciar_folio',M+162,y+1,40,9,gv('h_cciar')||'');
+  doc.text('A LABORATORIO MATRIZ',M+206,y+8);
+  doc.setFont('helvetica','normal');doc.setFontSize(5);
+  doc.text('PERSONA QUE TRANSPORTA EN LAB. MATRIZ:',M+4,y+18);
+  addField('lt_nom',M+106,y+11,80,8,lab.ltnom||'');
+  doc.text('FIRMA:',M+190,y+18);
+  addField('lt_fir',M+208,y+11,35,8,lab.ltfir||'');
+  doc.text('FECHA:',M+247,y+18);
+  addField('lt_fec',M+265,y+11,40,8,fmtDate(lab.ltfec));
+  doc.text('HORA:',M+309,y+18);
+  addField('lt_hor',M+325,y+11,25,8,fmtTime(lab.lthor));
+  if(lab.sup){
+    doc.text('SUPERVISO:',M+4,y+25);
+    doc.text(lab.sup,M+36,y+25);
+  } else {
+    doc.text('SUPERVISO:',M+4,y+25);
+    addField('sup',M+36,y+18,80,8,'');
+  }
   doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);
-  doc.text('F-AA-01A-15',W-M-4,y+16,{align:'right'});
+  doc.text('F-AA-01A-15',W-M-4,y+20,{align:'right'});
 
   // ── SAVE ──
   const folio=gv('h_omar')||'000';
@@ -2251,9 +2635,7 @@ async function buildPDFCadena(){
 
 function fmtF(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`;}
 // Store last PDF blob for sharing
-let lastPDFBlob = null;
 
-let lastPDFClienteBlob = null;
 
 function compartirPDF(tipo='lab'){
   const blob = tipo==='cliente' ? lastPDFClienteBlob : lastPDFBlob;
@@ -2279,7 +2661,7 @@ function fallbackShare(blob){
 
 function toast(msg,t=''){
   const el=document.getElementById('toast');el.textContent=msg;el.className=t;el.classList.add('show');
-  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2800);
+  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),4000);
 }
 window.addEventListener('load',()=>{
   // Show muestreos count on button
@@ -2290,8 +2672,8 @@ window.addEventListener('load',()=>{
       if(btn) btn.textContent = `Ver muestreos guardados (${lista.length})`;
     }
   }catch(e){}
+  renderHome();
 initCanvas();initCanvas2();});
-let sigData2=null;
 function initCanvas2(){
   const c=document.getElementById('sigCanvas2'),ctx=c.getContext('2d');
   if(!c)return;
