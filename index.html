@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AARMS">
 <meta name="theme-color" content="#07080f">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="logo_glow_sinFondo.png">
 <title>AARMS — Asesoría y Análisis S.C.</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -24,12 +27,12 @@
 html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:16px;min-height:100vh;overflow-x:hidden}
 
 /* PAGES */
-.page{display:none;min-height:100vh}
-.page.on{display:block;animation:rise .25s ease}
+.page{display:none}
+.page.on{display:block;min-height:100vh;animation:rise .25s ease}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
 /* TOPBAR */
-.bar{position:sticky;top:0;z-index:300;background:rgba(7,8,15,.95);border-bottom:1px solid var(--ln2);backdrop-filter:blur(20px);display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:58px}
+.bar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(7,8,15,.97);border-bottom:1px solid var(--ln2);display:flex;align-items:center;justify-content:space-between;padding:0 60px 0 16px;height:58px}
 .bar-l{display:flex;align-items:center;gap:10px}
 .bar-logo{width:38px;height:38px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(74,158,255,.5))}
 .bar-name{font-family:var(--syne);font-size:15px;font-weight:800;letter-spacing:.01em;line-height:1.1}
@@ -54,7 +57,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 .sec.on{display:block;animation:rise .2s ease}
 
 /* MAIN */
-.main{padding:18px 16px 90px;max-width:720px;margin:0 auto}
+.main{padding:76px 16px 90px;max-width:720px;margin:0 auto}
 
 /* PAGE HEADER */
 .ph-ey{font-family:var(--mono);font-size:10px;color:var(--acc);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;display:flex;align-items:center;gap:6px}
@@ -169,6 +172,8 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 .achip{font-size:11px;padding:3px 8px;border-radius:99px;background:var(--bg3);border:1px solid var(--ln);color:var(--g1)}
 
 /* ANALITO GRID (OMAR capture) */
+.cat-lbl{font-family:var(--syne);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--acc);margin-bottom:6px;padding:4px 0 2px;border-bottom:1px solid rgba(74,158,255,.2)}
+.regla-dec{font-size:11px;color:var(--g1);background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:var(--r);padding:7px 10px;margin-top:6px;font-style:italic}
 .agrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:4px}
 .ai{display:flex;align-items:center;gap:7px;background:var(--bg3);border:1px solid var(--ln);border-radius:var(--r);padding:8px 10px;cursor:pointer;user-select:none;transition:all .15s}
 .ai.on{border-color:var(--acc);background:rgba(74,158,255,.08)}
@@ -189,7 +194,10 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 .btn-d{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:var(--red)}
 
 /* BOTTOM BAR */
-.bbar{position:fixed;bottom:0;left:0;right:0;background:rgba(7,8,15,.96);border-top:1px solid var(--ln2);backdrop-filter:blur(20px);padding:10px 16px 18px;display:flex;gap:10px;z-index:200}
+.bbar{position:fixed;bottom:0;left:0;right:0;background:rgba(7,8,15,.98);border-top:1px solid var(--ln2);padding:10px 16px 18px;display:none;gap:10px;z-index:50}
+.page.on .bbar{display:flex}
+.page:not(.on) .bbar{display:none!important}
+.sec:not(.on) .bbar{display:none!important}
 
 /* RESUMEN */
 .ri{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--ln);font-size:13px}
@@ -210,16 +218,98 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 
 .div{height:1px;background:var(--ln);margin:12px 0}
 @media(max-width:500px){.pg{grid-template-columns:repeat(2,minmax(0,1fr))}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#fabMenu{transform:translateX(100%)}
+#fabMenu.menu-open{transform:translateX(0)!important}
 </style>
 
 </head>
 <body>
+<div id="hamBtn" style="position:fixed;top:11px;right:14px;width:38px;height:38px;z-index:2147483647;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="toggleFabMenu()">
+  <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38" style="display:block;pointer-events:none">
+    <rect width="38" height="38" rx="9" fill="#1a2540" stroke="rgba(74,158,255,0.4)" stroke-width="1.5"/>
+    <line x1="10" y1="13" x2="28" y2="13" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="10" y1="19" x2="28" y2="19" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="10" y1="25" x2="28" y2="25" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
+  </svg>
+</div>
 
 <!-- ICON -->
 <link rel="apple-touch-icon" href="logo_glow_sinFondo.png">
 
+<!-- ═══════ PAGE HOME ═══════ -->
+<div class="page" id="pgHome">
+  <div class="bar">
+    <div class="bar-l">
+      <img src="logo_glow_sinFondo.png" class="bar-logo"/>
+      <div>
+        <div class="bar-name">AARMS</div>
+        <div class="bar-sub">Asesoría y Análisis S.C.</div>
+      </div>
+    </div>
+    
+  </div>
+  <div class="main" style="padding-bottom:80px">
+
+    <!-- Hero -->
+    <div style="padding:40px 0 24px;text-align:center">
+      <div style="position:relative;display:inline-block;margin-bottom:20px">
+        <div style="position:absolute;inset:-20px;border-radius:50%;background:radial-gradient(circle,rgba(74,158,255,.18) 0%,transparent 70%);pointer-events:none"></div>
+        <img src="logo_glow_sinFondo.png" style="width:96px;height:96px;object-fit:contain;filter:drop-shadow(0 0 32px rgba(74,158,255,.7));position:relative;z-index:1">
+      </div>
+      <div style="font-family:var(--syne);font-size:32px;font-weight:800;letter-spacing:.04em;background:linear-gradient(135deg,#f0f8ff 0%,#4a9eff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent">AARMS</div>
+      <div style="margin-top:10px;font-size:11px;color:var(--g1);letter-spacing:.04em;font-family:var(--mono);line-height:1.8">
+        <span style="color:var(--acc)">A</span>SESORÍA Y <span style="color:var(--acc)">A</span>NÁLISIS S.C.
+        <span style="color:var(--acc)">R</span>EGISTRO Y <span style="color:var(--acc)">M</span>ONITOREO DE
+        <span style="color:var(--acc)">S</span>ERVICIO
+      </div>
+    </div>
+
+    <!-- Acción principal -->
+    <button class="btn btn-p" style="width:100%;font-size:15px;padding:15px;font-family:var(--syne);font-weight:800;letter-spacing:.04em" onclick="iniciarNuevoMuestreo()">+ Nuevo muestreo</button>
+
+    <!-- Muestreos activos -->
+    <div class="card" style="margin-top:20px">
+      <div class="ch">
+        <div class="ct">Muestreos activos</div>
+        <span class="cbadge" id="homeCnt">0</span>
+      </div>
+      <div class="cb" id="homeLista">
+        <div style="text-align:center;padding:24px;color:var(--g2);font-size:13px">Sin muestreos guardados aún</div>
+      </div>
+    </div>
+
+    <!-- Flujo de trabajo -->
+    <div class="card" style="margin-top:4px">
+      <div class="ch"><div class="ct">Flujo de trabajo</div></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:0;padding-top:4px">
+
+        <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--ln)">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(74,158,255,.12);border:1.5px solid var(--acc);display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-size:12px;font-weight:800;color:var(--acc);flex-shrink:0">1</div>
+          <div><div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)">Orden de Muestreo</div><div style="font-size:11px;color:var(--g1);margin-top:2px">Captura los datos del cliente y analitos solicitados</div></div>
+        </div>
+
+        <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--ln)">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(251,191,36,.12);border:1.5px solid var(--amber);display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-size:12px;font-weight:800;color:var(--amber);flex-shrink:0">2</div>
+          <div><div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)">Hoja de Campo</div><div style="font-size:11px;color:var(--g1);margin-top:2px">Registra cada toma con pH, temperatura, flujo y conductividad</div></div>
+        </div>
+
+        <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--ln)">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(167,139,250,.12);border:1.5px solid #a78bfa;display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-size:12px;font-weight:800;color:#a78bfa;flex-shrink:0">3</div>
+          <div><div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)">Cadena de Custodia</div><div style="font-size:11px;color:var(--g1);margin-top:2px">Verifica parámetros, preservación y firma del cliente</div></div>
+        </div>
+
+        <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0">
+          <div style="width:28px;height:28px;border-radius:50%;background:rgba(134,239,172,.12);border:1.5px solid var(--green);display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-size:12px;font-weight:800;color:var(--green);flex-shrink:0">4</div>
+          <div><div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)">Cierre y PDFs</div><div style="font-size:11px;color:var(--g1);margin-top:2px">Genera los documentos y entrégalos al laboratorio</div></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════ PAGE 0: OMAR ═══════ -->
-<div class="page on" id="pg0">
+<div class="page" id="pg0">
   <div class="bar">
     <div class="bar-l">
       <img src="logo_glow_sinFondo.png" class="bar-logo" />
@@ -228,10 +318,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
         <div class="bar-sub">Asesoría y Análisis S.C. Registro y Monitoreo de Servicio</div>
       </div>
     </div>
-    <div class="bar-r">
-      <span class="pill pill-o" id="topOmar">—</span>
-      <span class="pill pill-v">v1.0</span>
-    </div>
+    <span class="pill pill-o" id="topOmar">—</span>
   </div>
 
   <!-- OMAR FORM -->
@@ -248,7 +335,10 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
             <div class="f"><label>Folio OMAR *</label><input id="o_omar" type="text" placeholder="ej. 0147" inputmode="numeric"></div>
             <div class="f"><label>Folio SSAR</label><input id="o_ssar" type="text" placeholder="ej. 0084" inputmode="numeric"></div>
           </div>
-          <div class="f"><label>Muestreador asignado *</label><input id="o_muest" type="text" placeholder="Tu nombre completo"></div>
+          <div class="g2">
+            <div class="f"><label>Elaboró</label><input id="o_elab" type="text" placeholder="Nombre de quien elabora la OMAR"></div>
+            <div class="f"><label>Muestreador asignado *</label><input id="o_muest" type="text" placeholder="Tu nombre completo"></div>
+          </div>
         </div>
       </div>
 
@@ -316,58 +406,105 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
             </div>
             <input type="hidden" id="o_int">
           </div>
-          <div class="g2">
-            <div class="f"><label>N° descargas</label><input id="o_ndesc" type="number" placeholder="1" min="1" inputmode="numeric"></div>
-            <div class="f"><label>N° tomas simples</label><input id="o_ntomas" type="number" placeholder="6" min="1" inputmode="numeric"></div>
+          <div class="f" id="tomasField" style="display:none">
+            <label>N° de tomas *</label>
+            <input id="o_ntomas" type="number" placeholder="ej. 3" min="1" inputmode="numeric">
           </div>
+          <div id="tomasAuto" style="font-size:12px;color:var(--acc);margin-top:4px;font-family:var(--mono)"></div>
+          <input type="hidden" id="o_ndesc" value="1">
         </div>
       </div>
 
       <div class="card">
         <div class="ch"><div class="ct">Analitos solicitados</div><span class="cbadge" id="acnt">0 seleccionados</span></div>
         <div class="cb">
-          <div class="agrid" id="agrid"><div class="ai" onclick="togA(this,'Acidez')" data-a="Acidez"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Acidez</span></div>
-<div class="ai" onclick="togA(this,'Alcalinidad Total')" data-a="Alcalinidad Total"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Alcalinidad Total</span></div>
-<div class="ai" onclick="togA(this,'Aluminio')" data-a="Aluminio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Aluminio</span></div>
-<div class="ai" onclick="togA(this,'Arsénico')" data-a="Arsénico"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Arsénico</span></div>
-<div class="ai" onclick="togA(this,'Bario')" data-a="Bario"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Bario</span></div>
-<div class="ai" onclick="togA(this,'Cadmio')" data-a="Cadmio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cadmio</span></div>
-<div class="ai" onclick="togA(this,'Calcio')" data-a="Calcio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Calcio</span></div>
-<div class="ai" onclick="togA(this,'Cianuro')" data-a="Cianuro"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cianuro</span></div>
-<div class="ai" onclick="togA(this,'Cobre')" data-a="Cobre"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cobre</span></div>
-<div class="ai" onclick="togA(this,'Conductividad Eléctrica')" data-a="Conductividad Eléctrica"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Conductividad Eléctrica</span></div>
-<div class="ai" onclick="togA(this,'Color')" data-a="Color"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Color</span></div>
-<div class="ai" onclick="togA(this,'Cloro')" data-a="Cloro"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cloro</span></div>
-<div class="ai" onclick="togA(this,'Cloruros')" data-a="Cloruros"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cloruros</span></div>
-<div class="ai" onclick="togA(this,'Cromo Hexavalente')" data-a="Cromo Hexavalente"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cromo Hexavalente</span></div>
-<div class="ai" onclick="togA(this,'Cromo Total')" data-a="Cromo Total"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cromo Total</span></div>
-<div class="ai" onclick="togA(this,'DBO5')" data-a="DBO5"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">DBO5</span></div>
-<div class="ai" onclick="togA(this,'DQO')" data-a="DQO"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">DQO</span></div>
-<div class="ai" onclick="togA(this,'Dureza Total')" data-a="Dureza Total"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Dureza Total</span></div>
-<div class="ai" onclick="togA(this,'Fósforo Total')" data-a="Fósforo Total"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Fósforo Total</span></div>
-<div class="ai" onclick="togA(this,'Grasas y Aceites')" data-a="Grasas y Aceites"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Grasas y Aceites</span></div>
-<div class="ai" onclick="togA(this,'Huevos Helminto')" data-a="Huevos Helminto"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Huevos Helminto</span></div>
-<div class="ai" onclick="togA(this,'Materia Flotante')" data-a="Materia Flotante"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Materia Flotante</span></div>
-<div class="ai" onclick="togA(this,'Mercurio')" data-a="Mercurio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Mercurio</span></div>
-<div class="ai" onclick="togA(this,'Nitratos')" data-a="Nitratos"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Nitratos</span></div>
-<div class="ai" onclick="togA(this,'Nitritos')" data-a="Nitritos"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Nitritos</span></div>
-<div class="ai" onclick="togA(this,'NTK')" data-a="NTK"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">NTK</span></div>
-<div class="ai" onclick="togA(this,'Níquel')" data-a="Níquel"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Níquel</span></div>
-<div class="ai" onclick="togA(this,'Oxígeno Disuelto')" data-a="Oxígeno Disuelto"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Oxígeno Disuelto</span></div>
-<div class="ai" onclick="togA(this,'pH')" data-a="pH"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">pH</span></div>
-<div class="ai" onclick="togA(this,'Plomo')" data-a="Plomo"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Plomo</span></div>
-<div class="ai" onclick="togA(this,'SAAM')" data-a="SAAM"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">SAAM</span></div>
-<div class="ai" onclick="togA(this,'Sólidos Susp. Totales')" data-a="Sólidos Susp. Totales"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Sólidos Susp. Totales</span></div>
-<div class="ai" onclick="togA(this,'Sólidos Sedimentables')" data-a="Sólidos Sedimentables"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Sólidos Sedimentables</span></div>
-<div class="ai" onclick="togA(this,'Temperatura')" data-a="Temperatura"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Temperatura</span></div>
-<div class="ai" onclick="togA(this,'Toxicidad Aguda')" data-a="Toxicidad Aguda"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Toxicidad Aguda</span></div>
-<div class="ai" onclick="togA(this,'Zinc')" data-a="Zinc"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Zinc</span></div>
-<div class="ai" onclick="togA(this,'COT')" data-a="COT"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">COT</span></div>
-<div class="ai" onclick="togA(this,'E.coli')" data-a="E.coli"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">E.coli</span></div>
-<div class="ai" onclick="togA(this,'Coliformes Fecales')" data-a="Coliformes Fecales"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Coliformes Fecales</span></div>
-<div class="ai" onclick="togA(this,'Enterococos')" data-a="Enterococos"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Enterococos</span></div></div>
+
+          <!-- FÍSICOQUÍMICOS -->
+          <div class="cat-lbl">Físicoquímicos</div>
+          <div class="agrid" id="agrid">
+            <div class="ai" onclick="togA(this,'Acidez')" data-a="Acidez"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Acidez</span></div>
+            <div class="ai" onclick="togA(this,'Alcalinidad Total')" data-a="Alcalinidad Total"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Alcalinidad Total</span></div>
+            <div class="ai" onclick="togA(this,'Bicarbonato')" data-a="Bicarbonato"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Bicarbonato</span></div>
+            <div class="ai" onclick="togA(this,'Calcio')" data-a="Calcio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Calcio</span></div>
+            <div class="ai" onclick="togA(this,'Carbonato')" data-a="Carbonato"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Carbonato</span></div>
+            <div class="ai" onclick="togA(this,'Cloro')" data-a="Cloro"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cloro</span></div>
+            <div class="ai" onclick="togA(this,'Cloro Libre')" data-a="Cloro Libre"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cloro Libre</span></div>
+            <div class="ai" onclick="togA(this,'Cloruros')" data-a="Cloruros"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cloruros</span></div>
+            <div class="ai" onclick="togA(this,'Color')" data-a="Color"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Color</span></div>
+            <div class="ai" onclick="togA(this,'Conductividad Eléctrica')" data-a="Conductividad Eléctrica"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Conductividad Eléctrica</span></div>
+            <div class="ai" onclick="togA(this,'COT')" data-a="COT"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">COT</span></div>
+            <div class="ai" onclick="togA(this,'DBO5')" data-a="DBO5"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">DBO5</span></div>
+            <div class="ai" onclick="togA(this,'DQO')" data-a="DQO"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">DQO</span></div>
+            <div class="ai" onclick="togA(this,'Dureza Ca')" data-a="Dureza Ca"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Dureza Ca</span></div>
+            <div class="ai" onclick="togA(this,'Dureza Mg')" data-a="Dureza Mg"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Dureza Mg</span></div>
+            <div class="ai" onclick="togA(this,'Dureza Total')" data-a="Dureza Total"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Dureza Total</span></div>
+            <div class="ai" onclick="togA(this,'Fluoruros')" data-a="Fluoruros"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Fluoruros</span></div>
+            <div class="ai" onclick="togA(this,'Fosfatos')" data-a="Fosfatos"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Fosfatos</span></div>
+            <div class="ai" onclick="togA(this,'Fósforo Total')" data-a="Fósforo Total"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Fósforo Total</span></div>
+            <div class="ai" onclick="togA(this,'Grasas y Aceites')" data-a="Grasas y Aceites"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Grasas y Aceites</span></div>
+            <div class="ai" onclick="togA(this,'Magnesio')" data-a="Magnesio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Magnesio</span></div>
+            <div class="ai" onclick="togA(this,'Materia Flotante')" data-a="Materia Flotante"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Materia Flotante</span></div>
+            <div class="ai" onclick="togA(this,'Nitratos')" data-a="Nitratos"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Nitratos</span></div>
+            <div class="ai" onclick="togA(this,'Nitritos')" data-a="Nitritos"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Nitritos</span></div>
+            <div class="ai" onclick="togA(this,'Nitrógeno Amoniacal')" data-a="Nitrógeno Amoniacal"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Nitrógeno Amoniacal</span></div>
+            <div class="ai" onclick="togA(this,'NTK')" data-a="NTK"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">NTK</span></div>
+            <div class="ai" onclick="togA(this,'Oxígeno Disuelto')" data-a="Oxígeno Disuelto"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Oxígeno Disuelto</span></div>
+            <div class="ai" onclick="togA(this,'pH')" data-a="pH"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">pH</span></div>
+            <div class="ai" onclick="togA(this,'SAAM')" data-a="SAAM"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">SAAM</span></div>
+            <div class="ai" onclick="togA(this,'Salinidad')" data-a="Salinidad"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Salinidad</span></div>
+            <div class="ai" onclick="togA(this,'SDT')" data-a="SDT"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">SDT</span></div>
+            <div class="ai ai-fq" onclick="togA(this,'Sólidos Sedimentables')" data-a="Sólidos Sedimentables"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Sólidos Sedimentables</span></div>
+            <div class="ai ai-fq" onclick="togA(this,'Sólidos Susp. Totales')" data-a="Sólidos Susp. Totales"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Sólidos Susp. Totales</span></div>
+            <div class="ai" onclick="togA(this,'Sodio')" data-a="Sodio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Sodio</span></div>
+            <div class="ai" onclick="togA(this,'Sulfatos')" data-a="Sulfatos"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Sulfatos</span></div>
+            <div class="ai" onclick="togA(this,'Temperatura')" data-a="Temperatura"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Temperatura</span></div>
+            <div class="ai" onclick="togA(this,'Toxicidad Aguda')" data-a="Toxicidad Aguda"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Toxicidad Aguda</span></div>
+            <div class="ai" onclick="togA(this,'Turbidez')" data-a="Turbidez"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Turbidez</span></div>
+          </div>
+
+          <!-- Regla de decisión DQO/COT -->
+          <div class="regla-dec">⚡ Regla: si Cloruros &lt; 1000 mg/L → DQO / si &gt; 1000 mg/L → COT</div>
+
+          <!-- MICROBIOLÓGICOS -->
+          <div class="cat-lbl" style="margin-top:14px">Microbiológicos</div>
+          <div class="agrid">
+            <div class="ai" onclick="togA(this,'Coliformes Fecales')" data-a="Coliformes Fecales"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Coliformes Fecales</span></div>
+            <div class="ai" onclick="togA(this,'Coliformes Totales')" data-a="Coliformes Totales"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Coliformes Totales</span></div>
+            <div class="ai" onclick="togA(this,'E. Coli')" data-a="E. Coli"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">E. Coli</span></div>
+            <div class="ai" onclick="togA(this,'Enterobacterias')" data-a="Enterobacterias"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Enterobacterias</span></div>
+            <div class="ai" onclick="togA(this,'Enterococos')" data-a="Enterococos"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Enterococos</span></div>
+            <div class="ai" onclick="togA(this,'Huevos Helminto')" data-a="Huevos Helminto"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Huevos Helminto</span></div>
+            <div class="ai" onclick="togA(this,'Salmonella spp.')" data-a="Salmonella spp."><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Salmonella spp.</span></div>
+            <div class="ai" onclick="togA(this,'Staphylococcus aureus')" data-a="Staphylococcus aureus"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Staphylococcus aureus</span></div>
+            <div class="ai" onclick="togA(this,'Vibrio Cholerae')" data-a="Vibrio Cholerae"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Vibrio Cholerae</span></div>
+          </div>
+
+          <!-- Regla de decisión E.Coli/Enterococos -->
+          <div class="regla-dec">⚡ Regla: Conductividad &lt; 3500 µS/cm → E. Coli / &gt; 3500 µS/cm → Enterococos</div>
+
+          <!-- METALES Y CIANURO -->
+          <div class="cat-lbl" style="margin-top:14px">Metales y Cianuro</div>
+          <div class="agrid">
+            <div class="ai ai-mp" onclick="togA(this,'Aluminio')" data-a="Aluminio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Aluminio</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Arsénico')" data-a="Arsénico"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Arsénico</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Bario')" data-a="Bario"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Bario</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Cadmio')" data-a="Cadmio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cadmio</span></div>
+            <div class="ai" onclick="togA(this,'Cianuro')" data-a="Cianuro"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cianuro</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Cobre')" data-a="Cobre"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cobre</span></div>
+            <div class="ai" onclick="togA(this,'Cromo Hexavalente')" data-a="Cromo Hexavalente"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cromo Hexavalente</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Cromo Total')" data-a="Cromo Total"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cromo Total</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Fierro')" data-a="Fierro"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Fierro</span></div>
+            <div class="ai" onclick="togA(this,'Manganeso')" data-a="Manganeso"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Manganeso</span></div>
+            <div class="ai" onclick="togA(this,'Mercurio')" data-a="Mercurio"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Mercurio</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Níquel')" data-a="Níquel"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Níquel</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Plata')" data-a="Plata"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Plata</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Plomo')" data-a="Plomo"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Plomo</span></div>
+            <div class="ai ai-mp" onclick="togA(this,'Zinc')" data-a="Zinc"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Zinc</span></div>
+          </div>
+
         </div>
       </div>
+
 
       <div class="card">
         <div class="ch"><div class="ct">Reglas de decisión del supervisor</div></div>
@@ -376,9 +513,9 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
         </div>
       </div>
 
-      <div class="bbar" style="flex-direction:column;gap:8px;padding:10px 16px 16px">
-        <button class="btn btn-p" onclick="guardarOMAR()" style="width:100%">Confirmar OMAR →</button>
-        <button class="btn btn-g" onclick="verMuestreos()" id="btnVerMuestreos" style="width:100%;font-size:13px">Ver muestreos guardados</button>
+      <div class="bbar" style="padding:10px 16px 16px">
+        <button class="btn btn-g" onclick="goHome()" style="flex:.35;font-size:12px">← Inicio</button>
+        <button class="btn btn-p" onclick="guardarOMAR()" style="flex:1">Confirmar OMAR →</button>
       </div>
     </div>
   </div>
@@ -420,10 +557,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
         <div class="bar-sub">Asesoría y Análisis S.C. Registro y Monitoreo de Servicio</div>
       </div>
     </div>
-    <div class="bar-r">
-      <span class="pill pill-o" id="topOmar2">—</span>
-      <span class="pill pill-v">v1.0</span>
-    </div>
+    <span class="pill pill-o" id="topOmar2">—</span>
   </div>
   <div class="steps" id="stepsBar">
     <div class="stp on" onclick="goSec(0)"><span class="stp-n">1</span>Hoja de Campo</div>
@@ -608,6 +742,68 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
         <div class="cb"><div class="f"><textarea id="c_obs" rows="2" placeholder="Observaciones..."></textarea></div></div>
       </div>
 
+      <!-- SECCIÓN LABORATORIO — se llena al entregar -->
+      <div class="card" style="border-color:rgba(251,191,36,.25)">
+        <div class="ch" style="background:rgba(251,191,36,.07)">
+          <div class="ct" style="color:#fbbf24">Datos de entrega — Laboratorio</div>
+          <span class="cbadge" style="background:rgba(251,191,36,.15);color:#fbbf24">Se completa en lab</span>
+        </div>
+        <div class="cb">
+          <div class="cat-lbl">Transporta y entrega en matriz</div>
+          <div class="g2">
+            <div class="f"><label>Nombre</label><input id="c_tnom" type="text" placeholder="Quien transporta"></div>
+            <div class="f"><label>Firma</label><input id="c_tfir" type="text" placeholder="Iniciales"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Fecha</label><input id="c_tfec" type="date"></div>
+            <div class="f"><label>Hora</label><input id="c_thor" type="time"></div>
+          </div>
+
+          <div class="cat-lbl" style="margin-top:12px">Inspecciona en matriz</div>
+          <div class="g2">
+            <div class="f"><label>Nombre</label><input id="c_inom" type="text" placeholder="Quien inspecciona"></div>
+            <div class="f"><label>Firma</label><input id="c_ifir" type="text" placeholder="Iniciales"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Fecha</label><input id="c_ifec" type="date"></div>
+            <div class="f"><label>Hora</label><input id="c_ihor" type="time"></div>
+          </div>
+
+          <div class="cat-lbl" style="margin-top:12px">Recibe en matriz</div>
+          <div class="g2">
+            <div class="f"><label>Nombre</label><input id="c_renom" type="text" placeholder="Quien recibe"></div>
+            <div class="f"><label>Firma</label><input id="c_refir" type="text" placeholder="Iniciales"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Fecha</label><input id="c_refec" type="date"></div>
+            <div class="f"><label>Hora</label><input id="c_rehor" type="time"></div>
+          </div>
+
+          <div class="cat-lbl" style="margin-top:12px">Entrega a sucursal</div>
+          <div class="g2">
+            <div class="f"><label>Folio OTAR</label><input id="c_fotar" type="text" placeholder="Folio"></div>
+            <div class="f"><label>Nombre</label><input id="c_snom" type="text" placeholder="Quien transporta"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Fecha</label><input id="c_sfec" type="date"></div>
+            <div class="f"><label>Hora</label><input id="c_shor" type="time"></div>
+          </div>
+
+          <div class="cat-lbl" style="margin-top:12px">Persona que transporta en lab matriz</div>
+          <div class="g2">
+            <div class="f"><label>Nombre</label><input id="c_ltnom" type="text" placeholder="Nombre completo"></div>
+            <div class="f"><label>Firma</label><input id="c_ltfir" type="text" placeholder="Iniciales"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Fecha</label><input id="c_ltfec" type="date"></div>
+            <div class="f"><label>Hora</label><input id="c_lthor" type="time"></div>
+          </div>
+
+          <div class="cat-lbl" style="margin-top:12px">Supervisó</div>
+          <div class="f"><input id="c_sup" type="text" placeholder="Nombre del supervisor"></div>
+        </div>
+      </div>
+
       <div class="bbar">
         <button class="btn btn-g" onclick="goSec(0)" style="flex:.4;font-size:12px">← Hoja</button>
         <button class="btn btn-p" onclick="irFirma()" style="flex:1">Firma y cierre →</button>
@@ -667,43 +863,106 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
         <div class="cb" id="resBody"><div style="font-size:13px;color:var(--g2)">Cargando resumen...</div></div>
       </div>
 
-      <div class="bbar" style="flex-direction:column;gap:8px;padding:10px 16px 20px">
+      <div class="bbar" style="flex-direction:column;gap:8px;padding:10px 16px 16px">
         <div style="display:flex;gap:8px;width:100%">
-          <button class="btn btn-g" onclick="goSec(1)" style="flex:.35;font-size:11px">← Custodia</button>
-          <button class="btn btn-p" onclick="soloGuardar()" style="flex:1;font-size:12px" id="btnGuardar">
-            💾 Guardar registro
-          </button>
-          <button class="btn btn-g" onclick="genPDF('cliente')" style="flex:1;font-size:12px;border-color:rgba(134,239,172,.3);color:var(--green)" id="btnPDFCliente">
-            📋 Entregar al cliente
-          </button>
+          <button class="btn btn-g" onclick="goSec(1)" style="flex:.3;font-size:11px">← Custodia</button>
+          <button class="btn btn-p" onclick="soloGuardar()" style="flex:1;font-size:12px" id="btnGuardar">Guardar</button>
+          <button class="btn btn-g" onclick="genPDFConCheck('lab')" style="flex:1;font-size:11px;border-color:rgba(167,139,250,.3);color:#a78bfa" id="btnPDFLab">Hoja de Campo</button>
+          <button class="btn btn-g" onclick="genCadena()" id="btnCadena" style="flex:1;font-size:11px;border-color:rgba(99,179,237,.3);color:#63b3ed">Cadena de Custodia</button>
         </div>
         <div style="display:flex;gap:8px;width:100%">
-          <button class="btn btn-g" onclick="genPDF('lab')" style="flex:1;font-size:12px;border-color:rgba(167,139,250,.3);color:#a78bfa" id="btnPDFLab">
-            📄 Generar Hoja de Campo
-          </button>
-          <button class="btn btn-g" onclick="genCadena()" id="btnCadena" style="flex:1;font-size:12px;border-color:rgba(99,179,237,.3);color:#63b3ed">
-            🔗 Cadena de Custodia
-          </button>
-        </div>
-        <div style="display:flex;gap:8px;width:100%">
-          <button class="btn btn-g" onclick="nuevoMuestreo()" style="flex:1;font-size:13px;border-color:rgba(134,239,172,.3);color:var(--green);font-weight:800">+ Nuevo muestreo</button>
-        </div>
-        <div style="display:flex;gap:8px;width:100%;display:none" id="shareRow">
-          <button class="btn btn-g" onclick="compartirPDF('lab')" style="flex:1;font-size:12px">
-            📤 Compartir registro
-          </button>
-          <button class="btn btn-g" onclick="compartirPDF('cliente')" style="flex:1;font-size:12px;border-color:rgba(134,239,172,.3);color:var(--green)">
-            📤 Compartir al cliente
-          </button>
+          <button class="btn btn-g" onclick="genPDFConCheck('cliente')" style="flex:1;font-size:11px;border-color:rgba(134,239,172,.3);color:var(--green)" id="btnPDFCliente">Entregar al cliente</button>
+          <button class="btn btn-g" onclick="nuevoMuestreo()" style="flex:1;font-size:12px;border-color:rgba(134,239,172,.3);color:var(--green);font-weight:800">+ Nuevo muestreo</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+
+
 <div id="toast"></div>
 
 
+
+  <script>(function(){["pgHome","pg0","pg1"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});["sec0","sec1","sec2"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});})();</script>
   <script src="js/app.js"></script>
+
+</div><!-- /pg1 -->
+
+<!-- OVERLAY -->
+<div id="fabOverlay" onclick="toggleFabMenu()" style="display:none;position:fixed;inset:0;background:rgba(7,8,15,.5);z-index:99990"></div>
+
+<!-- MENÚ LATERAL -->
+<div id="fabMenu" style="position:fixed;top:0;right:0;width:270px;height:100vh;z-index:99995;background:var(--bg1);border-left:1px solid var(--ln2);display:flex;flex-direction:column;transition:transform .28s cubic-bezier(.4,0,.2,1);padding:0 0 32px;box-shadow:-4px 0 24px rgba(0,0,0,.5);transform:translateX(100%)">
+
+  <!-- Header del menú -->
+  <div style="padding:20px 20px 16px;border-bottom:1px solid var(--ln);display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px">
+      <img src="logo_glow_sinFondo.png" style="width:32px;filter:drop-shadow(0 0 8px rgba(74,158,255,.5))">
+      <div>
+        <div style="font-family:var(--syne);font-size:14px;font-weight:800;color:var(--w)">AARMS</div>
+        <div style="font-size:10px;color:var(--g1);font-family:var(--mono)">Navegación</div>
+      </div>
+    </div>
+    <button onclick="toggleFabMenu()" style="width:32px;height:32px;border-radius:8px;border:1px solid var(--ln2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--g1);background:none;padding:0">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="pointer-events:none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- Opciones -->
+  <div style="flex:1;overflow-y:auto;padding:12px 12px">
+
+    <div class="nav-item" onclick="goHome();toggleFabMenu()">
+      <div class="nav-ico" style="background:rgba(74,158,255,.12);color:var(--acc)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <div><div class="nav-lbl">Inicio</div><div class="nav-sub">Pantalla principal</div></div>
+    </div>
+
+    <div class="nav-item" onclick="abrirListaMuestreos();toggleFabMenu()">
+      <div class="nav-ico" style="background:rgba(74,158,255,.12);color:var(--acc)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <div><div class="nav-lbl">Muestreos</div><div class="nav-sub">Ver registros guardados</div></div>
+    </div>
+
+    <div style="height:1px;background:var(--ln);margin:8px 0"></div>
+
+    <div class="nav-item" onclick="irOMAR();toggleFabMenu()">
+      <div class="nav-ico" style="background:rgba(251,191,36,.12);color:var(--amber)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
+      </div>
+      <div><div class="nav-lbl">Orden de Muestreo</div><div class="nav-sub">Ir a la OMAR actual</div></div>
+    </div>
+
+    <div class="nav-item" onclick="irCampo();toggleFabMenu()">
+      <div class="nav-ico" style="background:rgba(134,239,172,.12);color:var(--green)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <div><div class="nav-lbl">Hoja de Campo</div><div class="nav-sub">Registrar tomas</div></div>
+    </div>
+
+    <div class="nav-item" onclick="irCustodia();toggleFabMenu()">
+      <div class="nav-ico" style="background:rgba(167,139,250,.12);color:#a78bfa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div><div class="nav-lbl">Cadena de Custodia</div><div class="nav-sub">Preservación y firma</div></div>
+    </div>
+
+  </div>
+
+  <!-- Versión -->
+  <div style="padding:12px 20px;border-top:1px solid var(--ln);font-size:10px;color:var(--g2);font-family:var(--mono)">Asesoría y Análisis S.C.</div>
+</div>
+
+<style>
+.nav-item{display:flex;align-items:center;gap:14px;padding:12px 10px;border-radius:10px;cursor:pointer;transition:background .15s;margin-bottom:2px;-webkit-tap-highlight-color:transparent}
+.nav-item:hover,.nav-item:active{background:var(--bg3)}
+.nav-ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-lbl{font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)}
+.nav-sub{font-size:10px;color:var(--g1);margin-top:1px}
+
+</style>
 </body>
 </html>

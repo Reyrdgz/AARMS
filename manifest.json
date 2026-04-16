@@ -1,0 +1,14 @@
+{
+  "name": "AARMS — Asesoría y Análisis S.C.",
+  "short_name": "AARMS",
+  "description": "Asesoría y Análisis S.C. Registro y Monitoreo de Servicio",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07080f",
+  "theme_color": "#07080f",
+  "icons": [
+    {"src": "logo_glow_sinFondo.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "logo_glow_sinFondo.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
