@@ -274,18 +274,113 @@ function iniciarNuevoMuestreo(){
   showPage(1);
 }
 
-function renderHome(){
+function filtrarMuestreos(q){
+  renderHome(q.trim().toLowerCase());
+}
+
+// Filtros rápidos por rango de fecha
+let _quickFilter = null; // 'hoy' | 'semana' | 'mes' | 'pasado' | null
+function setQuickFilter(kind){
+  _quickFilter = (_quickFilter===kind) ? null : kind;
+  // Refrescar chips visualmente
+  document.querySelectorAll('.qchip').forEach(c=>{
+    c.classList.toggle('on', c.dataset.qf===_quickFilter);
+  });
+  // Re-renderizar con el texto actual
+  const si=document.getElementById('searchInput');
+  renderHome(si?si.value.trim().toLowerCase():'');
+}
+
+// ¿La fecha ISO entra en el rango seleccionado?
+function matchesQuickFilter(fechaISO){
+  if(!_quickFilter) return true;
+  if(!fechaISO) return false;
+  const d = new Date(fechaISO+'T00:00');
+  if(isNaN(d)) return false;
+  const hoy = new Date();
+  hoy.setHours(0,0,0,0);
+  const diffDays = Math.floor((hoy - d)/86400000);
+  if(_quickFilter==='hoy')     return diffDays===0;
+  if(_quickFilter==='semana')  return diffDays>=0 && diffDays<=6;
+  if(_quickFilter==='mes')     return d.getFullYear()===hoy.getFullYear() && d.getMonth()===hoy.getMonth();
+  if(_quickFilter==='pasado'){
+    const y=hoy.getFullYear(), m=hoy.getMonth();
+    const pY = m===0 ? y-1 : y;
+    const pM = m===0 ? 11 : m-1;
+    return d.getFullYear()===pY && d.getMonth()===pM;
+  }
+  return true;
+}
+
+// Construye un texto indexable rico para una fecha ISO (YYYY-MM-DD).
+// Incluye: fecha tal cual, día, mes (nombre largo y corto), día de la semana, año.
+function buildFechaIndex(fechaISO){
+  if(!fechaISO) return '';
+  const d = new Date(fechaISO+'T00:00');
+  if(isNaN(d)) return fechaISO;
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const mesesCortos=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const dias=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const diasCortos=['dom','lun','mar','mié','jue','vie','sáb'];
+  const day=d.getDate();
+  const mon=d.getMonth();
+  const year=d.getFullYear();
+  const dow=d.getDay();
+  // Indexa sin tildes también (por si el usuario no las escribe)
+  const quitarTildes = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const parts = [
+    fechaISO,
+    String(day),
+    String(day).padStart(2,'0'),
+    meses[mon], mesesCortos[mon],
+    quitarTildes(meses[mon]), quitarTildes(mesesCortos[mon]),
+    String(year),
+    dias[dow], diasCortos[dow],
+    quitarTildes(dias[dow]), quitarTildes(diasCortos[dow]),
+    meses[mon]+' '+year,
+    mesesCortos[mon]+' '+year,
+    String(day)+' '+meses[mon],
+    String(day)+' '+mesesCortos[mon],
+  ];
+  return parts.join(' ').toLowerCase();
+}
+
+function renderHome(filtro=''){
   const lista=getMuestreos();
   const cnt=document.getElementById('homeCnt');
   const div=document.getElementById('homeLista');
   if(!cnt||!div)return;
   cnt.textContent=lista.length;
+  // Tokeniza el filtro: todas las palabras deben aparecer (AND).
+  // Acepta tildes o sin tildes por parte del usuario.
+  const quitarTildes = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const tokens = filtro ? filtro.split(/\s+/).filter(Boolean).map(quitarTildes) : [];
+  // Aplicar filtro (tokens + rango rápido)
+  const filtrados = lista.filter(m=>{
+    const omarObj=m.omar?JSON.parse(m.omar):{};
+    const fechaISO=omarObj.fecha||m.fecha||'';
+    // Filtro rápido por rango
+    if(!matchesQuickFilter(fechaISO)) return false;
+    // Si no hay texto de búsqueda, pasa
+    if(tokens.length===0) return true;
+    const empresa=(omarObj.empresa||'').toLowerCase();
+    const folio=(m.folio||'').toLowerCase();
+    const muestreador=(omarObj.muestreador||'').toLowerCase();
+    const fechaIdx=buildFechaIndex(fechaISO);
+    const haystack = quitarTildes(empresa+' '+folio+' '+muestreador+' '+fechaIdx);
+    return tokens.every(tk=>haystack.includes(tk));
+  });
   if(lista.length===0){
     div.innerHTML='<div style="text-align:center;padding:24px;color:var(--g2);font-size:13px">Sin muestreos guardados aún</div>';
     return;
   }
+  if(filtrados.length===0){
+    const qlabel = _quickFilter ? ' en el rango seleccionado' : '';
+    div.innerHTML='<div style="text-align:center;padding:24px;color:var(--g2);font-size:13px">Sin resultados para "'+filtro+'"'+qlabel+'</div>';
+    return;
+  }
   div.innerHTML='';
-  lista.forEach(m=>{
+  filtrados.forEach(m=>{
     const omarObj=m.omar?JSON.parse(m.omar):{};
     const nTomas=m.tomas?m.tomas.length:0;
     const ntotal=parseInt(omarObj.ntomas)||0;
@@ -593,7 +688,9 @@ function loadCampoFromOMAR(){
     sv('c_tnom',l.tnom);sv('c_tfir',l.tfir);sv('c_tfec',l.tfec);sv('c_thor',l.thor);
     sv('c_inom',l.inom);sv('c_ifir',l.ifir);sv('c_ifec',l.ifec);sv('c_ihor',l.ihor);
     sv('c_renom',l.renom);sv('c_refir',l.refir);sv('c_refec',l.refec);sv('c_rehor',l.rehor);
-    sv('c_fotar',l.fotar);sv('c_snom',l.snom);sv('c_sfec',l.sfec);sv('c_shor',l.shor);
+    sv('c_fotar',l.fotar);sv('c_snom',l.snom);sv('c_sfir',l.sfir);sv('c_sfec',l.sfec);sv('c_shor',l.shor);
+    sv('c_isnom',l.isnom);sv('c_isfir',l.isfir);sv('c_isfec',l.isfec);sv('c_ishor',l.ishor);
+    sv('c_rsnom',l.rsnom);sv('c_rsfir',l.rsfir);sv('c_rsfec',l.rsfec);sv('c_rshor',l.rshor);
     sv('c_ltnom',l.ltnom);sv('c_ltfir',l.ltfir);sv('c_ltfec',l.ltfec);sv('c_lthor',l.lthor);
     sv('c_sup',l.sup);
   }
@@ -874,6 +971,61 @@ function setTransp(t){
 }
 function irFirma(){goSec(2);toast('Custodia guardada ✓','g');}
 
+// Llena un input date/time con el valor de "ahora"
+function setNow(inputId){
+  const el=document.getElementById(inputId);
+  if(!el) return;
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  if(el.type==='date'){
+    el.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  } else if(el.type==='time'){
+    el.value=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else if(el.id && el.id.endsWith('hor')){
+    // input tipo text con patrón HH:MM
+    el.value=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    // fallback fecha en texto
+    el.value=`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+  }
+  el.dispatchEvent(new Event('change',{bubbles:true}));
+  el.style.background='rgba(74,222,128,.1)';
+  setTimeout(()=>{el.style.background='';},400);
+}
+
+// Llena todas las fechas/horas de una sección con "ahora"
+function setNowGroup(prefix){
+  setNow(prefix+'fec');
+  setNow(prefix+'hor');
+}
+
+// Auto-formato de hora HH:MM mientras el usuario teclea.
+// Acepta sólo dígitos, inserta ":" después del segundo dígito.
+// Valida rangos: horas 00-23, minutos 00-59.
+function fmtHoraInput(el){
+  // Conservar posición del cursor de forma aproximada
+  let raw=el.value.replace(/[^0-9]/g,'').slice(0,4);
+  let out='';
+  if(raw.length===0){ el.value=''; return; }
+  // Primeros 2 dígitos = horas
+  if(raw.length<=2){
+    out=raw;
+  } else {
+    out=raw.slice(0,2)+':'+raw.slice(2,4);
+  }
+  // Si hay 2 dígitos completos en horas y exceden 23, limitar a 23
+  if(out.length>=2){
+    const hh=parseInt(out.slice(0,2),10);
+    if(hh>23){ out='23'+out.slice(2); }
+  }
+  // Si hay 2 dígitos completos en minutos y exceden 59, limitar a 59
+  if(out.length===5){
+    const mm=parseInt(out.slice(3,5),10);
+    if(mm>59){ out=out.slice(0,3)+'59'; }
+  }
+  el.value=out;
+}
+
 
 function checkCamposCompletos(){
   const faltantes=[];
@@ -890,26 +1042,55 @@ function checkCamposCompletos(){
 
 function genPDFConCheck(tipo){
   const faltantes=checkCamposCompletos();
-  if(faltantes.length>0){
-    // Mostrar modal de advertencia
-    const modal=document.createElement('div');
-    modal.style.cssText='position:fixed;inset:0;background:rgba(7,8,15,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
-    modal.innerHTML=`
-      <div style="background:var(--bg2);border:1px solid var(--ln2);border-radius:16px;padding:24px;max-width:320px;width:100%">
-        <div style="font-family:var(--syne);font-size:16px;font-weight:800;color:var(--amber);margin-bottom:12px">⚠ Campos incompletos</div>
-        <div style="font-size:13px;color:var(--g1);margin-bottom:16px">Faltan los siguientes datos:</div>
-        <ul style="margin:0 0 20px 16px;color:var(--w);font-size:13px;line-height:2">
-          ${faltantes.map(f=>`<li>${f}</li>`).join('')}
-        </ul>
-        <div style="display:flex;gap:10px">
-          <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:10px;border-radius:8px;background:var(--bg3);border:1px solid var(--ln2);color:var(--g1);cursor:pointer;font-family:var(--syne);font-weight:700">Cancelar</button>
-          <button onclick="this.closest('div[style*=fixed]').remove();genPDF('${tipo}')" style="flex:1;padding:10px;border-radius:8px;background:var(--amber);border:none;color:#000;cursor:pointer;font-family:var(--syne);font-weight:800">Generar igual</button>
+  const tomasCompletas=tomas.filter(t=>t.ph&&t.ls).length;
+  const analitos=(omar.analitos||[]).slice(0,6).join(', ')+(omar.analitos&&omar.analitos.length>6?` +${omar.analitos.length-6} más`:'');
+  
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(7,8,15,.95);z-index:99999;display:flex;align-items:flex-end;padding:0';
+  modal.innerHTML=`
+    <div style="width:100%;background:var(--bg1);border-radius:20px 20px 0 0;padding:24px;max-height:85vh;overflow-y:auto">
+      <div style="font-family:var(--syne);font-size:18px;font-weight:800;color:var(--w);margin-bottom:4px">Resumen del muestreo</div>
+      <div style="font-size:12px;color:var(--g1);margin-bottom:20px">Verifica antes de generar el PDF</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--bg3);border-radius:10px;padding:12px">
+          <div style="font-size:10px;color:var(--g1);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)">OMAR</div>
+          <div style="font-family:var(--syne);font-size:15px;font-weight:800;color:var(--acc)">${omar.folio||'—'}</div>
         </div>
-      </div>`;
-    document.body.appendChild(modal);
-    return;
-  }
-  genPDF(tipo);
+        <div style="background:var(--bg3);border-radius:10px;padding:12px">
+          <div style="font-size:10px;color:var(--g1);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)">Tipo</div>
+          <div style="font-family:var(--syne);font-size:15px;font-weight:800;color:var(--w)">${omar.tipo||'—'}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:12px;grid-column:span 2">
+          <div style="font-size:10px;color:var(--g1);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)">Empresa</div>
+          <div style="font-family:var(--syne);font-size:14px;font-weight:700;color:var(--w)">${omar.empresa||'—'}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:12px">
+          <div style="font-size:10px;color:var(--g1);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)">Tomas</div>
+          <div style="font-family:var(--syne);font-size:15px;font-weight:800;color:${tomasCompletas===tomas.length&&tomas.length>0?'var(--green)':'var(--amber)'}">${tomasCompletas}/${tomas.length} completas</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:10px;padding:12px">
+          <div style="font-size:10px;color:var(--g1);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)">Firma cliente</div>
+          <div style="font-family:var(--syne);font-size:15px;font-weight:800;color:${sigData?'var(--green)':'#f87171'}">${sigData?'✓ Firmado':'Sin firma'}</div>
+        </div>
+        ${analitos?`<div style="background:var(--bg3);border-radius:10px;padding:12px;grid-column:span 2">
+          <div style="font-size:10px;color:var(--g1);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)">Analitos</div>
+          <div style="font-size:12px;color:var(--w);margin-top:4px">${analitos}</div>
+        </div>`:''}
+      </div>
+
+      ${faltantes.length>0?`
+      <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:12px;margin-bottom:16px">
+        <div style="font-family:var(--syne);font-size:12px;font-weight:800;color:var(--amber);margin-bottom:8px">Campos incompletos</div>
+        ${faltantes.map(f=>`<div style="font-size:12px;color:var(--g1);padding:2px 0">· ${f}</div>`).join('')}
+      </div>`:'<div style="background:rgba(134,239,172,.08);border:1px solid rgba(134,239,172,.25);border-radius:10px;padding:12px;margin-bottom:16px"><div style="font-family:var(--syne);font-size:12px;font-weight:800;color:var(--green)">✓ Todo completo</div></div>'}
+
+      <div style="display:flex;gap:10px">
+        <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:12px;border-radius:10px;background:var(--bg3);border:1px solid var(--ln2);color:var(--g1);cursor:pointer;font-family:var(--syne);font-weight:700;font-size:14px">Cancelar</button>
+        <button onclick="this.closest('div[style*=fixed]').remove();genPDF('${tipo}')" style="flex:1;padding:12px;border-radius:10px;background:var(--acc);border:none;color:#fff;cursor:pointer;font-family:var(--syne);font-weight:800;font-size:14px">Generar PDF</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 // ── FIRMA ──
@@ -1118,7 +1299,9 @@ async function saveMuestreoActual(){
     tnom:gv('c_tnom'),tfir:gv('c_tfir'),tfec:gv('c_tfec'),thor:gv('c_thor'),
     inom:gv('c_inom'),ifir:gv('c_ifir'),ifec:gv('c_ifec'),ihor:gv('c_ihor'),
     renom:gv('c_renom'),refir:gv('c_refir'),refec:gv('c_refec'),rehor:gv('c_rehor'),
-    fotar:gv('c_fotar'),snom:gv('c_snom'),sfec:gv('c_sfec'),shor:gv('c_shor'),
+    fotar:gv('c_fotar'),snom:gv('c_snom'),sfir:gv('c_sfir'),sfec:gv('c_sfec'),shor:gv('c_shor'),
+    isnom:gv('c_isnom'),isfir:gv('c_isfir'),isfec:gv('c_isfec'),ishor:gv('c_ishor'),
+    rsnom:gv('c_rsnom'),rsfir:gv('c_rsfir'),rsfec:gv('c_rsfec'),rshor:gv('c_rshor'),
     ltnom:gv('c_ltnom'),ltfir:gv('c_ltfir'),ltfec:gv('c_ltfec'),lthor:gv('c_lthor'),
     sup:gv('c_sup'),
   };
@@ -1752,18 +1935,16 @@ async function buildPDF(){
   const folio=gv('h_omar')||'000';
   const fecha=now.toISOString().split('T')[0];
   const empresa_lab=(omar.empresa||gv('h_emp')||'Cliente').substring(0,25).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
-  const fileName='Hoja de Campo - '+empresa_lab+' ('+fecha+').pdf';
+  const fileName=buildFileName(empresa_lab,'Hoja de Campo',fecha);
   
   try{
     const pdfBlob=doc.output('blob');
     lastPDFBlob=pdfBlob; lastPDFBlob.name=fileName;
-    const blobUrl=URL.createObjectURL(pdfBlob);
-    const a=document.createElement('a');
-    a.href=blobUrl; a.download=fileName; a.style.display='none';
-    document.body.appendChild(a); a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(blobUrl);},3000);
-    document.getElementById('shareRow').style.display='flex';
-    toast('Registro guardado ✓ — también puedes entregar al cliente','g');
+    await entregarPDF(pdfBlob, fileName, {
+      title:'Hoja de Campo — A&A S.C.',
+      text:'Registro interno de campo'
+    });
+    const sr1=document.getElementById('shareRow'); if(sr1)sr1.style.display='flex';
   }catch(e){ doc.save(fileName); toast('PDF guardado ✓','g'); }
 }
 async function buildPDFCliente(){
@@ -2175,16 +2356,14 @@ async function buildPDFCliente(){
   const folio=gv('h_omar')||'000';
   const fecha=now.toISOString().split('T')[0];
   const empresa_c=(omar.empresa||gv('h_emp')||'Cliente').substring(0,25).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
-  const fname='Reporte de Muestreo - '+empresa_c+' ('+fecha+').pdf';
+  const fname=buildFileName(empresa_c,'Reporte de Muestreo',fecha);
   const blob=doc.output('blob');
   lastPDFClienteBlob=blob;lastPDFClienteBlob.name=fname;
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=fname;a.style.display='none';
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},3000);
-  document.getElementById('shareRow').style.display='flex';
-  toast('Informe para cliente listo — toca Compartir','g');
+  await entregarPDF(blob, fname, {
+    title:'Informe de Muestreo — A&A S.C.',
+    text:'Tu informe de muestreo — Asesoría y Análisis S.C.'
+  });
+  const sr2=document.getElementById('shareRow'); if(sr2)sr2.style.display='flex';
 }
 
 
@@ -2196,6 +2375,9 @@ function genCadena(){
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
   const run=async()=>{
     try{
+      // CRÍTICO: guardar el estado actual del formulario a omar.lab
+      // antes de generar, para que el PDF vea los valores recién escritos
+      if(omar.folio){ await saveMuestreoActual(); }
       await buildPDFCadena();
       if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}
     }catch(e){
@@ -2492,149 +2674,368 @@ async function buildPDFCadena(){
 
   // ── FIRMAS MATRIZ — campos editables PDF ──
   const FW=CW/3;
-  const firmaH=40;
-  const lab=omar.lab||{};
-  const fmtDate=v=>v?v.split('-').reverse().join('/'):'';
+  // IMPORTANTE: leer directo del DOM. omar.lab solo sirve como respaldo
+  // para muestreos cargados desde IndexedDB que aún no tienen valor en pantalla.
+  const labStored = omar.lab||{};
+  const labGet = id => {
+    const el=document.getElementById(id);
+    const v=el?el.value:'';
+    return (v&&v.trim())||'';
+  };
+  // Construye el objeto lab combinando DOM + fallback
+  const lab = {
+    tnom: labGet('c_tnom')||labStored.tnom||'',
+    tfir: labGet('c_tfir')||labStored.tfir||'',
+    tfec: labGet('c_tfec')||labStored.tfec||'',
+    thor: labGet('c_thor')||labStored.thor||'',
+    inom: labGet('c_inom')||labStored.inom||'',
+    ifir: labGet('c_ifir')||labStored.ifir||'',
+    ifec: labGet('c_ifec')||labStored.ifec||'',
+    ihor: labGet('c_ihor')||labStored.ihor||'',
+    renom: labGet('c_renom')||labStored.renom||'',
+    refir: labGet('c_refir')||labStored.refir||'',
+    refec: labGet('c_refec')||labStored.refec||'',
+    rehor: labGet('c_rehor')||labStored.rehor||'',
+    fotar: labGet('c_fotar')||labStored.fotar||'',
+    snom: labGet('c_snom')||labStored.snom||'',
+    sfir: labGet('c_sfir')||labStored.sfir||'',
+    sfec: labGet('c_sfec')||labStored.sfec||'',
+    shor: labGet('c_shor')||labStored.shor||'',
+    isnom: labGet('c_isnom')||labStored.isnom||'',
+    isfir: labGet('c_isfir')||labStored.isfir||'',
+    isfec: labGet('c_isfec')||labStored.isfec||'',
+    ishor: labGet('c_ishor')||labStored.ishor||'',
+    rsnom: labGet('c_rsnom')||labStored.rsnom||'',
+    rsfir: labGet('c_rsfir')||labStored.rsfir||'',
+    rsfec: labGet('c_rsfec')||labStored.rsfec||'',
+    rshor: labGet('c_rshor')||labStored.rshor||'',
+    ltnom: labGet('c_ltnom')||labStored.ltnom||'',
+    ltfir: labGet('c_ltfir')||labStored.ltfir||'',
+    ltfec: labGet('c_ltfec')||labStored.ltfec||'',
+    lthor: labGet('c_lthor')||labStored.lthor||'',
+    sup:   labGet('c_sup')  ||labStored.sup  ||'',
+  };
+  // Debug temporal: si hay queja de campos vacíos, abrir consola para ver
+  console.log('[Cadena] lab data:', lab);
+
+  const fmtDate=v=>{
+    if(!v)return'';
+    // ISO AAAA-MM-DD → DD/MM/AAAA
+    if(v.includes('-')&&v.indexOf('-')===4)return v.split('-').reverse().join('/');
+    return v;
+  };
   const fmtTime=v=>v||'';
 
-  // Helper para agregar campo de texto editable en el PDF
-  function addField(name, x, y, w, h, value='', fontSize=6){
-    doc.addField({
-      type:'text', name, x, y, w, h,
-      value: value||'',
-      fontSize,
-      fontName:'helvetica',
-      color:[0.2,0.2,0.3],
-      backgroundColor:[0.97,0.98,1],
-      borderColor:[0.7,0.78,0.88],
-      borderWidth:0.5,
-    });
+  // Helper: caja de campo con valor. Si tieneValor, fondo blanco y texto nítido;
+  // si vacío, fondo muy suave (para que se note que es rellenable).
+  // Se mantiene por si otros PDFs lo usan — aquí en Cadena usamos lineField().
+  function addField(name, x, y, w, h, value='', fontSize=6.5){
+    const has=!!(value && String(value).trim());
+    doc.setFillColor(...(has?WHITE:[249,251,254]));
+    doc.rect(x, y, w, h, 'F');
+    doc.setDrawColor(...(has?[150,168,195]:[205,215,230]));
+    doc.setLineWidth(0.3);
+    doc.rect(x, y, w, h, 'S');
+    if(has){
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(fontSize);
+      doc.setTextColor(...NAVY);
+      const ty = y + h/2 + fontSize*0.30;
+      doc.text(String(value), x+2, ty, {maxWidth: w-4});
+    }
   }
 
+  // Helper estilo FORMATO OFICIAL: etiqueta a la izquierda + línea horizontal
+  // con el valor escrito JUSTO ENCIMA de la línea. No hay caja.
+  //  - x,y,w,h → bounding box de la fila
+  //  - label   → texto de la etiqueta (bold, izq)
+  //  - value   → texto a escribir encima de la línea
+  //  - labelW  → ancho reservado a la etiqueta (si no se pasa, se calcula)
+  function lineField(x, y, w, h, label, value, fontSize=7, labelW=null){
+    // Ancho de la etiqueta: si no se especifica, se calcula según longitud
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(6);
+    doc.setTextColor(...NAVY);
+    const calcW = doc.getTextWidth(label)+4;
+    const lw = labelW!=null ? labelW : calcW;
+    // Etiqueta centrada verticalmente
+    doc.text(label, x, y+h/2+2);
+    // Línea horizontal gris en la parte inferior
+    const lineY = y+h-1.5;
+    const lineX1 = x+lw;
+    const lineX2 = x+w;
+    doc.setDrawColor(130,145,165);
+    doc.setLineWidth(0.35);
+    doc.line(lineX1, lineY, lineX2, lineY);
+    // Valor escrito encima de la línea
+    const val = (value==null?'':String(value)).trim();
+    if(val){
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(fontSize);
+      doc.setTextColor(...NAVY);
+      // Truncar si excede el ancho disponible
+      const maxW = lineX2-lineX1-3;
+      let txt = val;
+      while(doc.getTextWidth(txt) > maxW && txt.length > 3){
+        txt = txt.slice(0,-1);
+      }
+      if(txt !== val) txt = txt.slice(0,-1)+'…';
+      doc.text(txt, lineX1+2, lineY-1.5);
+    }
+  }
+
+  // Altura de cada bloque de firma matriz:
+  //  - franja de título (11pt)
+  //  - fila NOMBRE (12pt)
+  //  - fila FIRMA  (12pt)
+  //  - fila FECHA | HORA (12pt)
+  // total = 47pt
+  const firmaTitleH = 11;
+  const firmaRowH   = 12;
+  const firmaH      = firmaTitleH + firmaRowH*3;
+  const LBL_W = 26; // ancho fijo para etiquetas NOMBRE/FIRMA/FECHA/HORA
+  const LBL_W_SHORT = 22; // para FECHA/HORA que son más cortas
+
   [
-    {lbl:'TRANSPORTA Y ENTREGA EN MATRIZ:',fill:LGRAY,
+    {lbl:'TRANSPORTA Y ENTREGA EN MATRIZ',fill:[225,232,246],
      nom:lab.tnom,fir:lab.tfir,fec:fmtDate(lab.tfec),hor:fmtTime(lab.thor),
      pfx:'tm'},
-    {lbl:'INSPECCIONA EN MATRIZ:',fill:[255,255,255],
+    {lbl:'INSPECCIONA EN MATRIZ',fill:[235,240,250],
      nom:lab.inom,fir:lab.ifir,fec:fmtDate(lab.ifec),hor:fmtTime(lab.ihor),
      pfx:'im'},
-    {lbl:'RECIBE EN MATRIZ:',fill:LGRAY,
+    {lbl:'RECIBE EN MATRIZ',fill:[225,232,246],
      nom:lab.renom,fir:lab.refir,fec:fmtDate(lab.refec),hor:fmtTime(lab.rehor),
      pfx:'rm'},
   ].forEach(({lbl,fill,nom,fir,fec,hor,pfx},i)=>{
     const fx=M+i*FW;
-    fillRect(fx,y,FW,firmaH,fill);
+    // Fondo general del bloque
+    fillRect(fx,y,FW,firmaH,WHITE);
     outerRect(fx,y,FW,firmaH);
-    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
-    doc.text(lbl,fx+4,y+8);
-    doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6);
-    doc.text('NOMBRE:',fx+4,y+17);
-    addField(pfx+'_nom',fx+28,y+10,FW-32,9,nom||'');
-    doc.text('FIRMA:',fx+4,y+26);
-    addField(pfx+'_fir',fx+22,y+19,FW-26,9,fir||'');
-    doc.text('FECHA:',fx+4,y+35);
-    addField(pfx+'_fec',fx+22,y+28,FW*0.5-4,9,fec);
-    doc.text('HORA:',fx+FW*0.5+4,y+35);
-    addField(pfx+'_hor',fx+FW*0.5+20,y+28,FW*0.5-24,9,hor);
+    // Franja de título
+    fillRect(fx,y,FW,firmaTitleH,fill);
+    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
+    doc.line(fx,y+firmaTitleH,fx+FW,y+firmaTitleH);
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
+    doc.text(lbl,fx+FW/2,y+firmaTitleH/2+2,{align:'center'});
+
+    // Filas: NOMBRE / FIRMA / FECHA-HORA
+    const rx = fx+4, rw = FW-8;
+    let ry = y + firmaTitleH + 1;
+    lineField(rx, ry, rw, firmaRowH-2, 'NOMBRE', nom, 7, LBL_W);
+    ry += firmaRowH;
+    lineField(rx, ry, rw, firmaRowH-2, 'FIRMA', fir, 7, LBL_W);
+    ry += firmaRowH;
+    // Fila dividida en dos: FECHA y HORA
+    const halfW = rw/2 - 2;
+    lineField(rx,          ry, halfW, firmaRowH-2, 'FECHA', fec, 7, LBL_W_SHORT);
+    lineField(rx+halfW+4,  ry, halfW, firmaRowH-2, 'HORA',  hor, 7, LBL_W_SHORT);
   });
   y+=firmaH;
 
   // ── RESPONSABLE + OBSERVACIONES ──
-  const respH=30;
-  fillRect(M,y,CW*0.36,respH,NAVY);
-  outerRect(M,y,CW*0.36,respH);
-  doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
-  doc.text('RESPONSABLE DE MUESTREO:',M+4,y+9);
-  doc.setFont('helvetica','normal');doc.setFontSize(6);
-  doc.text('NOMBRE: '+(gv('mn_nom')||''),M+4,y+18);
-  doc.text('FIRMA: _______________________________',M+4,y+27);
+  const respH=32;
+  const respW=CW*0.38;
+  // Bloque RESPONSABLE — franja navy arriba, cuerpo blanco abajo
+  fillRect(M,y,respW,respH,WHITE);
+  outerRect(M,y,respW,respH);
+  fillRect(M,y,respW,11,NAVY);
+  doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(6);
+  doc.text('RESPONSABLE DE MUESTREO',M+respW/2,y+7.5,{align:'center'});
+  // Dos filas dentro: NOMBRE + FIRMA
+  let ry = y + 13;
+  lineField(M+4, ry, respW-8, 9, 'NOMBRE', gv('mn_nom'), 7, LBL_W);
+  ry += 10;
+  lineField(M+4, ry, respW-8, 9, 'FIRMA',  '', 7, LBL_W);
 
-  const obsX=M+CW*0.36;
-  fillRect(obsX,y,CW*0.64,respH,LGRAY);
-  outerRect(obsX,y,CW*0.64,respH);
-  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
-  doc.text('OBSERVACIONES:',obsX+4,y+9);
-  addField('obs',obsX+4,y+10,CW*0.64-8,17,gv('c_obs')||gv('h_obs')||'');
+  // Bloque OBSERVACIONES
+  const obsX=M+respW;
+  const obsW=CW-respW;
+  fillRect(obsX,y,obsW,respH,WHITE);
+  outerRect(obsX,y,obsW,respH);
+  fillRect(obsX,y,obsW,11,[225,232,246]);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
+  doc.text('OBSERVACIONES',obsX+obsW/2,y+7.5,{align:'center'});
+  // Observaciones como texto libre sobre líneas horizontales
+  const obsVal = (gv('c_obs')||gv('h_obs')||'').trim();
+  const obsInnerY = y+12;
+  const obsInnerH = respH-13;
+  // Dibujar 2 líneas horizontales guía
+  doc.setDrawColor(130,145,165);doc.setLineWidth(0.35);
+  doc.line(obsX+4, obsInnerY+obsInnerH*0.5, obsX+obsW-4, obsInnerY+obsInnerH*0.5);
+  doc.line(obsX+4, obsInnerY+obsInnerH-1,    obsX+obsW-4, obsInnerY+obsInnerH-1);
+  if(obsVal){
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...NAVY);
+    // Partir en dos líneas si es necesario
+    const maxW = obsW-10;
+    const lines = doc.splitTextToSize(obsVal, maxW);
+    if(lines[0]) doc.text(lines[0], obsX+6, obsInnerY+obsInnerH*0.5-1.5);
+    if(lines[1]) doc.text(lines[1], obsX+6, obsInnerY+obsInnerH-2.5);
+  }
   y+=respH;
 
-  // ── SUCURSAL — también editable ──
-  const sucH=38;
+  // ── SUCURSAL — tres bloques con mismo patrón que matriz ──
+  const sucTitleH = 11;
+  const sucRowH   = 12;
+  const sucH      = sucTitleH + sucRowH*3;
+
   [
-    {lbl:'TRANSPORTA Y ENTREGA DE MUESTRAS Y OTAR — FOLIO:',fill:LGRAY,
-     nom:lab.snom,fec:fmtDate(lab.sfec),hor:fmtTime(lab.shor),fotar:lab.fotar,pfx:'st'},
-    {lbl:'INSPECCIONA EN SUCURSAL:',fill:[255,255,255],nom:'',fec:'',hor:'',fotar:'',pfx:'is'},
-    {lbl:'RECIBIDO EN SUCURSAL:',fill:LGRAY,nom:'',fec:'',hor:'',fotar:'',pfx:'rs'},
-  ].forEach(({lbl,fill,nom,fec,hor,fotar,pfx},i)=>{
+    {lbl:'TRANSPORTA Y ENTREGA A SUCURSAL',fill:[225,232,246],
+     nom:lab.snom,fir:lab.sfir,fec:fmtDate(lab.sfec),hor:fmtTime(lab.shor),
+     fotar:lab.fotar,showOtar:true,pfx:'st'},
+    {lbl:'INSPECCIONA EN SUCURSAL',fill:[235,240,250],
+     nom:lab.isnom,fir:lab.isfir,fec:fmtDate(lab.isfec),hor:fmtTime(lab.ishor),
+     fotar:'',showOtar:false,pfx:'is'},
+    {lbl:'RECIBIDO EN SUCURSAL',fill:[225,232,246],
+     nom:lab.rsnom,fir:lab.rsfir,fec:fmtDate(lab.rsfec),hor:fmtTime(lab.rshor),
+     fotar:'',showOtar:false,pfx:'rs'},
+  ].forEach(({lbl,fill,nom,fir,fec,hor,fotar,showOtar,pfx},i)=>{
     const fx=M+i*FW;
-    fillRect(fx,y,FW,sucH,fill);
+    fillRect(fx,y,FW,sucH,WHITE);
     outerRect(fx,y,FW,sucH);
-    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
-    if(i===0){
-      doc.text(lbl,fx+4,y+7);
-      addField('fotar',fx+4,y+7,FW/2,7,fotar||'');
-      doc.text('EN SUCURSAL:',fx+FW/2+6,y+7);
+    // Franja de título
+    fillRect(fx,y,FW,sucTitleH,fill);
+    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
+    doc.line(fx,y+sucTitleH,fx+FW,y+sucTitleH);
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
+    doc.text(lbl,fx+FW/2,y+sucTitleH/2+2,{align:'center'});
+
+    const rx = fx+4, rw = FW-8;
+    let ry = y + sucTitleH + 1;
+    if(showOtar){
+      // Fila: NOMBRE + FOLIO OTAR (pequeño al final)
+      const nomW = rw*0.62;
+      const otarW = rw*0.38 - 4;
+      lineField(rx, ry, nomW, sucRowH-2, 'NOMBRE', nom, 7, LBL_W);
+      lineField(rx+nomW+4, ry, otarW, sucRowH-2, 'OTAR', fotar, 7, LBL_W_SHORT);
     } else {
-      doc.text(lbl,fx+4,y+7);
+      lineField(rx, ry, rw, sucRowH-2, 'NOMBRE', nom, 7, LBL_W);
     }
-    doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6);
-    doc.text('NOMBRE:',fx+4,y+20);
-    addField(pfx+'_nom',fx+26,y+13,FW-60,8,nom||'');
-    doc.text('FIRMA:',fx+FW-54,y+20);
-    addField(pfx+'_fir',fx+FW-32,y+13,30,8,'');
-    doc.text('FECHA:',fx+4,y+30);
-    addField(pfx+'_fec',fx+24,y+23,FW*0.5-8,8,fec);
-    doc.text('HORA:',fx+FW*0.5+4,y+30);
-    addField(pfx+'_hor',fx+FW*0.5+20,y+23,FW*0.5-24,8,hor);
+    ry += sucRowH;
+    lineField(rx, ry, rw, sucRowH-2, 'FIRMA', fir, 7, LBL_W);
+    ry += sucRowH;
+    const halfW = rw/2 - 2;
+    lineField(rx,          ry, halfW, sucRowH-2, 'FECHA', fec, 7, LBL_W_SHORT);
+    lineField(rx+halfW+4,  ry, halfW, sucRowH-2, 'HORA',  hor, 7, LBL_W_SHORT);
   });
   y+=sucH;
 
-  // ── PIE FINAL ──
-  const pieH=28;
-  fillRect(M,y,CW,pieH,LGRAY);
+  // ── PIE FINAL — envío a lab matriz ──
+  // Fila 1: título + folios OTAR/CCIAR
+  // Fila 2: persona que transporta (nombre/firma/fecha/hora)
+  // Fila 3: supervisó + código formato
+  const pieRowH = 13;
+  const pieH = pieRowH*3;
+  fillRect(M,y,CW,pieH,WHITE);
   outerRect(M,y,CW,pieH);
-  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
-  doc.text('ENVÍO DE OTAR CON FOLIO:',M+4,y+8);
-  addField('otar_folio',M+68,y+1,40,9,lab.fotar||'');
-  doc.text('Y CCIAR CON FOLIO:',M+112,y+8);
-  addField('cciar_folio',M+162,y+1,40,9,gv('h_cciar')||'');
-  doc.text('A LABORATORIO MATRIZ',M+206,y+8);
-  doc.setFont('helvetica','normal');doc.setFontSize(5);
-  doc.text('PERSONA QUE TRANSPORTA EN LAB. MATRIZ:',M+4,y+18);
-  addField('lt_nom',M+106,y+11,80,8,lab.ltnom||'');
-  doc.text('FIRMA:',M+190,y+18);
-  addField('lt_fir',M+208,y+11,35,8,lab.ltfir||'');
-  doc.text('FECHA:',M+247,y+18);
-  addField('lt_fec',M+265,y+11,40,8,fmtDate(lab.ltfec));
-  doc.text('HORA:',M+309,y+18);
-  addField('lt_hor',M+325,y+11,25,8,fmtTime(lab.lthor));
-  if(lab.sup){
-    doc.text('SUPERVISO:',M+4,y+25);
-    doc.text(lab.sup,M+36,y+25);
-  } else {
-    doc.text('SUPERVISO:',M+4,y+25);
-    addField('sup',M+36,y+18,80,8,'');
-  }
-  doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);
-  doc.text('F-AA-01A-15',W-M-4,y+20,{align:'right'});
+
+  // Fila 1: ENVÍO + folios
+  let py = y;
+  fillRect(M,py,CW,pieRowH,[225,232,246]);
+  doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
+  doc.line(M,py+pieRowH,M+CW,py+pieRowH);
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
+  doc.text('ENVÍO DE OTAR Y CCIAR A LABORATORIO MATRIZ',M+4,py+pieRowH/2+2);
+  // Folios a la derecha como lineField
+  const folioW = 90;
+  lineField(M+CW-folioW-4,       py+2, folioW, pieRowH-4, 'CCIAR:', gv('h_cciar')||'', 7, 22);
+  lineField(M+CW-folioW*2-20,    py+2, folioW, pieRowH-4, 'OTAR:',  lab.fotar||'',     7, 20);
+
+  // Fila 2: persona que transporta
+  py += pieRowH;
+  doc.setFillColor(...WHITE);doc.rect(M,py,CW,pieRowH,'F');
+  doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
+  doc.line(M,py+pieRowH,M+CW,py+pieRowH);
+  doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(...NAVY);
+  doc.text('PERSONA QUE TRANSPORTA EN LAB. MATRIZ',M+4,py+pieRowH/2+2);
+  // 4 campos a la derecha
+  const pFieldsX = M + 180;
+  const pFieldsW = CW - 180 - 4;
+  const cols = [
+    ['NOMBRE', lab.ltnom,  0.36, LBL_W],
+    ['FIRMA',  lab.ltfir,  0.18, LBL_W],
+    ['FECHA',  fmtDate(lab.ltfec), 0.26, LBL_W_SHORT],
+    ['HORA',   fmtTime(lab.lthor), 0.20, LBL_W_SHORT],
+  ];
+  let ccx = pFieldsX;
+  cols.forEach(([lb,val,frac,lw])=>{
+    const w = pFieldsW*frac - 3;
+    lineField(ccx, py+2, w, pieRowH-4, lb, val||'', 7, lw);
+    ccx += pFieldsW*frac;
+  });
+
+  // Fila 3: supervisó + código formato
+  py += pieRowH;
+  fillRect(M,py,CW,pieRowH,[248,250,253]);
+  lineField(M+4, py+2, 220, pieRowH-4, 'SUPERVISÓ:', lab.sup||'', 7, 40);
+  // Código formato a la derecha
+  doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);doc.setFontSize(7);
+  doc.text('F-AA-01A-15', W-M-4, py+pieRowH/2+2.5, {align:'right'});
 
   // ── SAVE ──
   const folio=gv('h_omar')||'000';
   const fecha=now.toISOString().split('T')[0];
   const empresa=(omar.empresa||gv('h_emp')||'').substring(0,20).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
-  const fname='Cadena de Custodia - '+empresa+' ('+fecha+').pdf';
+  const fname=buildFileName(empresa,'Cadena de Custodia',fecha);
   const blob=doc.output('blob');
   lastPDFCadenaBlob=blob; lastPDFCadenaBlob.name=fname;
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=fname;a.style.display='none';
-  document.body.appendChild(a);a.click();
-  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},3000);
-  document.getElementById('shareRow').style.display='flex';
-  toast('Cadena de Custodia generada ✓','g');
+  await entregarPDF(blob, fname, {
+    title:'Cadena de Custodia — A&A S.C.',
+    text:'Cadena de Custodia Interna AR'
+  });
+  const sr3=document.getElementById('shareRow'); if(sr3)sr3.style.display='flex';
 }
 
 function fmtF(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`;}
 // Store last PDF blob for sharing
+
+// Helper universal para entregar un PDF al usuario.
+// En dispositivos con Web Share API (iPad/iPhone/Android modernos) usa la hoja
+// de compartir nativa — así al guardar el archivo el usuario regresa a la app
+// sin perder el estado. En desktop usa descarga clásica.
+// Devuelve Promise que resuelve cuando termina la operación.
+function entregarPDF(blob, fname, opts={}){
+  const {title='Documento — A&A S.C.', text='Documento generado por AARMS'}=opts;
+  const file=new File([blob],fname,{type:'application/pdf'});
+  const canShare = navigator.share && navigator.canShare && navigator.canShare({files:[file]});
+  if(canShare){
+    return navigator.share({title, text, files:[file]})
+      .then(()=>toast('Listo ✓','g'))
+      .catch(e=>{
+        if(e.name==='AbortError'){
+          // Usuario cerró la hoja sin guardar — no hacer fallback
+          toast('Cancelado','');
+        } else {
+          // Algún error real — fallback a descarga
+          descargaDirecta(blob, fname);
+        }
+      });
+  }
+  // Desktop o navegador sin share API
+  descargaDirecta(blob, fname);
+  return Promise.resolve();
+}
+
+// Descarga clásica vía <a download>. Solo para desktop o fallback.
+function descargaDirecta(blob, fname){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=fname; a.style.display='none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{
+    if(a.parentNode) document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },3000);
+  toast('PDF descargado ✓','g');
+}
+
+// Construye un nombre de archivo con prefijo [empresa] para que los PDFs
+// de la misma empresa queden juntos alfabéticamente en Descargas.
+// Ej: "[Juarez] Cadena de Custodia 2026-04-17.pdf"
+function buildFileName(empresa, tipo, fecha){
+  const emp=(empresa||'Cliente').substring(0,25)
+    .replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim() || 'Cliente';
+  return `[${emp}] ${tipo} ${fecha}.pdf`;
+}
 
 
 function compartirPDF(tipo='lab'){
