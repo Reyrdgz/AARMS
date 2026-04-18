@@ -79,6 +79,9 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 .f:last-child{margin-bottom:0}
 .f>label{display:block;font-family:var(--syne);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g2);margin-bottom:5px}
 .f input,.f select,.f textarea{width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);font-family:var(--dm);font-size:15px;padding:11px 13px;-webkit-appearance:none;appearance:none;transition:all .15s}
+.f input[type="date"],.f input[type="time"],.f input[type="datetime-local"]{-webkit-appearance:auto;appearance:auto;min-height:44px;cursor:pointer}
+.f input[type="date"]::-webkit-date-and-time-value{text-align:left;color:var(--w)}
+.f input[type="date"]::-webkit-calendar-picker-indicator,.f input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.2);opacity:.6;cursor:pointer}
 .f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--acc);background:var(--bg3);box-shadow:0 0 0 3px rgba(74,158,255,.1)}
 .f input::placeholder,.f textarea::placeholder{color:var(--g3);font-size:14px}
 .f select option{background:var(--bg2);color:var(--w)}
@@ -220,6 +223,9 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 @media(max-width:500px){.pg{grid-template-columns:repeat(2,minmax(0,1fr))}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #fabMenu{transform:translateX(100%)}
 #fabMenu.menu-open{transform:translateX(0)!important}
+.qchip{background:var(--bg3);border:1px solid var(--ln);border-radius:999px;color:var(--g2);font-family:var(--dm);font-size:12px;padding:5px 11px;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.qchip:hover{border-color:var(--acc);color:var(--w)}
+.qchip.on{background:rgba(74,158,255,.15);border-color:var(--acc);color:var(--acc);box-shadow:0 0 0 2px rgba(74,158,255,.1)}
 </style>
 
 </head>
@@ -269,6 +275,18 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
       <div class="ch">
         <div class="ct">Muestreos activos</div>
         <span class="cbadge" id="homeCnt">0</span>
+      </div>
+      <div style="padding:0 16px 10px">
+        <div style="position:relative">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--g2)" stroke-width="2.5" stroke-linecap="round" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);pointer-events:none"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="searchInput" type="text" placeholder="Buscar: empresa, folio, abril, lunes 15, 2026..." oninput="filtrarMuestreos(this.value)" style="width:100%;padding:9px 10px 9px 32px;background:var(--bg3);border:1px solid var(--ln);border-radius:var(--r);color:var(--w);font-size:13px;font-family:var(--dm)">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <button type="button" class="qchip" data-qf="hoy"    onclick="setQuickFilter('hoy')">Hoy</button>
+          <button type="button" class="qchip" data-qf="semana" onclick="setQuickFilter('semana')">Esta semana</button>
+          <button type="button" class="qchip" data-qf="mes"    onclick="setQuickFilter('mes')">Este mes</button>
+          <button type="button" class="qchip" data-qf="pasado" onclick="setQuickFilter('pasado')">Mes pasado</button>
+        </div>
       </div>
       <div class="cb" id="homeLista">
         <div style="text-align:center;padding:24px;color:var(--g2);font-size:13px">Sin muestreos guardados aún</div>
@@ -753,8 +771,9 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
           </div>
           <div class="g2">
             <div class="f"><label>Fecha</label><input id="c_tfec" type="date"></div>
-            <div class="f"><label>Hora</label><input id="c_thor" type="time"></div>
+            <div class="f"><label>Hora</label><input id="c_thor" type="time" step="60"></div>
           </div>
+          <button type="button" class="btn btn-g" onclick="setNowGroup('c_t')" style="width:100%;margin-top:6px;font-size:12px;padding:8px;color:#4ade80;border-color:rgba(74,222,128,.3)">⏱ Fecha y hora actual</button>
 
           <div class="cat-lbl" style="margin-top:12px">Inspecciona en matriz</div>
           <div class="g2">
@@ -763,8 +782,9 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
           </div>
           <div class="g2">
             <div class="f"><label>Fecha</label><input id="c_ifec" type="date"></div>
-            <div class="f"><label>Hora</label><input id="c_ihor" type="time"></div>
+            <div class="f"><label>Hora</label><input id="c_ihor" type="time" step="60"></div>
           </div>
+          <button type="button" class="btn btn-g" onclick="setNowGroup('c_i')" style="width:100%;margin-top:6px;font-size:12px;padding:8px;color:#4ade80;border-color:rgba(74,222,128,.3)">⏱ Fecha y hora actual</button>
 
           <div class="cat-lbl" style="margin-top:12px">Recibe en matriz</div>
           <div class="g2">
@@ -773,8 +793,9 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
           </div>
           <div class="g2">
             <div class="f"><label>Fecha</label><input id="c_refec" type="date"></div>
-            <div class="f"><label>Hora</label><input id="c_rehor" type="time"></div>
+            <div class="f"><label>Hora</label><input id="c_rehor" type="time" step="60"></div>
           </div>
+          <button type="button" class="btn btn-g" onclick="setNowGroup('c_re')" style="width:100%;margin-top:6px;font-size:12px;padding:8px;color:#4ade80;border-color:rgba(74,222,128,.3)">⏱ Fecha y hora actual</button>
 
           <div class="cat-lbl" style="margin-top:12px">Entrega a sucursal</div>
           <div class="g2">
@@ -782,9 +803,36 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
             <div class="f"><label>Nombre</label><input id="c_snom" type="text" placeholder="Quien transporta"></div>
           </div>
           <div class="g2">
-            <div class="f"><label>Fecha</label><input id="c_sfec" type="date"></div>
-            <div class="f"><label>Hora</label><input id="c_shor" type="time"></div>
+            <div class="f"><label>Firma</label><input id="c_sfir" type="text" placeholder="Iniciales"></div>
+            <div class="f"></div>
           </div>
+          <div class="g2">
+            <div class="f"><label>Fecha</label><input id="c_sfec" type="date"></div>
+            <div class="f"><label>Hora</label><input id="c_shor" type="time" step="60"></div>
+          </div>
+          <button type="button" class="btn btn-g" onclick="setNowGroup('c_s')" style="width:100%;margin-top:6px;font-size:12px;padding:8px;color:#4ade80;border-color:rgba(74,222,128,.3)">⏱ Fecha y hora actual</button>
+
+          <div class="cat-lbl" style="margin-top:12px">Inspecciona en sucursal</div>
+          <div class="g2">
+            <div class="f"><label>Nombre</label><input id="c_isnom" type="text" placeholder="Quien inspecciona"></div>
+            <div class="f"><label>Firma</label><input id="c_isfir" type="text" placeholder="Iniciales"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Fecha</label><input id="c_isfec" type="date"></div>
+            <div class="f"><label>Hora</label><input id="c_ishor" type="time" step="60"></div>
+          </div>
+          <button type="button" class="btn btn-g" onclick="setNowGroup('c_is')" style="width:100%;margin-top:6px;font-size:12px;padding:8px;color:#4ade80;border-color:rgba(74,222,128,.3)">⏱ Fecha y hora actual</button>
+
+          <div class="cat-lbl" style="margin-top:12px">Recibido en sucursal</div>
+          <div class="g2">
+            <div class="f"><label>Nombre</label><input id="c_rsnom" type="text" placeholder="Quien recibe"></div>
+            <div class="f"><label>Firma</label><input id="c_rsfir" type="text" placeholder="Iniciales"></div>
+          </div>
+          <div class="g2">
+            <div class="f"><label>Fecha</label><input id="c_rsfec" type="date"></div>
+            <div class="f"><label>Hora</label><input id="c_rshor" type="time" step="60"></div>
+          </div>
+          <button type="button" class="btn btn-g" onclick="setNowGroup('c_rs')" style="width:100%;margin-top:6px;font-size:12px;padding:8px;color:#4ade80;border-color:rgba(74,222,128,.3)">⏱ Fecha y hora actual</button>
 
           <div class="cat-lbl" style="margin-top:12px">Persona que transporta en lab matriz</div>
           <div class="g2">
@@ -793,8 +841,9 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
           </div>
           <div class="g2">
             <div class="f"><label>Fecha</label><input id="c_ltfec" type="date"></div>
-            <div class="f"><label>Hora</label><input id="c_lthor" type="time"></div>
+            <div class="f"><label>Hora</label><input id="c_lthor" type="time" step="60"></div>
           </div>
+          <button type="button" class="btn btn-g" onclick="setNowGroup('c_lt')" style="width:100%;margin-top:6px;font-size:12px;padding:8px;color:#4ade80;border-color:rgba(74,222,128,.3)">⏱ Fecha y hora actual</button>
 
           <div class="cat-lbl" style="margin-top:12px">Supervisó</div>
           <div class="f"><input id="c_sup" type="text" placeholder="Nombre del supervisor"></div>
