@@ -29,6 +29,7 @@
   --r:10px;--r2:16px;
 }
 html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:16px;min-height:100vh;overflow-x:hidden}
+body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
 
 /* PAGES */
 .page{display:none}
@@ -36,12 +37,17 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 
 /* TOPBAR */
-.bar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(7,8,15,.97);border-bottom:1px solid var(--ln2);display:flex;align-items:center;justify-content:space-between;padding:0 60px 0 16px;height:58px}
-.bar-l{display:flex;align-items:center;gap:10px}
-.bar-logo{width:38px;height:38px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(74,158,255,.5))}
-.bar-name{font-family:var(--syne);font-size:15px;font-weight:800;letter-spacing:.01em;line-height:1.1}
-.bar-sub{font-size:9px;color:var(--g1);letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono)}
-.bar-r{display:flex;gap:8px;align-items:center}
+.bar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(7,8,15,.97);border-bottom:1px solid var(--ln2);display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,0px) calc(52px + env(safe-area-inset-right,0px)) 0 calc(14px + env(safe-area-inset-left,0px));height:calc(54px + env(safe-area-inset-top,0px));box-sizing:border-box;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.bar-l{display:flex;align-items:center;gap:10px;min-width:0;flex:1;overflow:hidden}
+.bar-logo{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(74,158,255,.5));flex-shrink:0}
+.bar-name{font-family:var(--syne);font-size:14px;font-weight:800;letter-spacing:.01em;line-height:1.1;white-space:nowrap}
+.bar-sub{font-size:9px;color:var(--g1);letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-r{display:flex;gap:8px;align-items:center;flex-shrink:0}
+/* En pantallas angostas (iPhone), el subtítulo largo NO CABE: ocultarlo */
+@media(max-width:500px){
+  .bar-sub{display:none}
+  .bar-name{font-size:15px}
+}
 .pill{font-family:var(--mono);font-size:10px;padding:3px 9px;border-radius:99px}
 .pill-o{background:rgba(251,191,36,.1);color:var(--amber);border:1px solid rgba(251,191,36,.25)}
 .pill-v{background:var(--accg);color:var(--acc);border:1px solid var(--ln2)}
@@ -83,9 +89,12 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 .f:last-child{margin-bottom:0}
 .f>label{display:block;font-family:var(--syne);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g2);margin-bottom:5px}
 .f input,.f select,.f textarea{width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);font-family:var(--dm);font-size:15px;padding:11px 13px;-webkit-appearance:none;appearance:none;transition:all .15s}
-.f input[type="date"],.f input[type="time"],.f input[type="datetime-local"]{-webkit-appearance:auto;appearance:auto;min-height:44px;cursor:pointer}
-.f input[type="date"]::-webkit-date-and-time-value{text-align:left;color:var(--w)}
-.f input[type="date"]::-webkit-calendar-picker-indicator,.f input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.2);opacity:.6;cursor:pointer}
+.f input[type="date"],.f input[type="time"],.f input[type="datetime-local"]{-webkit-appearance:none;appearance:none;width:100%;min-height:46px;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);font-family:var(--dm);font-size:15px;padding:11px 13px;cursor:pointer;display:block;box-sizing:border-box;line-height:1.2}
+.f input[type="date"]::-webkit-date-and-time-value{text-align:left;min-height:22px;color:var(--w)}
+.f input[type="time"]::-webkit-date-and-time-value{text-align:left;min-height:22px;color:var(--w)}
+.f input[type="date"]::-webkit-datetime-edit,.f input[type="time"]::-webkit-datetime-edit{padding:0;color:var(--w)}
+.f input[type="date"]::-webkit-datetime-edit-fields-wrapper,.f input[type="time"]::-webkit-datetime-edit-fields-wrapper{padding:0}
+.f input[type="date"]::-webkit-calendar-picker-indicator,.f input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.2);opacity:.5;cursor:pointer;margin-left:4px}
 .f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--acc);background:var(--bg3);box-shadow:0 0 0 3px rgba(74,158,255,.1)}
 .f input::placeholder,.f textarea::placeholder{color:var(--g3);font-size:14px}
 .f select option{background:var(--bg2);color:var(--w)}
@@ -201,7 +210,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 .btn-d{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:var(--red)}
 
 /* BOTTOM BAR */
-.bbar{position:fixed;bottom:0;left:0;right:0;background:rgba(7,8,15,.98);border-top:1px solid var(--ln2);padding:10px 16px 18px;display:none;gap:10px;z-index:50}
+.bbar{position:fixed;bottom:0;left:0;right:0;background:rgba(7,8,15,.98);border-top:1px solid var(--ln2);padding:10px calc(16px + env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px));display:none;gap:10px;z-index:50}
 .page.on .bbar{display:flex}
 .page:not(.on) .bbar{display:none!important}
 .sec:not(.on) .bbar{display:none!important}
@@ -234,7 +243,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 
 </head>
 <body>
-<div id="hamBtn" style="position:fixed;top:11px;right:14px;width:38px;height:38px;z-index:2147483647;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="toggleFabMenu()">
+<div id="hamBtn" style="position:fixed;top:calc(11px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));width:38px;height:38px;z-index:2147483647;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="toggleFabMenu()">
   <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38" style="display:block;pointer-events:none">
     <rect width="38" height="38" rx="9" fill="#1a2540" stroke="rgba(74,158,255,0.4)" stroke-width="1.5"/>
     <line x1="10" y1="13" x2="28" y2="13" stroke="#4a9eff" stroke-width="2.5" stroke-linecap="round"/>
@@ -247,7 +256,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 <div class="page" id="pgHome">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_glow_sinFondo.png" class="bar-logo"/>
+      <img src="logo_transparent.png" class="bar-logo"/>
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C.</div>
@@ -259,7 +268,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 
     <!-- Hero -->
     <div style="padding:40px 0 24px;text-align:center">
-      <img src="logo_glow_sinFondo.png" style="width:140px;height:140px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(74,158,255,.8));margin-bottom:20px;display:block;margin-left:auto;margin-right:auto">
+      <img src="logo_transparent.png" style="width:140px;height:140px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(74,158,255,.8));margin-bottom:20px;display:block;margin-left:auto;margin-right:auto">
       <div style="font-family:var(--syne);font-size:32px;font-weight:800;letter-spacing:.04em;background:linear-gradient(135deg,#f0f8ff 0%,#4a9eff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent">AARMS</div>
       <div style="margin-top:10px;font-size:11px;color:var(--g1);letter-spacing:.04em;font-family:var(--mono);line-height:1.8">
         <span style="color:var(--acc)">A</span>SESORÍA Y <span style="color:var(--acc)">A</span>NÁLISIS S.C.
@@ -328,7 +337,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 <div class="page" id="pg0">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_glow_sinFondo.png" class="bar-logo" />
+      <img src="logo_transparent.png" class="bar-logo" />
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C. Registro y Monitoreo de Servicio</div>
@@ -567,7 +576,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
 <div class="page" id="pg1">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_glow_sinFondo.png" class="bar-logo" />  
+      <img src="logo_transparent.png" class="bar-logo" />  
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C. Registro y Monitoreo de Servicio</div>
@@ -946,7 +955,7 @@ html,body{background:var(--bg0);color:var(--w);font-family:var(--dm);font-size:1
   <!-- Header del menú -->
   <div style="padding:20px 20px 16px;border-bottom:1px solid var(--ln);display:flex;align-items:center;justify-content:space-between">
     <div style="display:flex;align-items:center;gap:10px">
-      <img src="logo_glow_sinFondo.png" style="width:32px;filter:drop-shadow(0 0 8px rgba(74,158,255,.5))">
+      <img src="logo_transparent.png" style="width:32px;filter:drop-shadow(0 0 8px rgba(74,158,255,.5))">
       <div>
         <div style="font-family:var(--syne);font-size:14px;font-weight:800;color:var(--w)">AARMS</div>
         <div style="font-size:10px;color:var(--g1);font-family:var(--mono)">Navegación</div>
