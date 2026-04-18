@@ -166,7 +166,8 @@ let lastPDFBlob=null,lastPDFClienteBlob=null,lastPDFCadenaBlob=null;
 // ── PWA SERVICE WORKER ──
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    // Path relativo para que funcione en cualquier subdirectorio (GitHub Pages /AARMS/, etc.)
+    navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(e=>console.warn('SW register failed:',e));
   });
 }
 window.addEventListener('DOMContentLoaded',async ()=>{
