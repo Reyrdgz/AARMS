@@ -1,5 +1,8 @@
-const CACHE = 'aarms-v1';
-const FILES = ['/', '/index.html', '/js/app.js', '/logo.png', '/logo_glow_sinFondo.png'];
+const CACHE = 'aarms-v3';
+// Paths relativos para que funcione en subdirectorios (GitHub Pages)
+const FILES = ['./', './index.html', './js/app.js',
+               './apple-touch-icon.png', './icon-192.png', './icon-512.png',
+               './logo_glow_sinFondo.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES).catch(()=>{})));
@@ -14,7 +17,14 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Solo cachear GET del mismo origen
+  if(e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => cached))
+    caches.match(e.request).then(cached =>
+      cached || fetch(e.request).catch(() =>
+        // fallback: si fetch falla y no está en cache, regresa index (para rutas SPA)
+        caches.match('./index.html')
+      )
+    )
   );
 });
