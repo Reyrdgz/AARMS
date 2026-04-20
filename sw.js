@@ -1,4 +1,4 @@
-const CACHE = 'aarms-cubot-v1';
+const CACHE = 'aarms-cubot-v2';
 // Paths relativos para que funcione en subdirectorios (GitHub Pages)
 const FILES = ['./', './index.html', './js/app.js',
                './icon-192.png', './icon-512.png', './icon-maskable-512.png',
