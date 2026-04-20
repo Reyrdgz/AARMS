@@ -1,4 +1,4 @@
-const LOGO_APP_URI = 'logo_glow_sinFondo.png';
+const LOGO_APP_URI = 'logo_transparent.png';
 const LOGO_PDF_URI = 'logo.png';
 const LOGO_BASE_URL = 'https://reyrdgz.github.io/AARMS/';
 
@@ -170,6 +170,55 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js',{scope:'./'}).catch(e=>console.warn('SW register failed:',e));
   });
 }
+
+// ── INSTALL PROMPT (Android / Chrome) ──
+// Chrome dispara beforeinstallprompt cuando la PWA es instalable. Lo capturamos
+// para mostrar nuestro propio banner bonito en vez del mini-infobar de Chrome.
+let _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  // Mostrar banner sólo si no fue descartado antes y no está ya instalada
+  try{
+    const dismissed = localStorage.getItem('aarms_install_dismissed');
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    if(!dismissed && !isStandalone){
+      const b = document.getElementById('installBanner');
+      if(b) b.style.display = 'block';
+    }
+  }catch(_){}
+});
+
+function triggerInstall(){
+  const b = document.getElementById('installBanner');
+  if(!_deferredInstallPrompt){
+    if(b) b.style.display = 'none';
+    return;
+  }
+  _deferredInstallPrompt.prompt();
+  _deferredInstallPrompt.userChoice.then(choice=>{
+    if(choice.outcome === 'accepted'){
+      try{localStorage.setItem('aarms_install_dismissed','installed');}catch(_){}
+    }
+    _deferredInstallPrompt = null;
+    if(b) b.style.display = 'none';
+  });
+}
+
+function dismissInstall(){
+  try{localStorage.setItem('aarms_install_dismissed','1');}catch(_){}
+  const b = document.getElementById('installBanner');
+  if(b) b.style.display = 'none';
+}
+
+// Si la app ya se instaló mientras corría, ocultar banner
+window.addEventListener('appinstalled', ()=>{
+  try{localStorage.setItem('aarms_install_dismissed','installed');}catch(_){}
+  const b = document.getElementById('installBanner');
+  if(b) b.style.display = 'none';
+  _deferredInstallPrompt = null;
+});
 window.addEventListener('DOMContentLoaded',async ()=>{
   document.getElementById('o_fecha').value=new Date().toISOString().split('T')[0];
   await refreshCache();
@@ -415,9 +464,15 @@ function renderHome(filtro=''){
       if(delBtn){
         e.stopPropagation();
         const mid=delBtn.dataset.id;
-        if(confirm('¿Eliminar este muestreo? No se puede deshacer.')){
-          eliminarMuestreo(isNaN(mid)?mid:parseInt(mid));
-        }
+        confirmAction({
+          title:'Eliminar muestreo',
+          message:'Esta acción no se puede deshacer. Se borrará el registro y todos sus datos.',
+          okText:'Eliminar',
+          okDanger:true,
+          cancelText:'Cancelar'
+        }).then(ok=>{
+          if(ok) eliminarMuestreo(isNaN(mid)?mid:parseInt(mid));
+        });
         return;
       }
       cargarMuestreo(m.id);
@@ -1355,14 +1410,6 @@ function verMuestreos(){
   },200);
 }
 
-function eliminarMuestreo(id){
-  const lista = getMuestreos().filter(m=>m.id!==id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(lista));
-  document.getElementById('modalMuestreos')?.remove();
-  verMuestreos();
-  toast('Muestreo eliminado','g');
-}
-
 // Auto-save when generating PDF
 const _origGenPDF = genPDF;
 
@@ -1539,7 +1586,7 @@ async function buildPDF(){
     const bg=idx%2===0?[248,250,252]:WHITE;
     x=M;
     if(t){
-      const fixVals=[`T${t.id}`,t.hora||'',t.pct?t.pct+'%':'',t.ls||'',
+      const fixVals=[`T${idx+1}`,t.hora||'',t.pct?t.pct+'%':'',t.ls||'',
         t.tamb?t.tamb+'°':'',t.tagua?t.tagua+'°':'',t.ph||'',t.mat||'',
         t.cond||'',t.color||'',t.olor===true?'SI':t.olor===false?'NO':'',
         t.cloro===true?'SI':t.cloro===false?'NO':''];
@@ -3064,6 +3111,64 @@ function fallbackShare(blob){
 function toast(msg,t=''){
   const el=document.getElementById('toast');el.textContent=msg;el.className=t;el.classList.add('show');
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),4000);
+}
+
+// Modal de confirmación custom — reemplaza confirm() nativo para evitar
+// el prefijo "origen says:" que Android muestra. Devuelve Promise<boolean>.
+function confirmAction({title='Confirmar', message='¿Estás seguro?', okText='Eliminar', okDanger=true, cancelText='Cancelar'}={}){
+  return new Promise(resolve=>{
+    // Si ya hay un modal abierto, remover
+    const prev=document.getElementById('confirmModal');
+    if(prev) prev.remove();
+
+    const wrap=document.createElement('div');
+    wrap.id='confirmModal';
+    wrap.style.cssText='position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(7,8,15,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:cmFade .18s ease-out';
+
+    // Inyectar keyframes si no existen
+    if(!document.getElementById('confirmModalStyle')){
+      const st=document.createElement('style');
+      st.id='confirmModalStyle';
+      st.textContent=`
+        @keyframes cmFade{from{opacity:0}to{opacity:1}}
+        @keyframes cmPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+        #confirmModal .cm-box{animation:cmPop .22s cubic-bezier(.34,1.56,.64,1)}
+        #confirmModal button{-webkit-tap-highlight-color:transparent;transition:transform .1s,background .15s}
+        #confirmModal button:active{transform:scale(.96)}
+      `;
+      document.head.appendChild(st);
+    }
+
+    const okColor = okDanger ? '#ef4444' : '#4a9eff';
+    const okBg    = okDanger ? 'rgba(239,68,68,.15)' : 'rgba(74,158,255,.15)';
+    const okBorder= okDanger ? 'rgba(239,68,68,.4)'  : 'rgba(74,158,255,.4)';
+
+    wrap.innerHTML=`
+      <div class="cm-box" style="max-width:340px;width:100%;background:var(--bg1);border:1px solid var(--ln2);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="padding:22px 22px 8px">
+          <div style="font-family:var(--syne);font-size:17px;font-weight:800;color:var(--w);margin-bottom:8px">${title}</div>
+          <div style="font-size:14px;color:var(--g1);line-height:1.5">${message}</div>
+        </div>
+        <div style="display:flex;gap:10px;padding:16px 18px 18px">
+          <button id="cmCancel" style="flex:1;padding:13px;background:var(--bg3);border:1px solid var(--ln2);border-radius:12px;color:var(--w);font-family:var(--syne);font-size:14px;font-weight:700;cursor:pointer">${cancelText}</button>
+          <button id="cmOk" style="flex:1;padding:13px;background:${okBg};border:1px solid ${okBorder};border-radius:12px;color:${okColor};font-family:var(--syne);font-size:14px;font-weight:800;cursor:pointer">${okText}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const close=(result)=>{
+      wrap.style.animation='cmFade .15s ease-in reverse';
+      setTimeout(()=>{if(wrap.parentNode)wrap.remove();resolve(result);},150);
+    };
+    wrap.querySelector('#cmCancel').onclick=()=>close(false);
+    wrap.querySelector('#cmOk').onclick=()=>close(true);
+    // Tap en el backdrop = cancelar
+    wrap.addEventListener('click',e=>{if(e.target===wrap)close(false);});
+    // Escape = cancelar
+    const onKey=e=>{if(e.key==='Escape'){document.removeEventListener('keydown',onKey);close(false);}};
+    document.addEventListener('keydown',onKey);
+  });
 }
 window.addEventListener('load',()=>{
   // Show muestreos count on button
