@@ -9,9 +9,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="AARMS">
-<!-- Iconos — apple-touch-icon es el que iOS usa al anclar al home. Debe tener fondo opaco. -->
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <link rel="manifest" href="manifest.json">
@@ -239,10 +236,46 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 .qchip{background:var(--bg3);border:1px solid var(--ln);border-radius:999px;color:var(--g2);font-family:var(--dm);font-size:12px;padding:5px 11px;cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
 .qchip:hover{border-color:var(--acc);color:var(--w)}
 .qchip.on{background:rgba(74,158,255,.15);border-color:var(--acc);color:var(--acc);box-shadow:0 0 0 2px rgba(74,158,255,.1)}
+
+/* ═════ HERO HOME — logo con glow épico ═════ */
+.hero-logo-wrap{position:relative;width:180px;height:180px;margin:0 auto 22px;display:flex;align-items:center;justify-content:center}
+.hero-halo{position:absolute;border-radius:50%;pointer-events:none;top:50%;left:50%;transform:translate(-50%,-50%)}
+.hero-halo-1{width:220px;height:220px;background:radial-gradient(circle,rgba(74,158,255,.35) 0%,rgba(74,158,255,0) 65%);animation:heroPulse 4s ease-in-out infinite}
+.hero-halo-2{width:160px;height:160px;background:radial-gradient(circle,rgba(100,180,255,.45) 0%,rgba(74,158,255,0) 60%);animation:heroPulse 4s ease-in-out infinite .5s;filter:blur(8px)}
+.hero-halo-3{width:120px;height:120px;background:radial-gradient(circle,rgba(140,200,255,.35) 0%,rgba(74,158,255,0) 70%);animation:heroPulse 4s ease-in-out infinite 1s}
+.hero-logo{position:relative;z-index:1;width:150px;height:150px;object-fit:contain;
+  filter:
+    drop-shadow(0 0 18px rgba(74,158,255,.9))
+    drop-shadow(0 0 36px rgba(74,158,255,.6))
+    drop-shadow(0 0 60px rgba(100,180,255,.35));
+  animation:heroFloat 6s ease-in-out infinite}
+@keyframes heroPulse{0%,100%{opacity:.9;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
+@keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.hero-title{font-family:var(--syne);font-size:38px;font-weight:800;letter-spacing:.06em;
+  background:linear-gradient(135deg,#ffffff 0%,#a9d1ff 50%,#4a9eff 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  text-shadow:0 2px 20px rgba(74,158,255,.4);
+  filter:drop-shadow(0 0 12px rgba(74,158,255,.25))}
+@media(prefers-reduced-motion:reduce){.hero-halo-1,.hero-halo-2,.hero-halo-3,.hero-logo{animation:none}}
+@keyframes instSlide{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
 </style>
 
 </head>
 <body>
+
+<!-- Banner de instalación PWA (se muestra solo si Chrome sugiere instalar) -->
+<div id="installBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:2147483645;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;background:linear-gradient(135deg,rgba(74,158,255,.18),rgba(74,158,255,.08));border-bottom:1px solid rgba(74,158,255,.35);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);animation:instSlide .35s cubic-bezier(.34,1.56,.64,1)">
+  <div style="display:flex;align-items:center;gap:12px;max-width:600px;margin:0 auto">
+    <img src="icon-192.png" style="width:40px;height:40px;border-radius:9px;flex-shrink:0;box-shadow:0 4px 12px rgba(74,158,255,.4)">
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:#fff;line-height:1.2">Instalar AARMS</div>
+      <div style="font-size:11px;color:var(--g1);margin-top:2px">Acceso rápido desde tu pantalla de inicio</div>
+    </div>
+    <button id="installOk"  onclick="triggerInstall()" style="padding:9px 14px;background:var(--acc);color:#fff;border:none;border-radius:9px;font-family:var(--syne);font-size:12px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 4px 12px rgba(74,158,255,.4);white-space:nowrap">Instalar</button>
+    <button id="installNo"  onclick="dismissInstall()" style="padding:9px 10px;background:transparent;color:var(--g2);border:none;font-size:18px;cursor:pointer;-webkit-tap-highlight-color:transparent" aria-label="Cerrar">×</button>
+  </div>
+</div>
+
 <div id="hamBtn" style="position:fixed;top:calc(11px + env(safe-area-inset-top,0px));right:calc(14px + env(safe-area-inset-right,0px));width:38px;height:38px;z-index:2147483647;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="toggleFabMenu()">
   <svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38" style="display:block;pointer-events:none">
     <rect width="38" height="38" rx="9" fill="#1a2540" stroke="rgba(74,158,255,0.4)" stroke-width="1.5"/>
@@ -267,10 +300,17 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   <div class="main" style="padding-bottom:80px">
 
     <!-- Hero -->
-    <div style="padding:40px 0 24px;text-align:center">
-      <img src="logo_transparent.png" style="width:140px;height:140px;object-fit:contain;filter:drop-shadow(0 0 40px rgba(74,158,255,.8));margin-bottom:20px;display:block;margin-left:auto;margin-right:auto">
-      <div style="font-family:var(--syne);font-size:32px;font-weight:800;letter-spacing:.04em;background:linear-gradient(135deg,#f0f8ff 0%,#4a9eff 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent">AARMS</div>
-      <div style="margin-top:10px;font-size:11px;color:var(--g1);letter-spacing:.04em;font-family:var(--mono);line-height:1.8">
+    <div style="padding:50px 0 28px;text-align:center;position:relative">
+      <div class="hero-logo-wrap">
+        <!-- Halo radial de fondo -->
+        <div class="hero-halo hero-halo-1"></div>
+        <div class="hero-halo hero-halo-2"></div>
+        <div class="hero-halo hero-halo-3"></div>
+        <!-- Logo con múltiples capas de glow -->
+        <img src="logo_transparent.png" class="hero-logo" alt="AARMS">
+      </div>
+      <div class="hero-title">AARMS</div>
+      <div style="margin-top:12px;font-size:11px;color:var(--g1);letter-spacing:.04em;font-family:var(--mono);line-height:1.8">
         <span style="color:var(--acc)">A</span>SESORÍA Y <span style="color:var(--acc)">A</span>NÁLISIS S.C.
         <span style="color:var(--acc)">R</span>EGISTRO Y <span style="color:var(--acc)">M</span>ONITOREO DE
         <span style="color:var(--acc)">S</span>ERVICIO

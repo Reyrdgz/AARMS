@@ -1,8 +1,8 @@
-const CACHE = 'aarms-v5';
+const CACHE = 'aarms-cubot-v1';
 // Paths relativos para que funcione en subdirectorios (GitHub Pages)
 const FILES = ['./', './index.html', './js/app.js',
-               './apple-touch-icon.png', './icon-192.png', './icon-512.png',
-               './logo_glow_sinFondo.png', './logo_transparent.png'];
+               './icon-192.png', './icon-512.png', './icon-maskable-512.png',
+               './logo_transparent.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES).catch(()=>{})));
