@@ -1,5 +1,5 @@
 const LOGO_APP_URI = 'logo_transparent.png';
-const LOGO_PDF_URI = 'logo.png';
+const LOGO_PDF_URI = 'logo_transparent.png';
 const LOGO_BASE_URL = 'https://reyrdgz.github.io/AARMS/';
 
 // Convierte coordenadas a número de tile OSM
@@ -255,10 +255,15 @@ function loadSaved(){
 }
 
 // ── PAGE NAV ──
-const PAGES=['pgHome','pg0','pg1'];
+const PAGES=['pgHome','pgPlan','pg0','pg1'];
 function showPage(n){
   PAGES.forEach((id,i)=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',i===n);});
   window.scrollTo({top:0,behavior:'smooth'});
+}
+// Ir a una página por id
+function goPage(id){
+  const idx = PAGES.indexOf(id);
+  if(idx>=0) showPage(idx);
 }
 
 function goHome(){
@@ -267,7 +272,118 @@ function goHome(){
   showPage(0);
 }
 
-function iniciarNuevoMuestreo(){
+// ── MODAL "Nuevo Muestreo" ──
+// Guarda el número de OMARs elegido por el usuario durante el flujo del modal
+let _nmOmarsCount = 1;
+
+function abrirModalNuevoMuestreo(){
+  closeFabMenu();
+  // Reset campos
+  const d = new Date().toISOString().split('T')[0];
+  document.getElementById('nm_folio').value = '';
+  document.getElementById('nm_fecha').value = d;
+  document.getElementById('nm_muest').value = '';
+  document.getElementById('nm_omars_custom').value = '';
+  _nmOmarsCount = 1;
+  // Reset chips → 1 seleccionado
+  document.querySelectorAll('.nm-chip').forEach(c=>{
+    c.classList.toggle('on', c.dataset.n === '1');
+  });
+  document.getElementById('modalNuevoMuestreo').style.display = 'block';
+  // Focus en folio (opcional pero útil en desktop)
+  setTimeout(()=>document.getElementById('nm_folio')?.focus(),100);
+}
+
+function cerrarModalNuevoMuestreo(){
+  document.getElementById('modalNuevoMuestreo').style.display = 'none';
+}
+
+function setNuevoMuestreoOmars(n, ev){
+  _nmOmarsCount = n;
+  document.querySelectorAll('.nm-chip').forEach(c=>{
+    c.classList.toggle('on', parseInt(c.dataset.n) === n);
+  });
+  // Limpiar custom input
+  const ci = document.getElementById('nm_omars_custom');
+  if(ci && document.activeElement !== ci) ci.value = '';
+}
+
+function setNuevoMuestreoOmarsCustom(v){
+  const n = parseInt(v);
+  if(isNaN(n) || n < 1){ return; }
+  _nmOmarsCount = n;  // sin tope — pueden ser tantas OMARs como el usuario necesite
+  // Deseleccionar chips
+  document.querySelectorAll('.nm-chip').forEach(c=>c.classList.remove('on'));
+}
+
+async function confirmarNuevoMuestreo(){
+  const gv = id => document.getElementById(id)?.value.trim() || '';
+  const folio = gv('nm_folio');
+  const fecha = gv('nm_fecha') || new Date().toISOString().split('T')[0];
+  const muest = gv('nm_muest');
+  const n = Math.max(1, _nmOmarsCount || 1);  // sin tope superior
+
+  // Seguridad: si el usuario pidió muchas OMARs, pedir confirmación explícita
+  // (previene tecleos accidentales como "50" en vez de "5")
+  if(n >= 20){
+    const ok = await confirmAction({
+      title:`Crear ${n} OMARs`,
+      message:`Vas a crear un plan con ${n} OMARs. ¿Confirmas?`,
+      okText:`Sí, crear ${n}`,
+      cancelText:'Cancelar',
+    });
+    if(!ok) return;
+  }
+
+  // Crear el plan
+  const planId = 'plan_' + Date.now();
+  await idbPlanPut({
+    id: planId,
+    folio,
+    fecha,
+    muestreador: muest,
+    blancoCampo: false,
+    loteBlanco: '',
+    omarIds: [],
+    ts: Date.now(),
+    // marcado como explícito si el usuario asignó folio o pidió ≥2 OMARs
+    migrated: !folio && n === 1,
+  });
+
+  // Crear N OMARs vacías vinculadas al plan
+  const omarIds = [];
+  for(let i=0; i<n; i++){
+    const mid = Date.now() + i;
+    await idbPut({
+      id: mid, planId,
+      folio:'', empresa:'', fecha,
+      muestreador: muest, ts: mid,
+      tomas:[], omar:'', sigData:null, sigData2:null,
+    });
+    omarIds.push(mid);
+  }
+  // Guardar la lista en el plan
+  const planRec = (await idbPlanGetAll()).find(p=>p.id===planId);
+  planRec.omarIds = omarIds;
+  await idbPlanPut(planRec);
+  await refreshCache();
+
+  cerrarModalNuevoMuestreo();
+
+  if(n === 1){
+    // Con 1 OMAR vamos directo a llenarla (flujo rápido)
+    cargarMuestreo(omarIds[0]);
+    toast('Muestreo nuevo ✓','g');
+  } else {
+    // Con varias OMARs vamos a la pantalla del plan
+    _currentPlanId = planId;
+    renderPlanPage();
+    goPage('pgPlan');
+    toast(`Plan con ${n} OMARs creado ✓ — toca una para empezar`,'g');
+  }
+}
+
+async function iniciarNuevoMuestreo(){
   // Limpiar cualquier modal o overlay que pueda estar activo
   document.getElementById('modalMuestreos')?.remove();
   closeFabMenu();
@@ -275,6 +391,27 @@ function iniciarNuevoMuestreo(){
   // Reset estado
   omar={};tomas=[];sigData=null;sigData2=null;
   lastPDFBlob=null;lastPDFClienteBlob=null;lastPDFCadenaBlob=null;
+  // Crear un plan-solo automáticamente. Cuando el usuario guarde el OMAR,
+  // el muestreo se conectará a este plan via planId.
+  const newId = Date.now();
+  const newPlanId = 'plan_' + newId;
+  try{
+    await idbPlanPut({
+      id: newPlanId,
+      folio: '',
+      fecha: new Date().toISOString().split('T')[0],
+      muestreador: '',
+      blancoCampo: false,
+      loteBlanco: '',
+      omarIds: [],
+      ts: newId,
+      migrated: true,   // se considera plan-solo hasta que el usuario le asigne folio o segunda OMAR
+    });
+    await refreshCache();
+    // Pasar el planId al contexto actual para que el próximo save lo asocie
+    _pendingNewPlanId = newPlanId;
+    _pendingNewMuestreoId = newId;
+  }catch(e){ console.warn('No se pudo pre-crear plan:', e); }
   // Limpiar solo el formulario OMAR
   document.querySelectorAll('#omarForm input,#omarForm select,#omarForm textarea').forEach(el=>{
     if(el.type==='checkbox'||el.type==='radio')el.checked=false;
@@ -321,7 +458,8 @@ function iniciarNuevoMuestreo(){
   if(tomasField)tomasField.style.display='none';
   document.querySelectorAll('#intChips .chip').forEach(c=>c.classList.remove('on'));
   renderHome();
-  showPage(1);
+  goPage('pg0');
+  renderHermanasBreadcrumb();
 }
 
 function filtrarMuestreos(q){
@@ -396,91 +534,460 @@ function buildFechaIndex(fechaISO){
 }
 
 function renderHome(filtro=''){
-  const lista=getMuestreos();
+  const muestreos=getMuestreos();
+  const planes=getPlanes();
   const cnt=document.getElementById('homeCnt');
   const div=document.getElementById('homeLista');
   if(!cnt||!div)return;
-  cnt.textContent=lista.length;
-  // Tokeniza el filtro: todas las palabras deben aparecer (AND).
-  // Acepta tildes o sin tildes por parte del usuario.
+  cnt.textContent=muestreos.length;
+  // Tokenizado del filtro
   const quitarTildes = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const tokens = filtro ? filtro.split(/\s+/).filter(Boolean).map(quitarTildes) : [];
-  // Aplicar filtro (tokens + rango rápido)
-  const filtrados = lista.filter(m=>{
-    const omarObj=m.omar?JSON.parse(m.omar):{};
-    const fechaISO=omarObj.fecha||m.fecha||'';
-    // Filtro rápido por rango
-    if(!matchesQuickFilter(fechaISO)) return false;
-    // Si no hay texto de búsqueda, pasa
+
+  // Construir vista por PLAN. Cada plan contiene la lista de sus muestreos.
+  // Un plan pasa el filtro si cualquiera de sus muestreos pasa, o si el folio
+  // del plan contiene los tokens.
+  const planView = planes.map(plan=>{
+    const ms = (plan.omarIds||[]).map(mid => muestreos.find(x=>x.id===mid)).filter(Boolean);
+    return {plan, muestreos: ms};
+  }).filter(pv=>pv.muestreos.length>0);  // solo planes con muestreos
+
+  const planesFiltrados = planView.filter(pv=>{
+    // Quick filter por rango de fecha (cualquier muestreo del plan que entre)
+    const algunEnRango = pv.muestreos.some(m=>{
+      const omarObj=m.omar?JSON.parse(m.omar):{};
+      return matchesQuickFilter(omarObj.fecha||m.fecha||'');
+    }) || matchesQuickFilter(pv.plan.fecha);
+    if(!algunEnRango) return false;
     if(tokens.length===0) return true;
-    const empresa=(omarObj.empresa||'').toLowerCase();
-    const folio=(m.folio||'').toLowerCase();
-    const muestreador=(omarObj.muestreador||'').toLowerCase();
-    const fechaIdx=buildFechaIndex(fechaISO);
-    const haystack = quitarTildes(empresa+' '+folio+' '+muestreador+' '+fechaIdx);
-    return tokens.every(tk=>haystack.includes(tk));
+    // Búsqueda contra plan folio + cada muestreo (empresa, folio, muestreador, fecha)
+    const planHaystack = quitarTildes(
+      (pv.plan.folio||'')+' '+
+      (pv.plan.muestreador||'')+' '+
+      buildFechaIndex(pv.plan.fecha||'')
+    ).toLowerCase();
+    const mHaystacks = pv.muestreos.map(m=>{
+      const omarObj=m.omar?JSON.parse(m.omar):{};
+      return quitarTildes(
+        (omarObj.empresa||'')+' '+
+        (m.folio||'')+' '+
+        (omarObj.muestreador||'')+' '+
+        buildFechaIndex(omarObj.fecha||m.fecha||'')
+      ).toLowerCase();
+    });
+    const everything = planHaystack+' '+mHaystacks.join(' ');
+    return tokens.every(tk=>everything.includes(tk));
   });
-  if(lista.length===0){
+
+  if(muestreos.length===0){
     div.innerHTML='<div style="text-align:center;padding:24px;color:var(--g2);font-size:13px">Sin muestreos guardados aún</div>';
     return;
   }
-  if(filtrados.length===0){
+  if(planesFiltrados.length===0){
     const qlabel = _quickFilter ? ' en el rango seleccionado' : '';
     div.innerHTML='<div style="text-align:center;padding:24px;color:var(--g2);font-size:13px">Sin resultados para "'+filtro+'"'+qlabel+'</div>';
     return;
   }
+
   div.innerHTML='';
-  filtrados.forEach(m=>{
+  planesFiltrados.forEach(({plan, muestreos})=>{
+    // Plan "solo" (1 OMAR y sin folio de plan asignado por el usuario) → se renderiza como antes, compacto
+    const esSolo = muestreos.length===1 && !plan.folio && plan.migrated;
+    if(esSolo){
+      div.appendChild(renderMuestreoRow(muestreos[0]));
+      return;
+    }
+    // Plan con múltiples OMARs o plan explícito → tarjeta con header + OMARs dentro
+    div.appendChild(renderPlanCard(plan, muestreos));
+  });
+}
+
+function renderMuestreoRow(m){
+  const omarObj=m.omar?JSON.parse(m.omar):{};
+  const nTomas=m.tomas?m.tomas.length:0;
+  const ntotal=parseInt(omarObj.ntomas)||0;
+  const tieneFlujoPend=m.tomas?m.tomas.some(t=>!t.ls):false;
+  const tieneLab=omarObj.lab&&(omarObj.lab.tnom||omarObj.lab.renom);
+  const tieneSig=m.sigData&&m.sigData.length>10;
+  let estado,color,dot;
+  if(!nTomas){estado='Sin tomas';color='var(--g2)';dot='#3d6080';}
+  else if(tieneFlujoPend){estado='En campo';color='var(--amber)';dot='#fbbf24';}
+  else if(!tieneSig){estado='Pendiente firma';color='#a78bfa';dot='#a78bfa';}
+  else if(!tieneLab){estado='Pendiente lab';color='var(--acc)';dot='#4a9eff';}
+  else{estado='Completo';color='var(--green)';dot='#86efac';}
+  const fecha=omarObj.fecha||m.fecha||'';
+  const fmtFecha=fecha?new Date(fecha+'T00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):'—';
+  const el=document.createElement('div');
+  el.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--ln);cursor:pointer;-webkit-tap-highlight-color:transparent';
+  el.innerHTML=`
+    <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;box-shadow:0 0 6px ${dot}88"></div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">OMAR-${m.folio||'—'} · ${omarObj.empresa||'—'}</div>
+      <div style="font-size:11px;color:var(--g1);margin-top:2px">${fmtFecha} · ${nTomas}${ntotal?'/'+ntotal:''} tomas · <span style="color:${color}">${estado}</span></div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--g2)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <button class="del-btn" data-id="${m.id}" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;color:#f87171;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+      </button>
+    </div>`;
+  el.addEventListener('click',e=>{
+    const delBtn=e.target.closest('.del-btn');
+    if(delBtn){
+      e.stopPropagation();
+      const mid=delBtn.dataset.id;
+      confirmAction({
+        title:'Eliminar muestreo',
+        message:'Esta acción no se puede deshacer. Se borrará el registro y todos sus datos.',
+        okText:'Eliminar',
+        okDanger:true,
+        cancelText:'Cancelar'
+      }).then(ok=>{
+        if(ok) eliminarMuestreo(isNaN(mid)?mid:parseInt(mid));
+      });
+      return;
+    }
+    cargarMuestreo(m.id);
+  });
+  el.addEventListener('touchstart',()=>el.style.background='var(--bg3)',{passive:true});
+  el.addEventListener('touchend',()=>el.style.background='',{passive:true});
+  return el;
+}
+
+function renderPlanCard(plan, muestreos){
+  const wrap = document.createElement('div');
+  wrap.style.cssText='margin-bottom:14px;border:1px solid var(--ln2);border-radius:12px;overflow:hidden;background:rgba(74,158,255,.03)';
+  // Totalizar progreso
+  const completos = muestreos.filter(m=>{
+    const omarObj=m.omar?JSON.parse(m.omar):{};
+    return omarObj.lab&&(omarObj.lab.tnom||omarObj.lab.renom) && m.sigData && m.sigData.length>10;
+  }).length;
+  const fmtFecha = plan.fecha ? new Date(plan.fecha+'T00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  // Header del plan
+  const header = document.createElement('div');
+  header.style.cssText='display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,rgba(74,158,255,.12),rgba(74,158,255,.04));border-bottom:1px solid var(--ln);cursor:pointer;-webkit-tap-highlight-color:transparent';
+  header.innerHTML=`
+    <div style="width:28px;height:28px;border-radius:7px;background:rgba(74,158,255,.15);border:1px solid rgba(74,158,255,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+    </div>
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--w);letter-spacing:.02em">PLAN ${plan.folio?'#'+plan.folio:'(sin folio)'}</div>
+      <div style="font-size:11px;color:var(--g1);margin-top:2px">${fmtFecha} · ${muestreos.length} OMAR${muestreos.length!==1?'s':''} · ${completos}/${muestreos.length} completos</div>
+    </div>
+    <button data-action="open-plan" data-planid="${plan.id}" style="background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);border-radius:7px;color:var(--acc);padding:6px 10px;font-family:var(--syne);font-size:11px;font-weight:800;cursor:pointer">Abrir plan</button>
+  `;
+  header.addEventListener('click',e=>{
+    if(e.target.closest('[data-action="open-plan"]')){
+      e.stopPropagation();
+      abrirPlan(plan.id);
+    }
+  });
+  wrap.appendChild(header);
+  // Lista de OMARs dentro del plan
+  const body = document.createElement('div');
+  body.style.cssText='padding:4px 14px';
+  muestreos.forEach(m=>{
+    body.appendChild(renderMuestreoRow(m));
+  });
+  wrap.appendChild(body);
+  return wrap;
+}
+
+// ═══════════════ PLAN UI ═══════════════
+let _currentPlanId = null;
+// Pre-creación: cuando el usuario toca "+ Nuevo muestreo", creamos el plan
+// y reservamos un id de muestreo. Al primer save del OMAR se hace la conexión.
+let _pendingNewPlanId = null;
+let _pendingNewMuestreoId = null;
+
+function abrirPlan(planId){
+  _currentPlanId = planId;
+  renderPlanPage();
+  goPage('pgPlan');
+}
+
+function renderPlanPage(){
+  const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
+  if(!plan){ goHome(); return; }
+  // Header pill
+  const pill = document.getElementById('planPill');
+  if(pill) pill.textContent = 'PLAN ' + (plan.folio ? '#'+plan.folio : '—');
+  // Rellenar formulario
+  const setVal = (id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+  setVal('plan_folio', plan.folio);
+  setVal('plan_fecha', plan.fecha);
+  setVal('plan_muest', plan.muestreador);
+  setVal('plan_blanco_lote', plan.loteBlanco);
+  // Toggle blanco de campo
+  const siEl = document.getElementById('plan_blanco_si');
+  const noEl = document.getElementById('plan_blanco_no');
+  const wrapEl = document.getElementById('plan_blanco_lote_wrap');
+  if(siEl && noEl){
+    siEl.classList.toggle('on', !!plan.blancoCampo);
+    noEl.classList.toggle('on', !plan.blancoCampo);
+    if(wrapEl) wrapEl.style.display = plan.blancoCampo ? 'block' : 'none';
+  }
+  // Lista de OMARs
+  const list = document.getElementById('planOmarsList');
+  const cnt = document.getElementById('planOmarsCnt');
+  if(!list) return;
+  const omars = getMuestreosDePlan(_currentPlanId);
+  if(cnt) cnt.textContent = omars.length;
+  list.innerHTML = '';
+  if(omars.length===0){
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--g2);font-size:12px">Sin OMARs. Agrega la primera ↓</div>';
+    return;
+  }
+  omars.forEach((m,idx)=>{
     const omarObj=m.omar?JSON.parse(m.omar):{};
     const nTomas=m.tomas?m.tomas.length:0;
     const ntotal=parseInt(omarObj.ntomas)||0;
-    const tieneFlujoPend=m.tomas?m.tomas.some(t=>!t.ls):false;
     const tieneLab=omarObj.lab&&(omarObj.lab.tnom||omarObj.lab.renom);
     const tieneSig=m.sigData&&m.sigData.length>10;
     let estado,color,dot;
     if(!nTomas){estado='Sin tomas';color='var(--g2)';dot='#3d6080';}
-    else if(tieneFlujoPend){estado='En campo';color='var(--amber)';dot='#fbbf24';}
     else if(!tieneSig){estado='Pendiente firma';color='#a78bfa';dot='#a78bfa';}
     else if(!tieneLab){estado='Pendiente lab';color='var(--acc)';dot='#4a9eff';}
     else{estado='Completo';color='var(--green)';dot='#86efac';}
-    const fecha=omarObj.fecha||m.fecha||'';
-    const fmtFecha=fecha?new Date(fecha+'T00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):'—';
-    const el=document.createElement('div');
-    el.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--ln);cursor:pointer;-webkit-tap-highlight-color:transparent';
-    el.innerHTML=`
+    const row = document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--ln);cursor:pointer';
+    row.innerHTML = `
+      <div style="width:26px;height:26px;border-radius:7px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.25);display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-weight:800;font-size:11px;color:var(--acc);flex-shrink:0">${idx+1}</div>
       <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;box-shadow:0 0 6px ${dot}88"></div>
       <div style="flex:1;min-width:0">
-        <div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">OMAR-${m.folio||'—'} · ${omarObj.empresa||'—'}</div>
-        <div style="font-size:11px;color:var(--g1);margin-top:2px">${fmtFecha} · ${nTomas}${ntotal?'/'+ntotal:''} tomas · <span style="color:${color}">${estado}</span></div>
+        <div style="font-family:var(--syne);font-size:12px;font-weight:700;color:var(--w);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">OMAR-${m.folio||'—'} · ${omarObj.empresa||'—'}</div>
+        <div style="font-size:10px;color:var(--g1);margin-top:2px">${nTomas}${ntotal?'/'+ntotal:''} tomas · <span style="color:${color}">${estado}</span></div>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--g2)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-        <button class="del-btn" data-id="${m.id}" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;color:#f87171;width:28px;height:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
-        </button>
-      </div>`;
-    el.addEventListener('click',e=>{
-      const delBtn=e.target.closest('.del-btn');
-      if(delBtn){
+      <button class="del-omar-btn" data-mid="${m.id}" style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:6px;color:#f87171;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex-shrink:0">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="pointer-events:none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+      </button>
+    `;
+    row.addEventListener('click',e=>{
+      if(e.target.closest('.del-omar-btn')){
         e.stopPropagation();
-        const mid=delBtn.dataset.id;
         confirmAction({
-          title:'Eliminar muestreo',
-          message:'Esta acción no se puede deshacer. Se borrará el registro y todos sus datos.',
+          title:'Quitar OMAR del plan',
+          message:`¿Quitar OMAR-${m.folio||'?'} (${omarObj.empresa||'sin empresa'}) del plan? El muestreo se eliminará por completo.`,
           okText:'Eliminar',
           okDanger:true,
-          cancelText:'Cancelar'
         }).then(ok=>{
-          if(ok) eliminarMuestreo(isNaN(mid)?mid:parseInt(mid));
+          if(ok){
+            planRemoverOmar(_currentPlanId, m.id, {borrarMuestreo:true}).then(()=>renderPlanPage());
+          }
         });
         return;
       }
+      // Tap en fila = abrir ese muestreo
       cargarMuestreo(m.id);
     });
-    el.addEventListener('touchstart',()=>el.style.background='var(--bg3)',{passive:true});
-    el.addEventListener('touchend',()=>el.style.background='',{passive:true});
-    div.appendChild(el);
+    list.appendChild(row);
   });
+
+  // Documentos del plan
+  renderPlanDocs();
+}
+
+// Definición de los 7 documentos del plan. Cada uno tiene:
+//  - key: identificador en plan.docs[key].done (para marcar completo)
+//  - label, desc
+//  - icon (svg inline)
+//  - where: 'lab' | 'campo' | 'cierre' (fase del flujo — info visual)
+//  - ready: true si ya existe el generador. false = muestra "Próximamente"
+const PLAN_DOCS = [
+  {key:'bpm',   label:'BPM — Plan de Muestreo',        desc:'Plan de muestreo (narrativa)',    where:'lab',   ready:false},
+  {key:'lvar',  label:'LVAR — Lista de Verificación',  desc:'Equipos, reactivos, material',     where:'lab',   ready:false},
+  {key:'phlab', label:'pH-metro LAB',                   desc:'Calibración, comprobación, verificación', where:'lab', ready:false},
+  {key:'colab', label:'Conductímetro (lab y uso)',      desc:'Limpieza, calibración, uso',       where:'lab',   ready:false},
+  {key:'blmp',  label:'Limpieza y Mtto pH-metro',       desc:'Verificación visual + limpieza',   where:'lab',   ready:false},
+  {key:'phcam', label:'pH-metro CAMPO',                  desc:'CA/CO/V entre toma y toma',         where:'campo', ready:false},
+  {key:'bm',    label:'BM — Bitácora de Muestreo',      desc:'Narrativa final auto-ensamblada',   where:'cierre',ready:false},
+];
+
+function renderPlanDocs(){
+  const list = document.getElementById('planDocsList');
+  const badge = document.getElementById('planDocsBadge');
+  if(!list) return;
+  const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
+  const docs = (plan && plan.docs) || {};
+  let done = 0;
+  list.innerHTML = '';
+  PLAN_DOCS.forEach(d=>{
+    const isDone = !!docs[d.key]?.done;
+    if(isDone) done++;
+    const whereBadge = d.where==='lab' ? `<span style="background:rgba(74,158,255,.12);color:var(--acc);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px;letter-spacing:.04em">LAB</span>`
+      : d.where==='campo' ? `<span style="background:rgba(251,191,36,.12);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px;letter-spacing:.04em">CAMPO</span>`
+      : `<span style="background:rgba(167,139,250,.12);color:#a78bfa;font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px;letter-spacing:.04em">CIERRE</span>`;
+    const row = document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:11px;padding:12px 4px;border-bottom:1px solid var(--ln);cursor:pointer;-webkit-tap-highlight-color:transparent;'+(d.ready?'':'opacity:.65');
+    row.innerHTML = `
+      <div style="width:28px;height:28px;border-radius:7px;background:${isDone?'rgba(134,239,172,.15)':'var(--bg3)'};border:1px solid ${isDone?'rgba(134,239,172,.4)':'var(--ln)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${isDone?'var(--green)':'var(--g2)'}">
+        ${isDone ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '<span style="font-family:var(--syne);font-size:10px;font-weight:800">○</span>'}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+          <div style="font-family:var(--syne);font-size:12px;font-weight:700;color:var(--w)">${d.label}</div>
+          ${whereBadge}
+          ${d.ready ? '' : '<span style="background:rgba(251,191,36,.1);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">PRÓXIMO</span>'}
+        </div>
+        <div style="font-size:10px;color:var(--g1);margin-top:3px">${d.desc}</div>
+      </div>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--g2)" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>
+    `;
+    row.addEventListener('click',()=>abrirDocPlan(d.key));
+    list.appendChild(row);
+  });
+  if(badge) badge.textContent = `${done}/${PLAN_DOCS.length}`;
+}
+
+function abrirDocPlan(key){
+  const d = PLAN_DOCS.find(x=>x.key===key);
+  if(!d){ return; }
+  if(!d.ready){
+    toast(d.label + ' — próximamente','');
+    return;
+  }
+  // Aquí se enganchará la pantalla de llenado real en Zip B/C
+  toast('Abriendo '+d.label+'...','');
+}
+
+function togglePlanBlanco(si){
+  const siEl = document.getElementById('plan_blanco_si');
+  const noEl = document.getElementById('plan_blanco_no');
+  const wrapEl = document.getElementById('plan_blanco_lote_wrap');
+  if(siEl) siEl.classList.toggle('on', si);
+  if(noEl) noEl.classList.toggle('on', !si);
+  if(wrapEl) wrapEl.style.display = si ? 'block' : 'none';
+}
+
+async function guardarPlanFormulario(){
+  if(!_currentPlanId) return;
+  const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
+  if(!plan) return;
+  const gv = id => { const e=document.getElementById(id); return e?e.value.trim():''; };
+  plan.folio = gv('plan_folio');
+  plan.fecha = gv('plan_fecha');
+  plan.muestreador = gv('plan_muest');
+  plan.blancoCampo = document.getElementById('plan_blanco_si')?.classList.contains('on') || false;
+  plan.loteBlanco = gv('plan_blanco_lote');
+  // Si se marcó como explícito (tiene folio o varias OMARs), limpiar flag migrated
+  if(plan.folio || (plan.omarIds||[]).length>1) plan.migrated = false;
+  await guardarPlan(plan);
+  toast('Plan guardado ✓','g');
+  // Refrescar UI
+  renderPlanPage();
+}
+
+// Crea una nueva OMAR dentro del plan actual y lleva al usuario a llenarla
+async function planNuevaOmar(){
+  if(!_currentPlanId){toast('Plan inválido','w');return;}
+  // Guardar cualquier cambio pendiente del formulario del plan
+  await guardarPlanFormulario();
+  const newId = Date.now();
+  const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
+  // Crear registro mínimo del muestreo (se completa cuando el usuario llena OMAR)
+  const nuevo = {
+    id: newId,
+    planId: _currentPlanId,
+    folio: '',
+    empresa: '',
+    fecha: plan?.fecha || new Date().toISOString().split('T')[0],
+    muestreador: plan?.muestreador || '',
+    ts: newId,
+    tomas: [],
+    omar: '',
+    sigData: null,
+  };
+  await idbPut(nuevo);
+  // Agregar al plan
+  await planAgregarOmar(_currentPlanId, newId);
+  // Llevar al usuario a la pantalla OMAR para llenar datos
+  cargarMuestreo(newId);
+}
+
+async function eliminarPlanActual(){
+  if(!_currentPlanId) return;
+  const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
+  if(!plan) return;
+  const omars = getMuestreosDePlan(_currentPlanId);
+  confirmAction({
+    title:'Eliminar plan completo',
+    message:`¿Eliminar el plan y sus ${omars.length} OMAR${omars.length!==1?'s':''}? Esta acción no se puede deshacer.`,
+    okText:'Eliminar todo',
+    okDanger:true,
+  }).then(async ok=>{
+    if(!ok) return;
+    await eliminarPlan(_currentPlanId, {borrarOmars:true});
+    _currentPlanId = null;
+    toast('Plan eliminado','g');
+    goHome();
+  });
+}
+
+// Nuevo plan desde el home
+async function crearNuevoPlan(){
+  closeFabMenu();
+  const plan = await crearPlan({
+    fecha: new Date().toISOString().split('T')[0],
+    muestreador: '',
+  });
+  _currentPlanId = plan.id;
+  renderPlanPage();
+  goPage('pgPlan');
+  toast('Plan nuevo ✓ — agrega las OMARs','g');
+}
+// ═══════════════ /PLAN UI ═══════════════
+
+// Renderiza una barra superior con botón "Ver plan" + chips de OMARs hermanas.
+// Siempre se muestra cuando hay un plan asociado al muestreo actual.
+// Permite saltar sin perder cambios (autosave).
+function renderHermanasBreadcrumb(){
+  const containers = ['pg0Hermanas','pg1Hermanas'];
+  // Determinar plan del muestreo activo
+  const actualId = omar.ts || _pendingNewMuestreoId;
+  let plan = null;
+  if(actualId){
+    plan = _cachedPlanes.find(p=>(p.omarIds||[]).includes(actualId));
+  }
+  if(!plan && _pendingNewPlanId){
+    plan = _cachedPlanes.find(p=>p.id===_pendingNewPlanId);
+  }
+  if(!plan){
+    containers.forEach(id=>{const e=document.getElementById(id);if(e){e.innerHTML='';e.style.display='none';}});
+    return;
+  }
+  const hermanas = getMuestreosDePlan(plan.id);
+  const hasMultiple = hermanas.length >= 2;
+  // Nombre del plan: folio si lo tiene, si no "este muestreo"
+  const planLabel = plan.folio ? 'PLAN #'+plan.folio : (hasMultiple ? 'PLAN (sin folio)' : 'Documentos del muestreo');
+  const html = `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 4px;overflow-x:auto;scrollbar-width:none">
+      <button onclick="abrirPlanDesdeOmar('${plan.id}')" style="background:rgba(74,158,255,.15);border:1px solid rgba(74,158,255,.4);border-radius:7px;color:var(--acc);padding:6px 12px;font-family:var(--syne);font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:6px">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+        ${planLabel}
+      </button>
+      ${hasMultiple ? hermanas.map((m,idx)=>{
+        const isActive = m.id===actualId;
+        const omarObj = m.omar?JSON.parse(m.omar):{};
+        return `<button onclick="saltarAOmar(${m.id})" style="background:${isActive?'var(--acc)':'var(--bg3)'};border:1px solid ${isActive?'var(--acc)':'var(--ln)'};border-radius:7px;color:${isActive?'#fff':'var(--g1)'};padding:6px 10px;font-family:var(--syne);font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0">${idx+1}·${m.folio||'?'}</button>`;
+      }).join('') : ''}
+    </div>
+  `;
+  containers.forEach(id=>{
+    const e = document.getElementById(id);
+    if(e){ e.innerHTML = html; e.style.display = 'block'; }
+  });
+}
+
+// Ir al plan desde OMAR — guarda cambios antes
+async function abrirPlanDesdeOmar(planId){
+  if(omar.folio){ await saveMuestreoActual(); }
+  abrirPlan(planId);
+}
+
+async function saltarAOmar(mid){
+  // Guardar el muestreo actual antes de saltar
+  if(omar.folio){ await saveMuestreoActual(); }
+  cargarMuestreo(mid);
 }
 
 function cargarMuestreo(id){
@@ -506,8 +1013,9 @@ function cargarMuestreo(id){
   buildCusTable();
   renderTomas();
   updTCnt();
-  showPage(2);
+  goPage('pg1');
   goSec(0);
+  renderHermanasBreadcrumb();
   toast('Muestreo cargado ✓','g');
 }
 
@@ -714,10 +1222,11 @@ function irCampo(){
   if(!omar.folio){toast('Primero confirma la OMAR','w');return;}
   loadCampoFromOMAR();
   buildCusTable();
-  showPage(2);
+  goPage('pg1');
   goSec(0);
+  renderHermanasBreadcrumb();
 }
-function irOMAR(){closeFabMenu();showPage(1);}
+function irOMAR(){closeFabMenu();goPage('pg0');renderHermanasBreadcrumb();}
 
 // ── LOAD CAMPO FROM OMAR ──
 function loadCampoFromOMAR(){
@@ -1281,7 +1790,8 @@ function drawSig(doc,data,bx,by,bw,bh){
 // ── MULTI-MUESTREO SYSTEM ──
 
 // ── INDEXEDDB ──
-const DB_NAME='aarms_db', DB_VER=1, STORE='muestreos';
+// v2: agregamos store 'planes'. Cada muestreo ahora puede pertenecer a un plan.
+const DB_NAME='aarms_db', DB_VER=2, STORE='muestreos', STORE_PLANES='planes';
 let _db=null;
 
 function openDB(){
@@ -1294,10 +1804,40 @@ function openDB(){
         const s=db.createObjectStore(STORE,{keyPath:'id'});
         s.createIndex('ts','ts',{unique:false});
       }
+      if(!db.objectStoreNames.contains(STORE_PLANES)){
+        const sp=db.createObjectStore(STORE_PLANES,{keyPath:'id'});
+        sp.createIndex('ts','ts',{unique:false});
+      }
     };
     req.onsuccess=e=>{_db=e.target.result;res(_db);};
     req.onerror=e=>rej(e);
   });
+}
+
+// ── HELPERS para store 'planes' ──
+function idbPlanGetAll(){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(STORE_PLANES,'readonly');
+    const req=tx.objectStore(STORE_PLANES).getAll();
+    req.onsuccess=e=>res(e.target.result.sort((a,b)=>(b.ts||0)-(a.ts||0)));
+    req.onerror=e=>rej(e);
+  }));
+}
+function idbPlanPut(record){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(STORE_PLANES,'readwrite');
+    const req=tx.objectStore(STORE_PLANES).put(record);
+    req.onsuccess=e=>res(e.target.result);
+    req.onerror=e=>rej(e);
+  }));
+}
+function idbPlanDelete(id){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(STORE_PLANES,'readwrite');
+    const req=tx.objectStore(STORE_PLANES).delete(id);
+    req.onsuccess=e=>res();
+    req.onerror=e=>rej(e);
+  }));
 }
 
 function idbGetAll(){
@@ -1331,10 +1871,15 @@ function getMuestreos(){
   // Sync fallback — returns cached or empty
   return _cachedMuestreos||[];
 }
+function getPlanes(){
+  return _cachedPlanes||[];
+}
 let _cachedMuestreos=[];
+let _cachedPlanes=[];
 
 async function refreshCache(){
   _cachedMuestreos=await idbGetAll();
+  _cachedPlanes=await idbPlanGetAll();
   // Migrar localStorage si existe
   try{
     const old=localStorage.getItem('aarms_muestreos_v1');
@@ -1342,14 +1887,137 @@ async function refreshCache(){
       const lista=JSON.parse(old);
       for(const m of lista) await idbPut(m);
       localStorage.removeItem('aarms_muestreos_v1');
+      _cachedMuestreos=await idbGetAll();
     }
   }catch(e){}
+  // Auto-migración a planes: cada muestreo sin planId se vuelve un plan "solo"
+  const huerfanos = _cachedMuestreos.filter(m=>!m.planId);
+  if(huerfanos.length){
+    for(const m of huerfanos){
+      const planId = 'plan_'+m.id;
+      // Crear plan solo si no existe ya
+      const existe = _cachedPlanes.find(p=>p.id===planId);
+      if(!existe){
+        const planRec = {
+          id: planId,
+          folio: '',                       // el usuario podrá asignar folio del plan después
+          fecha: m.fecha || '',
+          muestreador: m.muestreador || '',
+          blancoCampo: false,
+          loteBlanco: '',
+          omarIds: [m.id],
+          ts: m.ts || Date.now(),
+          migrated: true,                  // flag: vino de un muestreo suelto
+        };
+        await idbPlanPut(planRec);
+      }
+      // Marcar el muestreo con planId
+      m.planId = planId;
+      await idbPut(m);
+    }
+    _cachedMuestreos=await idbGetAll();
+    _cachedPlanes=await idbPlanGetAll();
+  }
   return _cachedMuestreos;
+}
+
+// Helper: muestreos que pertenecen a un plan, ordenados por folio OMAR
+function getMuestreosDePlan(planId){
+  const plan = _cachedPlanes.find(p=>p.id===planId);
+  if(!plan || !plan.omarIds) return [];
+  // Mantener orden del array omarIds (orden explícito del plan)
+  return plan.omarIds
+    .map(mid => _cachedMuestreos.find(m=>m.id===mid))
+    .filter(Boolean);
+}
+
+// Helper: el plan al que pertenece un muestreo
+function getPlanDeMuestreo(muestreoId){
+  return _cachedPlanes.find(p=>(p.omarIds||[]).includes(muestreoId));
+}
+
+// ── PLAN CRUD ──
+async function crearPlan(datos={}){
+  const id = datos.id || 'plan_'+Date.now();
+  const rec = {
+    id,
+    folio: datos.folio || '',
+    fecha: datos.fecha || new Date().toISOString().split('T')[0],
+    muestreador: datos.muestreador || '',
+    blancoCampo: datos.blancoCampo || false,
+    loteBlanco: datos.loteBlanco || '',
+    omarIds: datos.omarIds || [],
+    observaciones: datos.observaciones || '',
+    ts: Date.now(),
+  };
+  await idbPlanPut(rec);
+  _cachedPlanes = await idbPlanGetAll();
+  return rec;
+}
+
+async function guardarPlan(plan){
+  plan.ts = plan.ts || Date.now();
+  await idbPlanPut(plan);
+  _cachedPlanes = await idbPlanGetAll();
+  return plan;
+}
+
+async function eliminarPlan(planId, {borrarOmars=true}={}){
+  const plan = _cachedPlanes.find(p=>p.id===planId);
+  if(!plan) return;
+  if(borrarOmars){
+    for(const mid of (plan.omarIds||[])){
+      await idbDelete(mid);
+    }
+  }
+  await idbPlanDelete(planId);
+  _cachedPlanes = await idbPlanGetAll();
+  _cachedMuestreos = await idbGetAll();
+}
+
+// Agrega un muestreo existente al plan (si no estaba)
+async function planAgregarOmar(planId, muestreoId){
+  const plan = _cachedPlanes.find(p=>p.id===planId);
+  if(!plan) return;
+  plan.omarIds = plan.omarIds || [];
+  if(!plan.omarIds.includes(muestreoId)) plan.omarIds.push(muestreoId);
+  plan.ts = Date.now();
+  await idbPlanPut(plan);
+  // También marcar el muestreo con su planId
+  const m = _cachedMuestreos.find(x=>x.id===muestreoId);
+  if(m){ m.planId = planId; await idbPut(m); }
+  _cachedPlanes = await idbPlanGetAll();
+  _cachedMuestreos = await idbGetAll();
+}
+
+// Remueve un muestreo del plan (sin borrarlo; queda huérfano → en próxima refreshCache se le hará plan solo)
+async function planRemoverOmar(planId, muestreoId, {borrarMuestreo=false}={}){
+  const plan = _cachedPlanes.find(p=>p.id===planId);
+  if(!plan) return;
+  plan.omarIds = (plan.omarIds||[]).filter(id=>id!==muestreoId);
+  plan.ts = Date.now();
+  await idbPlanPut(plan);
+  if(borrarMuestreo){
+    await idbDelete(muestreoId);
+  } else {
+    const m = _cachedMuestreos.find(x=>x.id===muestreoId);
+    if(m){ delete m.planId; await idbPut(m); }
+  }
+  _cachedPlanes = await idbPlanGetAll();
+  _cachedMuestreos = await idbGetAll();
 }
 
 async function saveMuestreoActual(){
   if(!omar.folio) return;
-  const mid = omar.ts || Date.now();
+  // Si hay un plan/muestreo pendiente (recién creados por "+ Nuevo muestreo"),
+  // usar ese id y planId. Si no, usar el id actual existente.
+  let mid;
+  if(_pendingNewMuestreoId && !omar.ts){
+    mid = _pendingNewMuestreoId;
+    omar.ts = mid;
+  } else {
+    mid = omar.ts || Date.now();
+  }
   const gv=elId=>{const e=document.getElementById(elId);return e?e.value.trim():'';};
   omar.lab={
     tnom:gv('c_tnom'),tfir:gv('c_tfir'),tfec:gv('c_tfec'),thor:gv('c_thor'),
@@ -1361,6 +2029,12 @@ async function saveMuestreoActual(){
     ltnom:gv('c_ltnom'),ltfir:gv('c_ltfir'),ltfec:gv('c_ltfec'),lthor:gv('c_lthor'),
     sup:gv('c_sup'),
   };
+  // Preservar planId del registro anterior si existía; si hay uno pendiente, usarlo
+  const prev = _cachedMuestreos.find(x=>x.id===mid);
+  let planId = prev?.planId || null;
+  if(!planId && _pendingNewPlanId && _pendingNewMuestreoId===mid){
+    planId = _pendingNewPlanId;
+  }
   const entry={
     id:mid, folio:omar.folio, empresa:omar.empresa,
     fecha:omar.fecha, tipo:omar.tipo, muestreador:omar.muestreador, ts:mid,
@@ -1372,11 +2046,28 @@ async function saveMuestreoActual(){
     omar:JSON.stringify(omar),
     sigData:sigData||null, sigData2:sigData2||null,
   };
+  if(planId) entry.planId = planId;
   await idbPut(entry);
+  // Si es nuevo, agregar al plan pendiente y limpiar flag
+  if(_pendingNewPlanId && _pendingNewMuestreoId===mid){
+    await planAgregarOmar(_pendingNewPlanId, mid);
+    _pendingNewPlanId = null;
+    _pendingNewMuestreoId = null;
+  }
   await refreshCache();
 }
 
 async function eliminarMuestreo(id){
+  // Si el muestreo pertenece a un plan, quitarlo de la lista de omarIds del plan
+  const plan = _cachedPlanes.find(p=>(p.omarIds||[]).includes(id));
+  if(plan){
+    plan.omarIds = plan.omarIds.filter(x=>x!==id);
+    await idbPlanPut(plan);
+    // Si el plan queda vacío Y era migrado (plan-solo), borrarlo también
+    if(plan.omarIds.length===0 && plan.migrated){
+      await idbPlanDelete(plan.id);
+    }
+  }
   await idbDelete(id);
   await refreshCache();
   renderHome();
@@ -1434,13 +2125,7 @@ function genPDF(tipo='lab'){
   };
 
   toast('Generando PDF...','');
-  if(typeof window.jspdf==='undefined'){
-    const script=document.createElement('script');
-    script.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    script.onload=run;
-    script.onerror=()=>toast('Sin conexión para generar PDF','w');
-    document.head.appendChild(script);
-  }else{ run(); }
+  run();
 }
 
 async function buildPDF(){
@@ -2186,70 +2871,92 @@ async function buildPDFCliente(){
   }
   y+=FH;
 
-  // ════════ TOMAS TABLE ════════
-  y=secH('Registro de tomas — parámetros de campo',y);
-  const ROWS=[
-    ['Temp. agua (°C)',t=>t.tagua||'',true],
-    ['pH L1',t=>t.ph||'',false],['pH L2',t=>t.ph||'',false],['pH L3',t=>t.ph||'',false],
-    ['pH prom. 25°C',t=>t.ph||'',true],
-    ['Conductividad (µS/cm)',t=>t.cond||'',true],
-    ['Flujo (L/s)',t=>t.ls||'',false],
-    ['Materia flotante',t=>t.mat||'',true],
-    ['Color',t=>t.color||'',false],
-    ['Olor',t=>t.olor===true?'SI':t.olor===false?'NO':'',false],
+  // ════════ RESUMEN DEL MUESTREO ════════
+  // Nota: antes había valores (pH, temp, cond, flujo, color, olor).
+  // Esos se entregan junto con el reporte de laboratorio previo pago.
+  // Aquí solo palomitas de actividades completadas por toma.
+  y=secH('Resumen del muestreo',y);
+
+  const ACT_ROWS=[
+    ['Hora de la toma',       t=>t.hora||'—',              'text'],
+    ['Muestra recolectada',   t=>!!(t.hora||t.params&&t.params.size),  'check'],
+    ['Parámetros de campo medidos (pH, conductividad, temperatura)', t=>!!(t.ph||t.cond||t.tagua), 'check'],
+    ['Muestra preservada conforme a normatividad',                    t=>!!(t.params&&t.params.size), 'check'],
+    ['Registro en cadena de custodia',                                t=>!!(t.params&&t.params.size), 'check'],
   ];
-  const LBL=120,PROM=50,nT=Math.max(tomas.length,1);
-  const TW3=Math.floor((CW-LBL-PROM)/nT);
-  const THR=14,TRR=12;
+  const LBL=230, nT=Math.max(tomas.length,1);
+  const TW3=Math.floor((CW-LBL)/nT);
+  const THR=14, TRR=14;
 
   // Header row
-  doc.setFillColor(...K.rowBg);doc.rect(ML,y,LBL,THR,'F');
+  doc.setFillColor(...K.rowBg);doc.rect(ML,y,CW,THR,'F');
   doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(ML,y,LBL,THR,'S');
-  doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
-  doc.text('Parámetro',ML+3,y+10);
+  doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(8);
+  doc.text('Actividad',ML+4,y+9);
   tomas.forEach((t,i)=>{
     const tx=ML+LBL+i*TW3;
     doc.setFillColor(...K.rowBg);doc.rect(tx,y,TW3,THR,'F');
     doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(tx,y,TW3,THR,'S');
-    doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(7);
-    doc.text('Toma '+t.id,tx+TW3/2,y+6,{align:'center'});
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);
-    doc.text(t.hora||'',tx+TW3/2,y+12,{align:'center'});
+    doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.text('T'+(i+1),tx+TW3/2,y+9,{align:'center'});
   });
-  const prX=ML+LBL+nT*TW3;
-  doc.setFillColor(...K.promBg);doc.rect(prX,y,PROM,THR,'F');
-  doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(prX,y,PROM,THR,'S');
-  doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(6.5);
-  doc.text('Prom.',prX+PROM/2,y+6,{align:'center'});
-  doc.text('Report.',prX+PROM/2,y+12,{align:'center'});
   y+=THR;
 
+  // Helper: palomita dibujada como líneas vectoriales (verde)
+  //   No dependemos de fuente ni Unicode — se ve igual siempre.
+  const drawCheck = (cx, cy, on)=>{
+    if(on){
+      // palomita ✓ en verde, ~10px de ancho, centrada en cx,cy
+      doc.setDrawColor(...K.teal);
+      doc.setLineWidth(1.6);
+      doc.setLineCap('round');
+      doc.setLineJoin('round');
+      doc.line(cx-4, cy,     cx-1, cy+3);  // trazo corto ↘
+      doc.line(cx-1, cy+3,   cx+5, cy-4);  // trazo largo ↗
+    } else {
+      doc.setTextColor(187,187,187);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10);
+      doc.text('—', cx, cy+3, {align:'center'});
+    }
+  };
+
   // Data rows
-  ROWS.forEach(([lbl,fn,showProm],ri)=>{
-    const rH=TRR,bg=ri%2===0?K.wht:K.rowAlt;
+  ACT_ROWS.forEach(([lbl,fn,kind],ri)=>{
+    const bg = ri%2===0?K.wht:K.rowAlt;
+    // Para labels largos (parámetros de campo), partir en 2 líneas
+    const needsWrap = lbl.length > 40;
+    const rH = needsWrap ? TRR*1.4 : TRR;
     doc.setFillColor(...K.rowBg);doc.rect(ML,y,LBL,rH,'F');
     doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(ML,y,LBL,rH,'S');
-    doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.text(lbl,ML+3,y+9);
-    const vals=tomas.map(t=>fn(t));
-    vals.forEach((v,i)=>{
+    doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(7.8);
+    if(needsWrap){
+      const lines = doc.splitTextToSize(lbl, LBL-8);
+      lines.slice(0,2).forEach((ln,li)=>doc.text(ln, ML+4, y+9 + li*8));
+    } else {
+      doc.text(lbl, ML+4, y+9);
+    }
+    tomas.forEach((t,i)=>{
       const tx=ML+LBL+i*TW3;
       doc.setFillColor(...bg);doc.rect(tx,y,TW3,rH,'F');
       doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(tx,y,TW3,rH,'S');
-      if(v){doc.setTextColor(...K.blk);doc.setFont('helvetica','bold');doc.setFontSize(8.5);}
-      else{doc.setTextColor(187,187,187);doc.setFont('helvetica','normal');doc.setFontSize(8.5);}
-      doc.text(v?String(v).substring(0,10):'—',tx+TW3/2,y+9,{align:'center'});
+      const v = fn(t);
+      if(kind==='text'){
+        if(v && v!=='—'){
+          doc.setTextColor(...K.blk);doc.setFont('helvetica','bold');doc.setFontSize(9);
+        } else {
+          doc.setTextColor(187,187,187);doc.setFont('helvetica','normal');doc.setFontSize(9);
+        }
+        doc.text(String(v||'—'), tx+TW3/2, y+(rH/2)+3, {align:'center'});
+      } else {
+        // Para la palomita geométrica, cy es el CENTRO del glifo (no baseline).
+        drawCheck(tx+TW3/2, y+(rH/2), !!v);
+      }
     });
-    const nums=vals.map(v=>parseFloat(v)).filter(n=>!isNaN(n));
-    const prom=nums.length&&showProm?(nums.reduce((a,b)=>a+b,0)/nums.length).toFixed(2):'';
-    doc.setFillColor(...(prom?K.tealBg:bg));doc.rect(prX,y,PROM,rH,'F');
-    doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(prX,y,PROM,rH,'S');
-    if(prom){doc.setTextColor(...K.teal);doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.text(prom,prX+PROM/2,y+9,{align:'center'});}
-    else{doc.setTextColor(187,187,187);doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text('—',prX+PROM/2,y+9,{align:'center'});}
     y+=rH;
   });
-  // (outer border drawn inline per row)
 
-  // Observations
+  // Observations (se mantienen — son libres y las escribe el muestreador)
   const obs=gv('h_obs');
   if(obs){
     const lines=doc.splitTextToSize(obs,CW-10);
@@ -2262,78 +2969,94 @@ async function buildPDFCliente(){
     y+=oh;
   }
 
-  // ════════ CONSERVADORES ════════
-  y=secH('Conservadores utilizados por toma',y);
-  const conCloroR=tomas.some(t=>t.cloro===true);
-  const CMAP={
-    'FQ'  :'Hielo 4C',
-    'TOC' :'Hielo/H2SO4 25%',
-    'Hg'  :'Hielo/HNO3 Sup/K2Cr2O7',
-    'MP'  :'Hielo/HNO3 Sup',
-    'CIAN':'Hielo/NaOH',
-    'FOS.':'Hielo',
-    'SAAM':'Hielo',
-    'GYA' :'Hielo/HCl',
-    'DQO' :'Hielo/H2SO4',
-    'DBO5':'Hielo',
-    'N.TOT':'Hielo/H2SO4',
-    'CTYF':conCloroR?'Hielo/Tiosulfato':'Hielo',
-    'ENTE.':conCloroR?'Hielo/Tiosulfato':'Hielo',
-    'NO2' :'Hielo',
-    'NO3' :'Hielo',
-    'HELM':'Hielo',
-    'CLR' :'Hielo',
-    'ECOL':conCloroR?'Hielo/Tiosulfato':'Hielo',
-    'TOX' :'Hielo',
-    'CLOR':'Hielo',
-    'CrHx':'Hielo/Dil.Buffer',
-    'OTRS':'N/A'
+  // ════════ ANALITOS SOLICITADOS ════════
+  // Antes mostraba "Conservadores utilizados" con columnas de conservador
+  // que revelaba el método operativo. Ahora solo muestra qué analito se
+  // recolectó por toma (el dato que el cliente necesita ver como alcance).
+  y=secH('Analitos solicitados por toma',y);
+
+  // Diccionario legible para el cliente (nombres completos, no códigos internos)
+  const ALIAS={
+    'FQ'  :'Fisicoquímicos',
+    'TOC' :'Carbono orgánico total',
+    'Hg'  :'Mercurio',
+    'MP'  :'Metales pesados',
+    'CIAN':'Cianuros',
+    'FOS.':'Fósforo total',
+    'SAAM':'SAAM (detergentes)',
+    'GYA' :'Grasas y aceites',
+    'DQO' :'Demanda química de oxígeno',
+    'DBO5':'Demanda bioquímica de oxígeno',
+    'N.TOT':'Nitrógeno total Kjeldahl',
+    'CTYF':'Coliformes totales y fecales',
+    'ENTE.':'Enterococos',
+    'NO2' :'Nitritos',
+    'NO3' :'Nitratos',
+    'HELM':'Huevos de helminto',
+    'CLR' :'Cloruros',
+    'ECOL':'E. coli',
+    'TOX' :'Toxicidad aguda',
+    'CLOR':'Color',
+    'CrHx':'Cromo hexavalente',
+    'OTRS':'Otros'
   };
-  const SIMPLES=['GYA','CTYF','ENTE.','ECOL','TOX'];
+
   const allP=[...new Set([...tomas.flatMap(t=>[...t.params])])];
-  const CLW=100,CCW=105,CTW=Math.floor((CW-CLW-CCW)/6);
+  if(allP.length===0){
+    doc.setFillColor(...K.wht);doc.rect(ML,y,CW,20,'F');
+    doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(ML,y,CW,20,'S');
+    doc.setTextColor(136,136,136);doc.setFont('helvetica','italic');doc.setFontSize(9);
+    doc.text('Sin analitos registrados', ML+CW/2, y+13, {align:'center'});
+    y+=20;
+  } else {
+    const ALW=260, ATW=Math.floor((CW-ALW)/Math.max(tomas.length,1));
 
-  // Header — fill entire row first to avoid gaps
-  doc.setFillColor(...K.rowBg);doc.rect(ML,y,CW,TRR,'F');
-  // Param label
-  doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(ML,y,CLW,TRR,'S');
-  doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(7);
-  doc.text('Parámetro',ML+3,y+9);
-  // Conservador label
-  doc.rect(ML+CLW,y,CCW,TRR,'S');
-  doc.text('Conservador',ML+CLW+3,y+9);
-  // T1..T6 headers — only draw for tomas that exist, grey out rest
-  for(let ti=0;ti<6;ti++){
-    const cx=ML+CLW+CCW+ti*CTW;
-    const exists=tomas[ti]!=null;
-    doc.setFillColor(...(exists?K.rowBg:[228,232,240]));
-    doc.rect(cx,y,CTW,TRR,'F');
-    doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(cx,y,CTW,TRR,'S');
-    doc.setTextColor(...(exists?[51,51,51]:[170,178,190]));
-    doc.setFont('helvetica','bold');doc.setFontSize(7);
-    doc.text('T'+(ti+1),cx+CTW/2,y+9,{align:'center'});
-  }
-  y+=TRR;
-
-  allP.slice(0,12).forEach((p,ri)=>{
-    const bg=ri%2===0?K.wht:K.rowAlt,cons=CMAP[p]||'—';
-    doc.setFillColor(...bg);doc.rect(ML,y,CLW,TRR,'F');
-    doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(ML,y,CLW,TRR,'S');
-    doc.setTextColor(...K.blk);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(p,ML+3,y+9);
-    doc.setFillColor(...bg);doc.rect(ML+CLW,y,CCW,TRR,'F');
-    doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(ML+CLW,y,CCW,TRR,'S');
-    doc.setFontSize(7.5);doc.text(cons.substring(0,16),ML+CLW+3,y+9);
-    for(let ti=0;ti<6;ti++){
-      const cx=ML+CLW+CCW+ti*CTW;
-      const t=tomas[ti];
-      const hasP=t&&t.params.has(p);
-      doc.setFillColor(...bg);doc.rect(cx,y,CTW,TRR,'F');
-      doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(cx,y,CTW,TRR,'S');
-      if(hasP){doc.setTextColor(0,122,96);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text('v',cx+CTW/2,y+9,{align:'center'});}
-    }
+    // Header
+    doc.setFillColor(...K.rowBg);doc.rect(ML,y,CW,TRR,'F');
+    doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(ML,y,ALW,TRR,'S');
+    doc.setTextColor(51,51,51);doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.text('Analito', ML+4, y+9);
+    tomas.forEach((t,i)=>{
+      const cx=ML+ALW+i*ATW;
+      doc.setFillColor(...K.rowBg);doc.rect(cx,y,ATW,TRR,'F');
+      doc.setDrawColor(...K.bdr);doc.setLineWidth(0.3);doc.rect(cx,y,ATW,TRR,'S');
+      doc.setFont('helvetica','bold');doc.setFontSize(8);
+      doc.text('T'+(i+1), cx+ATW/2, y+9, {align:'center'});
+    });
     y+=TRR;
-  });
-  // conservadores border inline
+
+    // Rows
+    allP.slice(0,14).forEach((p,ri)=>{
+      const bg=ri%2===0?K.wht:K.rowAlt;
+      const lbl=ALIAS[p]||p;
+      doc.setFillColor(...bg);doc.rect(ML,y,ALW,TRR,'F');
+      doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(ML,y,ALW,TRR,'S');
+      doc.setTextColor(...K.blk);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+      doc.text(lbl.substring(0,45), ML+4, y+9);
+      tomas.forEach((t,ti)=>{
+        const cx=ML+ALW+ti*ATW;
+        doc.setFillColor(...bg);doc.rect(cx,y,ATW,TRR,'F');
+        doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(cx,y,ATW,TRR,'S');
+        if(t.params.has(p)){
+          drawCheck(cx+ATW/2, y+TRR/2, true);
+        }
+      });
+      y+=TRR;
+    });
+  }
+
+  // Aviso para el cliente — los resultados se entregan por aparte
+  const avisoH = 26;
+  doc.setFillColor(...K.amberBg);doc.rect(ML,y,CW,avisoH,'F');
+  doc.setDrawColor(...K.amberBdr);doc.setLineWidth(0.5);doc.rect(ML,y,CW,avisoH,'S');
+  doc.setTextColor(...K.amberTxt);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+  doc.text('Resultados analíticos',ML+5,y+9);
+  doc.setFont('helvetica','normal');doc.setFontSize(7);
+  const avisoTxt = 'Los valores medidos de los parámetros de campo y de los analitos indicados se incluirán en el Reporte de Resultados emitido por el laboratorio, al concluir los análisis correspondientes.';
+  const avisoLines = doc.splitTextToSize(avisoTxt, CW-10);
+  avisoLines.forEach((ln,li)=>doc.text(ln, ML+5, y+17+li*7));
+  y+=avisoH;
+
 
   // ════════ FIRMAS ════════
   if(y>PH-115){doc.addPage();y=20;}
@@ -2434,12 +3157,7 @@ function genCadena(){
       if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}
     }
   };
-  if(typeof window.jspdf==='undefined'){
-    const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    s.onload=run; s.onerror=()=>toast('Sin conexión','w');
-    document.head.appendChild(s);
-  }else{ run(); }
+  run();
 }
 
 async function buildPDFCadena(){
