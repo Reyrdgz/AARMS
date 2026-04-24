@@ -1,5 +1,5 @@
-const LOGO_APP_URI = 'logo_transparent.png';
-const LOGO_PDF_URI = 'logo_transparent.png';
+const LOGO_APP_URI = 'logo_pdf.png';
+const LOGO_PDF_URI = 'logo.png';
 const LOGO_BASE_URL = 'https://reyrdgz.github.io/AARMS/';
 
 // Convierte coordenadas a número de tile OSM
@@ -980,20 +980,135 @@ function renderHermanasBreadcrumb(){
 
 // Ir al plan desde OMAR — guarda cambios antes
 async function abrirPlanDesdeOmar(planId){
-  if(omar.folio){ await saveMuestreoActual(); }
+  await guardarBorradorActual();
   abrirPlan(planId);
 }
 
 async function saltarAOmar(mid){
-  // Guardar el muestreo actual antes de saltar
-  if(omar.folio){ await saveMuestreoActual(); }
+  // Guardar SIEMPRE lo que esté en el formulario actual (aunque esté incompleto)
+  // para que al regresar encuentres lo que tenías, y que no se mezcle con la OMAR destino.
+  await guardarBorradorActual();
   cargarMuestreo(mid);
+}
+
+// Guarda los valores actualmente visibles en pg0 (OMAR) y pg1 (Hoja/Cadena) al
+// registro cuyo id está en omar.ts. No valida — solo snapshot del estado actual.
+async function guardarBorradorActual(){
+  const mid = omar?.ts;
+  if(!mid) return;
+  const g = id => { const e=document.getElementById(id); return e?e.value.trim():''; };
+  // Detectar si hay algo en el form de pg0
+  const folio_pg0 = g('o_omar');
+  const emp_pg0   = g('o_emp');
+  const hayFormPg0 = !!(folio_pg0 || emp_pg0 || g('o_muest') || g('o_sitio'));
+
+  if(hayFormPg0){
+    // Reconstruir omar desde el form de pg0 (como lo hace guardarOMAR pero sin validar)
+    omar = {
+      folio: folio_pg0, ssar: g('o_ssar'), muestreador: g('o_muest'),
+      elaboro: g('o_elab'), empresa: emp_pg0, contacto: g('o_cont'),
+      puesto: g('o_puest'), direccion: g('o_dir'), municipio: g('o_mun'),
+      telefono: g('o_tel'), sitio: g('o_sitio'), idmuestra: g('o_idm'),
+      norma: (typeof getNorma==='function' ? getNorma() : ''),
+      mat: document.getElementById('o_mat')?.value || '',
+      fecha: g('o_fecha'), tipo: g('o_tipo'),
+      intervalo: g('o_int'), ndesc: g('o_ndesc'), ntomas: g('o_ntomas'),
+      analitos: [...analitosSel], reglas: g('o_reglas'),
+      ts: mid,
+      // preservar lab si ya existía
+      lab: omar?.lab || undefined,
+    };
+    localStorage.setItem('aarms_omar', JSON.stringify(omar));
+  }
+
+  // Guardar el registro completo (incluye tomas, firmas, lab)
+  // saveMuestreoActual requiere omar.folio, pero podríamos querer guardar aunque no esté.
+  // Hacemos el write directo:
+  try {
+    const prev = _cachedMuestreos.find(x=>x.id===mid);
+    const planId = prev?.planId || null;
+    const entry = {
+      id: mid,
+      folio: omar.folio || '',
+      empresa: omar.empresa || '',
+      fecha: omar.fecha || new Date().toISOString().split('T')[0],
+      tipo: omar.tipo || '',
+      muestreador: omar.muestreador || '',
+      ts: mid,
+      tomas: (tomas||[]).map(t=>({
+        id:t.id, hora:t.hora, ph:t.ph, cond:t.cond,
+        tagua:t.tagua, tamb:t.tamb, ls:t.ls, mat:t.mat,
+        color:t.color, olor:t.olor, cloro:t.cloro,
+        params:[...(t.params||[])]
+      })),
+      omar: JSON.stringify(omar),
+      sigData: sigData||null,
+      sigData2: sigData2||null,
+    };
+    if(planId) entry.planId = planId;
+    await idbPut(entry);
+    await refreshCache();
+  } catch(e){
+    console.warn('[saveBorrador] error:', e);
+  }
 }
 
 function cargarMuestreo(id){
   const lista=getMuestreos();
   const m=lista.find(x=>String(x.id)===String(id));
   if(!m){toast('No se encontró el registro','r');return;}
+
+  // RESET COMPLETO de estado antes de cargar el registro.
+  // Sin esto, datos y tomas de muestreos anteriores se quedan pegados en pantalla.
+  tomas = [];
+  sigData = null;
+  sigData2 = null;
+  analitosSel = new Set();
+  photoData = null;
+  lastPDFBlob = null;
+  lastPDFClienteBlob = null;
+  lastPDFCadenaBlob = null;
+  // Limpiar canvas de firmas
+  ['sigCanvas','sigCanvas2'].forEach(cid=>{
+    const cv=document.getElementById(cid);
+    if(cv){
+      const ctx=cv.getContext('2d');
+      if(ctx) ctx.clearRect(0,0,cv.width,cv.height);
+    }
+  });
+  ['cvswrap','cvswrap2'].forEach(wid=>{
+    document.getElementById(wid)?.classList.remove('signed');
+  });
+  document.getElementById('sigst')?.classList.remove('ok');
+  const sigstEl=document.getElementById('sigst');
+  if(sigstEl) sigstEl.textContent='Sin firma';
+  // Limpiar inputs de hoja de campo
+  document.querySelectorAll('#pg1 input, #pg1 textarea, #pg1 select').forEach(el=>{
+    if(el.type==='checkbox'||el.type==='radio') el.checked=false;
+    else el.value='';
+  });
+  // Limpiar tabla de tomas en pantalla
+  const tomasBody=document.getElementById('tomasBody');
+  if(tomasBody) tomasBody.innerHTML='';
+  const tcnt=document.getElementById('tcnt');
+  if(tcnt) tcnt.textContent='0';
+  // Limpiar foto preview
+  const photoPrev=document.getElementById('photoPrev');
+  if(photoPrev){ photoPrev.style.backgroundImage=''; photoPrev.classList.remove('loaded'); }
+
+  // Ahora sí, cargar datos del registro
+  // SIEMPRE limpiar el form de pg0 primero (evita que datos de OMAR previa queden pegados)
+  document.querySelectorAll('#omarForm input,#omarForm select,#omarForm textarea').forEach(el=>{
+    if(el.type==='checkbox'||el.type==='radio') el.checked=false;
+    else el.value='';
+  });
+  document.querySelectorAll('.ai.on').forEach(el=>el.classList.remove('on'));
+  document.querySelectorAll('#intChips .chip').forEach(c=>c.classList.remove('on'));
+  const tbSimp=document.getElementById('tb_simp');
+  const tbComp=document.getElementById('tb_comp');
+  if(tbSimp){tbSimp.classList.remove('btn-p');tbSimp.classList.add('btn-g');}
+  if(tbComp){tbComp.classList.remove('btn-p');tbComp.classList.add('btn-g');}
+
   if(m.omar){
     omar=JSON.parse(m.omar);
     localStorage.setItem('aarms_omar',m.omar);
@@ -1001,7 +1116,31 @@ function cargarMuestreo(id){
     document.querySelectorAll('.ai').forEach(el=>{
       el.classList.toggle('on',analitosSel.has(el.dataset.a));
     });
-    document.getElementById('acnt').textContent=analitosSel.size+' seleccionados';
+    const acntEl=document.getElementById('acnt');
+    if(acntEl) acntEl.textContent=analitosSel.size+' seleccionados';
+    // Rellenar campos del form pg0 con los valores de esta OMAR
+    const setVal = (id,v)=>{const e=document.getElementById(id);if(e&&v!==undefined)e.value=v||'';};
+    setVal('o_omar',omar.folio); setVal('o_ssar',omar.ssar); setVal('o_muest',omar.muestreador);
+    setVal('o_elab',omar.elaboro); setVal('o_emp',omar.empresa); setVal('o_cont',omar.contacto);
+    setVal('o_puest',omar.puesto); setVal('o_dir',omar.direccion); setVal('o_mun',omar.municipio);
+    setVal('o_tel',omar.telefono); setVal('o_sitio',omar.sitio); setVal('o_idm',omar.idmuestra);
+    setVal('o_fecha',omar.fecha); setVal('o_int',omar.intervalo); setVal('o_ndesc',omar.ndesc);
+    setVal('o_ntomas',omar.ntomas); setVal('o_reglas',omar.reglas);
+    if(omar.mat){const e=document.getElementById('o_mat');if(e)e.value=omar.mat;}
+    if(omar.tipo){
+      const e=document.getElementById('o_tipo'); if(e) e.value=omar.tipo;
+      // Marcar botón tipo
+      if(omar.tipo==='Simple'&&tbSimp){tbSimp.classList.remove('btn-g');tbSimp.classList.add('btn-p');}
+      if(omar.tipo==='Compuesto'&&tbComp){tbComp.classList.remove('btn-g');tbComp.classList.add('btn-p');}
+    }
+    if(omar.intervalo){
+      document.querySelectorAll('#intChips .chip').forEach(c=>{if(c.textContent.trim()===omar.intervalo)c.classList.add('on');});
+    }
+  } else {
+    // OMAR vacía — asegurar reset de analitos UI
+    omar = {ts: m.id};
+    const acntEl=document.getElementById('acnt');
+    if(acntEl) acntEl.textContent='0 seleccionados';
   }
   tomas=(m.tomas||[]).map(t=>({...t,params:new Set(t.params||[])}));
   sigData=m.sigData||null;
@@ -1009,14 +1148,59 @@ function cargarMuestreo(id){
   if(sigData){try{updSig&&updSig();}catch(e){}}
   if(sigData2){try{updSig2&&updSig2();}catch(e){}}
   document.getElementById('modalMuestreos')?.remove();
-  loadCampoFromOMAR();
-  buildCusTable();
-  renderTomas();
-  updTCnt();
-  goPage('pg1');
-  goSec(0);
+
+  // Decidir a qué página ir:
+  //   - Si la OMAR está vacía (sin folio ni empresa) → Paso 1 (pg0) para llenarla
+  //   - Si ya tiene datos básicos → Paso 2 (pg1) Campo/Cadena/Firma
+  const omarLlena = !!(omar.folio || omar.empresa);
+
+  if(omarLlena){
+    loadCampoFromOMAR();
+    buildCusTable();
+    renderTomas();
+    updTCnt();
+    goPage('pg1');
+    goSec(0);
+  } else {
+    // Llevar al formulario OMAR limpio para que el muestreador capture los datos
+    // Resetear form visual
+    document.querySelectorAll('#omarForm input,#omarForm select,#omarForm textarea').forEach(el=>{
+      if(el.type==='checkbox'||el.type==='radio') el.checked=false;
+      else el.value='';
+    });
+    // Restaurar fecha preferida del registro (si existe) o hoy
+    const fd=document.getElementById('o_fecha');
+    if(fd) fd.value = m.fecha || new Date().toISOString().split('T')[0];
+    // Pre-llenar muestreador si el plan lo tenía (comodidad)
+    const plan = _cachedPlanes.find(p=>(p.omarIds||[]).includes(m.id));
+    if(plan && plan.muestreador){
+      const mf=document.getElementById('o_muest');
+      if(mf && !mf.value) mf.value = plan.muestreador;
+    }
+    // Asegurar mostrar form, ocultar resumen
+    const form=document.getElementById('omarForm');
+    const res=document.getElementById('omarRes');
+    if(form) form.style.display='block';
+    if(res) res.style.display='none';
+    // Resetear botones de tipo y chips de intervalo
+    const tbSimp=document.getElementById('tb_simp');
+    const tbComp=document.getElementById('tb_comp');
+    if(tbSimp){tbSimp.classList.remove('btn-p');tbSimp.classList.add('btn-g');}
+    if(tbComp){tbComp.classList.remove('btn-p');tbComp.classList.add('btn-g');}
+    const intField=document.getElementById('intField');
+    const tomasField=document.getElementById('tomasField');
+    if(intField) intField.style.display='none';
+    if(tomasField) tomasField.style.display='none';
+    document.querySelectorAll('#intChips .chip').forEach(c=>c.classList.remove('on'));
+    // Marcar pill con el id del registro (para que el save encuentre el mismo)
+    const topOmar=document.getElementById('topOmar');
+    if(topOmar) topOmar.textContent='—';
+    // IMPORTANTE: preservar ts del muestreo para que saveMuestreoActual lo actualice
+    // en vez de crear un registro nuevo. omar.ts ya fue asignado arriba.
+    goPage('pg0');
+  }
   renderHermanasBreadcrumb();
-  toast('Muestreo cargado ✓','g');
+  toast(omarLlena ? 'Muestreo cargado ✓' : 'Captura los datos de la OMAR','g');
 }
 
 function abrirListaMuestreos(){
@@ -1151,12 +1335,16 @@ function guardarOMAR(){
     toast('Faltan: '+faltantes.join(', '),'w');
     return;
   }
+  // Conservar el ts del registro si ya existía (vinimos cargando una OMAR vacía
+  // desde el plan). Si no, generar uno nuevo.
+  const existingTs = omar.ts || null;
   omar={folio:g('o_omar'),ssar:g('o_ssar'),muestreador:g('o_muest'),elaboro:g('o_elab'),empresa:g('o_emp'),
     contacto:g('o_cont'),puesto:g('o_puest'),direccion:g('o_dir'),municipio:g('o_mun'),
     telefono:g('o_tel'),sitio:g('o_sitio'),idmuestra:g('o_idm'),norma:getNorma(),
     mat:document.getElementById('o_mat').value,fecha:g('o_fecha'),tipo:g('o_tipo'),
     intervalo:g('o_int'),ndesc:g('o_ndesc'),ntomas:g('o_ntomas'),
-    analitos:[...analitosSel],reglas:g('o_reglas'),ts:Date.now()};
+    analitos:[...analitosSel],reglas:g('o_reglas'),
+    ts: existingTs || Date.now()};
   // Limpiar bordes rojos al guardar exitoso
   ['o_omar','o_muest','o_emp','o_sitio'].forEach(id=>{
     const e=document.getElementById(id);if(e)e.style.borderColor='';
@@ -1243,6 +1431,27 @@ function loadCampoFromOMAR(){
   // Pre-fill client name from OMAR contact info
   if(omar.contacto){set('fn_nom',omar.contacto);}
   if(omar.puesto){set('fn_car',omar.puesto);}
+
+  // Auto-rellenar folio del PLAN (BPM) — viene del plan padre, no se re-teclea
+  const plan = _cachedPlanes.find(p=>(p.omarIds||[]).includes(omar.ts));
+  const planFolioEl = document.getElementById('h_plan');
+  if(planFolioEl && plan){
+    if(plan.folio){
+      planFolioEl.value = plan.folio;
+      planFolioEl.readOnly = true;
+      planFolioEl.style.backgroundColor = 'rgba(74,158,255,.06)';
+      planFolioEl.style.cursor = 'not-allowed';
+      planFolioEl.title = 'Folio del plan — se define en la página del plan';
+    } else {
+      // Plan sin folio todavía: dejar el campo editable pero con aviso
+      planFolioEl.value = '';
+      planFolioEl.readOnly = false;
+      planFolioEl.style.backgroundColor = '';
+      planFolioEl.style.cursor = '';
+      planFolioEl.placeholder = 'Asigna el folio en la página del plan';
+    }
+  }
+
   document.getElementById('topOmar2').textContent='OMAR-'+(omar.folio||'—');
   const now=new Date().toISOString().slice(0,16);
   if(!document.getElementById('h_ini').value)document.getElementById('h_ini').value=now;
@@ -1609,7 +1818,10 @@ function genPDFConCheck(tipo){
   const faltantes=checkCamposCompletos();
   const tomasCompletas=tomas.filter(t=>t.ph&&t.ls).length;
   const analitos=(omar.analitos||[]).slice(0,6).join(', ')+(omar.analitos&&omar.analitos.length>6?` +${omar.analitos.length-6} más`:'');
-  
+  // Sin firma del cliente, NINGÚN PDF se genera.
+  const tieneFirma = tieneFirmaValida();
+  const firmaBloquea = !tieneFirma;
+
   const modal=document.createElement('div');
   modal.style.cssText='position:fixed;inset:0;background:rgba(7,8,15,.95);z-index:99999;display:flex;align-items:flex-end;padding:0';
   modal.innerHTML=`
@@ -1636,7 +1848,7 @@ function genPDFConCheck(tipo){
         </div>
         <div style="background:var(--bg3);border-radius:10px;padding:12px">
           <div style="font-size:10px;color:var(--g1);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)">Firma cliente</div>
-          <div style="font-family:var(--syne);font-size:15px;font-weight:800;color:${sigData?'var(--green)':'#f87171'}">${sigData?'✓ Firmado':'Sin firma'}</div>
+          <div style="font-family:var(--syne);font-size:15px;font-weight:800;color:${tieneFirma?'var(--green)':'#f87171'}">${tieneFirma?'✓ Firmado':'Sin firma'}</div>
         </div>
         ${analitos?`<div style="background:var(--bg3);border-radius:10px;padding:12px;grid-column:span 2">
           <div style="font-size:10px;color:var(--g1);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono)">Analitos</div>
@@ -1644,15 +1856,25 @@ function genPDFConCheck(tipo){
         </div>`:''}
       </div>
 
-      ${faltantes.length>0?`
+      ${firmaBloquea ? `
+      <div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:#f87171;margin-bottom:6px">⚠ El cliente debe firmar primero</div>
+        <div style="font-size:12px;color:var(--g1);line-height:1.5">El reporte del cliente requiere su firma de conformidad. Pide al responsable de la empresa que firme en la sección "Firma" antes de continuar.</div>
+      </div>` : ''}
+
+      ${faltantes.length>0 && !firmaBloquea ? `
       <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:12px;margin-bottom:16px">
         <div style="font-family:var(--syne);font-size:12px;font-weight:800;color:var(--amber);margin-bottom:8px">Campos incompletos</div>
         ${faltantes.map(f=>`<div style="font-size:12px;color:var(--g1);padding:2px 0">· ${f}</div>`).join('')}
-      </div>`:'<div style="background:rgba(134,239,172,.08);border:1px solid rgba(134,239,172,.25);border-radius:10px;padding:12px;margin-bottom:16px"><div style="font-family:var(--syne);font-size:12px;font-weight:800;color:var(--green)">✓ Todo completo</div></div>'}
+      </div>` : (!firmaBloquea ? '<div style="background:rgba(134,239,172,.08);border:1px solid rgba(134,239,172,.25);border-radius:10px;padding:12px;margin-bottom:16px"><div style="font-family:var(--syne);font-size:12px;font-weight:800;color:var(--green)">✓ Todo completo</div></div>' : '')}
 
       <div style="display:flex;gap:10px">
         <button onclick="this.closest('div[style*=fixed]').remove()" style="flex:1;padding:12px;border-radius:10px;background:var(--bg3);border:1px solid var(--ln2);color:var(--g1);cursor:pointer;font-family:var(--syne);font-weight:700;font-size:14px">Cancelar</button>
-        <button onclick="this.closest('div[style*=fixed]').remove();genPDF('${tipo}')" style="flex:1;padding:12px;border-radius:10px;background:var(--acc);border:none;color:#fff;cursor:pointer;font-family:var(--syne);font-weight:800;font-size:14px">Generar PDF</button>
+        ${firmaBloquea ? `
+          <button disabled style="flex:1;padding:12px;border-radius:10px;background:rgba(100,110,130,.25);border:none;color:rgba(255,255,255,.45);cursor:not-allowed;font-family:var(--syne);font-weight:800;font-size:14px">Falta firma</button>
+        ` : `
+          <button onclick="this.closest('div[style*=fixed]').remove();genPDF('${tipo}')" style="flex:1;padding:12px;border-radius:10px;background:var(--acc);border:none;color:#fff;cursor:pointer;font-family:var(--syne);font-weight:800;font-size:14px">Generar PDF</button>
+        `}
       </div>
     </div>`;
   document.body.appendChild(modal);
@@ -1679,8 +1901,10 @@ function clearSig(){
 function updSig(){
   const ok=sigData&&sigData!=='p';
   const el=document.getElementById('sigst');
-  el.textContent=ok?'✓ Firma capturada':'Sin firma';
-  el.className='sigst'+(ok?' ok':'');
+  if(el){
+    el.textContent=ok?'✓ Firma capturada':'Sin firma';
+    el.className='sigst'+(ok?' ok':'');
+  }
 }
 function buildRes(){
   // Auto-fill firma fields from OMAR if still empty
@@ -2104,9 +2328,54 @@ function verMuestreos(){
 // Auto-save when generating PDF
 const _origGenPDF = genPDF;
 
+const APP_VERSION = 'v19-firma-bloquea-' + Date.now();
+console.log('%c[AARMS] Código versión:', 'color:#4a9eff;font-weight:bold', APP_VERSION);
+
+// Validador único de firma — chequea variable JS y píxeles reales del canvas
+// para que sea imposible saltarse la firma (aunque sigData quedara stale).
+// Devuelve true si hay firma válida.
+function tieneFirmaValida(){
+  // 1. Variable JS: debe existir, no ser placeholder 'p', y ser un dataURL real
+  if(!sigData || sigData==='p' || typeof sigData !== 'string' || sigData.length < 100){
+    console.log('[firma] sigData inválido. Valor actual:', sigData, '— tipo:', typeof sigData);
+    return false;
+  }
+  // 2. Debe empezar con data:image
+  if(!sigData.startsWith('data:image')){
+    console.log('[firma] sigData no es dataURL imagen');
+    return false;
+  }
+  return true;
+}
+
+function _bloquearSiSinFirma(tipoBoton){
+  if(tieneFirmaValida()) return false;
+  // Modal estilizado (no el alert nativo feo del navegador)
+  alertApp({
+    title: 'Firma del cliente requerida',
+    message: 'Antes de generar cualquier PDF, el cliente debe firmar de conformidad.\n\nPide al responsable de la empresa que firme en la sección "Firma" abajo.',
+    okText: 'Ir a firmar',
+    variant: 'warn'
+  });
+  // Scroll a la firma
+  const sig=document.getElementById('cvswrap');
+  if(sig) sig.scrollIntoView({behavior:'smooth',block:'center'});
+  return true;
+}
+
 function genPDF(tipo='lab'){
-  if(!sigData||sigData==='p'){toast('El cliente debe firmar primero','w');return;}
-  if(!document.getElementById('fn_nom').value.trim()){toast('Ingresa el nombre del cliente','w');return;}
+  // Ningún PDF se genera sin la firma del cliente.
+  if(_bloquearSiSinFirma(tipo === 'cliente' ? 'Entregar al cliente' : 'Hoja de Campo')) return;
+  // El nombre del cliente solo es obligatorio para el reporte al cliente
+  if(tipo === 'cliente' && !document.getElementById('fn_nom').value.trim()){
+    alertApp({
+      title: 'Nombre del cliente faltante',
+      message: 'Ingresa el nombre del cliente que recibe el reporte antes de generar el PDF.',
+      okText: 'Entendido',
+      variant: 'warn'
+    });
+    return;
+  }
 
   // Auto-save muestreo before generating PDF
   saveMuestreoActual();
@@ -3141,6 +3410,8 @@ async function buildPDFCliente(){
 // ─── CADENA DE CUSTODIA PDF ───────────────────────────────────────────────
 
 function genCadena(){
+  // Ningún PDF se genera sin la firma del cliente.
+  if(_bloquearSiSinFirma('Cadena de Custodia')) return;
   toast('Generando Cadena de Custodia...','');
   const btn=document.getElementById('btnCadena');
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
@@ -3886,6 +4157,63 @@ function confirmAction({title='Confirmar', message='¿Estás seguro?', okText='E
     // Escape = cancelar
     const onKey=e=>{if(e.key==='Escape'){document.removeEventListener('keydown',onKey);close(false);}};
     document.addEventListener('keydown',onKey);
+  });
+}
+
+// Alert estilizado de la app — reemplaza el alert() nativo feo
+// Devuelve una Promise que se resuelve cuando el usuario toca OK (para await)
+function alertApp({title='Aviso', message='', okText='Entendido', variant='warn'}={}){
+  return new Promise(resolve=>{
+    const prev=document.getElementById('alertAppModal');
+    if(prev) prev.remove();
+
+    // Colores según variante
+    const palettes = {
+      warn:   {c:'#f59e0b', bg:'rgba(245,158,11,.12)',  bd:'rgba(245,158,11,.4)', ic:'⚠'},
+      error:  {c:'#ef4444', bg:'rgba(239,68,68,.12)',   bd:'rgba(239,68,68,.4)',  ic:'⚠'},
+      info:   {c:'#4a9eff', bg:'rgba(74,158,255,.12)',  bd:'rgba(74,158,255,.4)', ic:'ⓘ'},
+      success:{c:'#10b981', bg:'rgba(16,185,129,.12)',  bd:'rgba(16,185,129,.4)', ic:'✓'},
+    };
+    const p = palettes[variant] || palettes.warn;
+
+    const wrap=document.createElement('div');
+    wrap.id='alertAppModal';
+    wrap.style.cssText='position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(7,8,15,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:cmFade .18s ease-out';
+
+    // Reusa keyframes de confirmModal
+    if(!document.getElementById('confirmModalStyle')){
+      const st=document.createElement('style');
+      st.id='confirmModalStyle';
+      st.textContent=`@keyframes cmFade{from{opacity:0}to{opacity:1}}@keyframes cmPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}#alertAppModal .cm-box{animation:cmPop .22s cubic-bezier(.34,1.56,.64,1)}`;
+      document.head.appendChild(st);
+    }
+
+    wrap.innerHTML=`
+      <div class="cm-box" style="max-width:360px;width:100%;background:var(--bg1);border:1px solid var(--ln2);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="padding:22px 22px 6px;display:flex;gap:14px;align-items:flex-start">
+          <div style="width:44px;height:44px;border-radius:12px;background:${p.bg};border:1px solid ${p.bd};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${p.c};font-size:22px;font-weight:800">${p.ic}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-family:var(--syne);font-size:16px;font-weight:800;color:var(--w);margin-bottom:6px;line-height:1.3">${title}</div>
+            <div style="font-size:13.5px;color:var(--g1);line-height:1.55;white-space:pre-wrap">${message}</div>
+          </div>
+        </div>
+        <div style="padding:14px 18px 18px">
+          <button id="alertAppOk" style="width:100%;padding:13px;background:${p.bg};border:1px solid ${p.bd};border-radius:12px;color:${p.c};font-family:var(--syne);font-size:14px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .1s">${okText}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const close=()=>{
+      wrap.style.animation='cmFade .15s ease-in reverse';
+      setTimeout(()=>{if(wrap.parentNode)wrap.remove();resolve();},150);
+    };
+    wrap.querySelector('#alertAppOk').onclick=close;
+    wrap.addEventListener('click',e=>{if(e.target===wrap)close();});
+    const onKey=e=>{if(e.key==='Escape'||e.key==='Enter'){document.removeEventListener('keydown',onKey);close();}};
+    document.addEventListener('keydown',onKey);
+    // Focus para accesibilidad
+    setTimeout(()=>wrap.querySelector('#alertAppOk')?.focus(),100);
   });
 }
 window.addEventListener('load',()=>{
