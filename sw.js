@@ -1,6 +1,6 @@
 // AARMS Service Worker — offline-first
 // Estrategia: precache en install; fallback a red + cache runtime; devuelve index.html en SPA nav offline
-const CACHE = 'aarms-planes-v6';
+const CACHE = 'aarms-planes-v21';
 
 // Archivos críticos. Paths relativos para que funcione en GitHub Pages (/AARMS/).
 const FILES = [
@@ -12,7 +12,8 @@ const FILES = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
-  './logo_transparent.png',
+  './logo.png',
+  './logo_pdf.png',
 ];
 
 // Descarga cada archivo INDIVIDUALMENTE. Si uno falla, los demás siguen.
@@ -56,32 +57,53 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   if(url.origin !== self.location.origin) return;
 
+  // Network-first para archivos que cambian seguido (código, HTML, manifest).
+  // Cache-first para binarios grandes (imágenes, librerías).
+  const networkFirst = /\.(js|html|json)$|\/$/i.test(url.pathname);
+
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    // 1. ¿Está en cache? Regresar cache.
+
+    if(networkFirst){
+      // NETWORK FIRST: intenta red, si falla usa cache.
+      try {
+        const fresh = await fetch(req);
+        if(fresh && fresh.ok){
+          cache.put(req, fresh.clone());
+          return fresh;
+        }
+      } catch(_){}
+      const cached = await cache.match(req);
+      if(cached) return cached;
+      // Fallback SPA para navegaciones offline
+      if(req.mode === 'navigate'){
+        const idx = await cache.match('./index.html');
+        if(idx) return idx;
+      }
+      return new Response('Sin conexión', {status:503});
+    }
+
+    // CACHE FIRST (binarios): cache si existe, red si no.
     const cached = await cache.match(req);
     if(cached){
-      // revalidar en background pero no bloquear
+      // revalidar en background silenciosamente
       fetch(req).then(r => {
         if(r && r.ok) cache.put(req, r.clone());
       }).catch(()=>{});
       return cached;
     }
-    // 2. No está. Intentar red y cachear el resultado.
     try {
       const fresh = await fetch(req);
       if(fresh && fresh.ok) cache.put(req, fresh.clone());
       return fresh;
-    } catch(err) {
-      // 3. Sin red, sin cache → fallback SPA: devolver index.html para navegación
+    } catch(err){
       if(req.mode === 'navigate'){
-        const fallback = await cache.match('./index.html');
-        if(fallback) return fallback;
+        const idx = await cache.match('./index.html');
+        if(idx) return idx;
       }
-      // Última carta: respuesta offline mínima
-      return new Response('Sin conexión — el recurso no está en cache.', {
-        status: 503, statusText: 'Offline',
-        headers: {'Content-Type':'text/plain; charset=utf-8'}
+      return new Response('Sin conexión — recurso no en cache.', {
+        status:503, statusText:'Offline',
+        headers:{'Content-Type':'text/plain; charset=utf-8'}
       });
     }
   })());

@@ -237,26 +237,28 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 .qchip:hover{border-color:var(--acc);color:var(--w)}
 .qchip.on{background:rgba(74,158,255,.15);border-color:var(--acc);color:var(--acc);box-shadow:0 0 0 2px rgba(74,158,255,.1)}
 
-/* ═════ HERO HOME — logo con glow épico ═════ */
-.hero-logo-wrap{position:relative;width:180px;height:180px;margin:0 auto 22px;display:flex;align-items:center;justify-content:center}
-.hero-halo{position:absolute;border-radius:50%;pointer-events:none;top:50%;left:50%;transform:translate(-50%,-50%)}
-.hero-halo-1{width:220px;height:220px;background:radial-gradient(circle,rgba(74,158,255,.35) 0%,rgba(74,158,255,0) 65%);animation:heroPulse 4s ease-in-out infinite}
-.hero-halo-2{width:160px;height:160px;background:radial-gradient(circle,rgba(100,180,255,.45) 0%,rgba(74,158,255,0) 60%);animation:heroPulse 4s ease-in-out infinite .5s;filter:blur(8px)}
-.hero-halo-3{width:120px;height:120px;background:radial-gradient(circle,rgba(140,200,255,.35) 0%,rgba(74,158,255,0) 70%);animation:heroPulse 4s ease-in-out infinite 1s}
-.hero-logo{position:relative;z-index:1;width:150px;height:150px;object-fit:contain;
+/* ═════ HERO HOME — logo con glow intenso ═════ */
+.hero-logo{display:block;width:180px;height:180px;object-fit:contain;margin:0 auto 18px;
   filter:
-    drop-shadow(0 0 18px rgba(74,158,255,.9))
-    drop-shadow(0 0 36px rgba(74,158,255,.6))
-    drop-shadow(0 0 60px rgba(100,180,255,.35));
-  animation:heroFloat 6s ease-in-out infinite}
-@keyframes heroPulse{0%,100%{opacity:.9;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}}
+    drop-shadow(0 0 14px rgba(74,158,255,.85))
+    drop-shadow(0 0 28px rgba(74,158,255,.55))
+    drop-shadow(0 0 52px rgba(100,180,255,.4));
+  animation:heroFloat 6s ease-in-out infinite, heroGlow 3.5s ease-in-out infinite}
 @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes heroGlow{
+  0%,100%{filter:drop-shadow(0 0 14px rgba(74,158,255,.85)) drop-shadow(0 0 28px rgba(74,158,255,.55)) drop-shadow(0 0 52px rgba(100,180,255,.4))}
+  50%    {filter:drop-shadow(0 0 20px rgba(74,158,255,1))   drop-shadow(0 0 40px rgba(74,158,255,.75)) drop-shadow(0 0 72px rgba(100,180,255,.55))}
+}
 .hero-title{font-family:var(--syne);font-size:38px;font-weight:800;letter-spacing:.06em;
   background:linear-gradient(135deg,#ffffff 0%,#a9d1ff 50%,#4a9eff 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
   text-shadow:0 2px 20px rgba(74,158,255,.4);
   filter:drop-shadow(0 0 12px rgba(74,158,255,.25))}
-@media(prefers-reduced-motion:reduce){.hero-halo-1,.hero-halo-2,.hero-halo-3,.hero-logo{animation:none}}
+
+/* Logos de barras superiores — glow suave pero presente */
+.bar-logo{filter:drop-shadow(0 0 6px rgba(74,158,255,.7)) drop-shadow(0 0 12px rgba(74,158,255,.35))}
+
+@media(prefers-reduced-motion:reduce){.hero-logo{animation:none}}
 @keyframes instSlide{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
 .nm-chip{min-width:44px;height:40px;padding:0 14px;background:var(--bg3);border:1px solid var(--ln);border-radius:9px;color:var(--g1);font-family:var(--syne);font-weight:800;font-size:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .12s}
 .nm-chip.on{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:0 4px 12px rgba(74,158,255,.35)}
@@ -334,7 +336,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 <div class="page" id="pgHome">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_transparent.png" class="bar-logo"/>
+      <img src="logo_pdf.png" class="bar-logo"/>
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C.</div>
@@ -346,14 +348,8 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 
     <!-- Hero -->
     <div style="padding:50px 0 28px;text-align:center;position:relative">
-      <div class="hero-logo-wrap">
-        <!-- Halo radial de fondo -->
-        <div class="hero-halo hero-halo-1"></div>
-        <div class="hero-halo hero-halo-2"></div>
-        <div class="hero-halo hero-halo-3"></div>
-        <!-- Logo con múltiples capas de glow -->
-        <img src="logo_transparent.png" class="hero-logo" alt="AARMS">
-      </div>
+      <!-- Logo limpio + glow por CSS (capas de drop-shadow con animación pulsante) -->
+      <img src="logo_pdf.png" class="hero-logo" alt="AARMS">
       <div class="hero-title">AARMS</div>
       <div style="margin-top:12px;font-size:11px;color:var(--g1);letter-spacing:.04em;font-family:var(--mono);line-height:1.8">
         <span style="color:var(--acc)">A</span>SESORÍA Y <span style="color:var(--acc)">A</span>NÁLISIS S.C.
@@ -422,7 +418,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 <div class="page" id="pgPlan">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_transparent.png" class="bar-logo" />
+      <img src="logo_pdf.png" class="bar-logo" />
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">ASESORÍA Y ANÁLISIS S.C. REGISTRO Y MONITOREO DE SERVICIO</div>
@@ -498,7 +494,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 <div class="page" id="pg0">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_transparent.png" class="bar-logo" />
+      <img src="logo_pdf.png" class="bar-logo" />
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C. Registro y Monitoreo de Servicio</div>
@@ -740,7 +736,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 <div class="page" id="pg1">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_transparent.png" class="bar-logo" />  
+      <img src="logo_pdf.png" class="bar-logo" />  
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C. Registro y Monitoreo de Servicio</div>
@@ -800,7 +796,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
             <input type="hidden" id="h_int">
           </div>
           <div class="f"><label>Condiciones climatológicas</label><input id="h_clima" type="text" placeholder="ej. Despejado, 30°C"></div>
-          <div class="f"><label>Referencia plan de muestreo (folio BPM)</label><input id="h_plan" type="text"></div>
+          <div class="f"><label>Referencia plan de muestreo (folio BPM) <span style="color:var(--g2);font-weight:500">· del plan</span></label><input id="h_plan" type="text"></div>
         </div>
       </div>
 
@@ -1089,11 +1085,11 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
         <div style="display:flex;gap:8px;width:100%">
           <button class="btn btn-g" onclick="goSec(1)" style="flex:.3;font-size:11px">← Custodia</button>
           <button class="btn btn-p" onclick="soloGuardar()" style="flex:1;font-size:12px" id="btnGuardar">Guardar</button>
-          <button class="btn btn-g" onclick="genPDFConCheck('lab')" style="flex:1;font-size:11px;border-color:rgba(167,139,250,.3);color:#a78bfa" id="btnPDFLab">Hoja de Campo</button>
-          <button class="btn btn-g" onclick="genCadena()" id="btnCadena" style="flex:1;font-size:11px;border-color:rgba(99,179,237,.3);color:#63b3ed">Cadena de Custodia</button>
+          <button class="btn btn-g" onclick="if(typeof _bloquearSiSinFirma==='function'&&_bloquearSiSinFirma('Hoja de Campo'))return;genPDFConCheck('lab')" style="flex:1;font-size:11px;border-color:rgba(167,139,250,.3);color:#a78bfa" id="btnPDFLab">Hoja de Campo</button>
+          <button class="btn btn-g" onclick="if(typeof _bloquearSiSinFirma==='function'&&_bloquearSiSinFirma('Cadena de Custodia'))return;genCadena()" id="btnCadena" style="flex:1;font-size:11px;border-color:rgba(99,179,237,.3);color:#63b3ed">Cadena de Custodia</button>
         </div>
         <div style="display:flex;gap:8px;width:100%">
-          <button class="btn btn-g" onclick="genPDFConCheck('cliente')" style="flex:1;font-size:11px;border-color:rgba(134,239,172,.3);color:var(--green)" id="btnPDFCliente">Entregar al cliente</button>
+          <button class="btn btn-g" onclick="if(typeof _bloquearSiSinFirma==='function'&&_bloquearSiSinFirma('Entregar al cliente'))return;genPDFConCheck('cliente')" style="flex:1;font-size:11px;border-color:rgba(134,239,172,.3);color:var(--green)" id="btnPDFCliente">Entregar al cliente</button>
           <button class="btn btn-g" onclick="nuevoMuestreo()" style="flex:1;font-size:12px;border-color:rgba(134,239,172,.3);color:var(--green);font-weight:800">+ Nuevo muestreo</button>
         </div>
       </div>
@@ -1122,7 +1118,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   <!-- Header del menú -->
   <div style="padding:20px 20px 16px;border-bottom:1px solid var(--ln);display:flex;align-items:center;justify-content:space-between">
     <div style="display:flex;align-items:center;gap:10px">
-      <img src="logo_transparent.png" style="width:32px;filter:drop-shadow(0 0 8px rgba(74,158,255,.5))">
+      <img src="logo_pdf.png" style="width:32px;filter:drop-shadow(0 0 8px rgba(74,158,255,.5))">
       <div>
         <div style="font-family:var(--syne);font-size:14px;font-weight:800;color:var(--w)">AARMS</div>
         <div style="font-size:10px;color:var(--g1);font-family:var(--mono)">Navegación</div>
