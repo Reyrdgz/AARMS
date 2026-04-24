@@ -258,10 +258,55 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   filter:drop-shadow(0 0 12px rgba(74,158,255,.25))}
 @media(prefers-reduced-motion:reduce){.hero-halo-1,.hero-halo-2,.hero-halo-3,.hero-logo{animation:none}}
 @keyframes instSlide{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.nm-chip{min-width:44px;height:40px;padding:0 14px;background:var(--bg3);border:1px solid var(--ln);border-radius:9px;color:var(--g1);font-family:var(--syne);font-weight:800;font-size:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .12s}
+.nm-chip.on{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:0 4px 12px rgba(74,158,255,.35)}
+.nm-chip:active{transform:scale(.95)}
 </style>
 
 </head>
 <body>
+
+<!-- Modal: Nuevo Muestreo (Plan) -->
+<div id="modalNuevoMuestreo" style="display:none;position:fixed;inset:0;z-index:2147483646;background:rgba(7,8,15,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:calc(env(safe-area-inset-top,0px) + 20px) 16px 20px;overflow-y:auto">
+  <div style="max-width:500px;margin:0 auto;background:linear-gradient(180deg,rgba(26,37,64,.95),rgba(18,26,45,.95));border:1px solid rgba(74,158,255,.3);border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <div style="width:36px;height:36px;border-radius:9px;background:rgba(74,158,255,.15);border:1px solid rgba(74,158,255,.35);display:flex;align-items:center;justify-content:center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+      </div>
+      <div style="flex:1">
+        <div style="font-family:var(--syne);font-size:16px;font-weight:800;color:#fff">Nuevo Muestreo</div>
+        <div style="font-size:11px;color:var(--g1);margin-top:2px">Captura los datos del plan y cuántas OMARs llevará</div>
+      </div>
+      <button onclick="cerrarModalNuevoMuestreo()" style="width:32px;height:32px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:50%;color:var(--g1);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0" aria-label="Cerrar">×</button>
+    </div>
+
+    <div class="f"><label>Folio del plan <span style="color:var(--g2);font-weight:500">(opcional — lo pides luego)</span></label><input id="nm_folio" type="text" placeholder="ej. 40" autocomplete="off"></div>
+    <div class="g2">
+      <div class="f"><label>Fecha</label><input id="nm_fecha" type="date"></div>
+      <div class="f"><label>Muestreador</label><input id="nm_muest" type="text" placeholder="Nombre" autocomplete="off"></div>
+    </div>
+
+    <div class="f">
+      <label>¿Cuántas OMARs lleva este plan?</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+        <button class="nm-chip on" data-n="1" onclick="setNuevoMuestreoOmars(1,event)">1</button>
+        <button class="nm-chip" data-n="2" onclick="setNuevoMuestreoOmars(2,event)">2</button>
+        <button class="nm-chip" data-n="3" onclick="setNuevoMuestreoOmars(3,event)">3</button>
+        <button class="nm-chip" data-n="4" onclick="setNuevoMuestreoOmars(4,event)">4</button>
+        <button class="nm-chip" data-n="5" onclick="setNuevoMuestreoOmars(5,event)">5</button>
+        <button class="nm-chip" data-n="6" onclick="setNuevoMuestreoOmars(6,event)">6</button>
+        <input id="nm_omars_custom" type="number" min="1" placeholder="Otro"
+               style="width:80px;text-align:center" oninput="setNuevoMuestreoOmarsCustom(this.value)">
+      </div>
+      <div style="font-size:10px;color:var(--g2);margin-top:6px">Podrás agregar o quitar OMARs después.</div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn btn-g" onclick="cerrarModalNuevoMuestreo()" style="flex:1">Cancelar</button>
+      <button class="btn btn-p" onclick="confirmarNuevoMuestreo()" style="flex:2;font-family:var(--syne);font-weight:800">Crear y empezar →</button>
+    </div>
+  </div>
+</div>
 
 <!-- Banner de instalación PWA (se muestra solo si Chrome sugiere instalar) -->
 <div id="installBanner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:2147483645;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 14px;background:linear-gradient(135deg,rgba(74,158,255,.22),rgba(74,158,255,.10));border-bottom:1px solid rgba(74,158,255,.4);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);animation:instSlide .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 4px 20px rgba(0,0,0,.3)">
@@ -318,7 +363,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
     </div>
 
     <!-- Acción principal -->
-    <button class="btn btn-p" style="width:100%;font-size:15px;padding:15px;font-family:var(--syne);font-weight:800;letter-spacing:.04em" onclick="iniciarNuevoMuestreo()">+ Nuevo muestreo</button>
+    <button class="btn btn-p" style="width:100%;font-size:15px;padding:15px;font-family:var(--syne);font-weight:800;letter-spacing:.04em" onclick="abrirModalNuevoMuestreo()">+ Nuevo Muestreo</button>
 
     <!-- Muestreos activos -->
     <div class="card" style="margin-top:20px">
@@ -373,6 +418,82 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   </div>
 </div>
 
+<!-- ═══════ PAGE: PLAN DE MUESTREO ═══════ -->
+<div class="page" id="pgPlan">
+  <div class="bar">
+    <div class="bar-l">
+      <img src="logo_transparent.png" class="bar-logo" />
+      <div>
+        <div class="bar-name">AARMS</div>
+        <div class="bar-sub">ASESORÍA Y ANÁLISIS S.C. REGISTRO Y MONITOREO DE SERVICIO</div>
+      </div>
+    </div>
+    <div class="bar-r">
+      <span class="pill pill-o" id="planPill">PLAN —</span>
+    </div>
+  </div>
+  <div class="cont" style="padding:16px;max-width:600px;margin:0 auto">
+    <button class="btn btn-g" onclick="goHome()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Home</button>
+
+    <!-- Datos del plan -->
+    <div class="card">
+      <div class="ch"><div class="ct">Datos del Plan</div></div>
+      <div class="cb">
+        <div class="g2">
+          <div class="f"><label>Folio del Plan (BPM)</label><input id="plan_folio" type="text" placeholder="ej. 40"></div>
+          <div class="f"><label>Fecha</label><input id="plan_fecha" type="date"></div>
+        </div>
+        <div class="f"><label>Muestreador principal</label><input id="plan_muest" type="text" placeholder="Nombre"></div>
+
+        <details style="margin-top:6px;border-top:1px solid var(--ln);padding-top:10px">
+          <summary style="cursor:pointer;-webkit-tap-highlight-color:transparent;font-size:11px;color:var(--g2);font-family:var(--mono);letter-spacing:.04em;padding:4px 0;user-select:none">
+            ⚙ Opciones avanzadas
+          </summary>
+          <div style="margin-top:10px;padding-top:6px">
+            <div class="f">
+              <label style="font-size:11px">¿Aplica blanco de campo? <span style="color:var(--g2);font-weight:500">(solo 1 vez al mes)</span></label>
+              <div class="sino">
+                <div class="sino-b si" id="plan_blanco_si" onclick="togglePlanBlanco(true)">SI</div>
+                <div class="sino-b no on" id="plan_blanco_no" onclick="togglePlanBlanco(false)">NO</div>
+              </div>
+            </div>
+            <div class="f" id="plan_blanco_lote_wrap" style="display:none"><label>Lote de agua reactivo del blanco</label><input id="plan_blanco_lote" type="text"></div>
+          </div>
+        </details>
+
+        <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="guardarPlanFormulario()">Guardar plan</button>
+      </div>
+    </div>
+
+    <!-- OMARs del plan -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch">
+        <div class="ct">OMARs del Plan</div>
+        <span class="cbadge" id="planOmarsCnt">0</span>
+      </div>
+      <div class="cb">
+        <div id="planOmarsList"></div>
+        <button class="btn btn-p" style="width:100%;margin-top:10px" onclick="planNuevaOmar()">+ Nueva OMAR en este plan</button>
+      </div>
+    </div>
+
+    <!-- Documentos del plan -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch">
+        <div class="ct">Documentos del Plan</div>
+        <span class="cbadge" id="planDocsBadge">0/7</span>
+      </div>
+      <div class="cb" id="planDocsList">
+        <!-- se rellena dinámicamente desde JS -->
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn btn-g" style="flex:1;color:#f87171;border-color:rgba(248,113,113,.3)" onclick="eliminarPlanActual()">Eliminar plan</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════ PAGE 0: OMAR ═══════ -->
 <div class="page" id="pg0">
   <div class="bar">
@@ -385,6 +506,9 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
     </div>
     <span class="pill pill-o" id="topOmar">—</span>
   </div>
+
+  <!-- Breadcrumb de OMARs hermanas del plan (se muestra solo si aplica) -->
+  <div id="pg0Hermanas" style="display:none;padding:0 14px;background:rgba(7,8,15,.5);border-bottom:1px solid var(--ln)"></div>
 
   <!-- OMAR FORM -->
   <div id="omarForm">
@@ -624,6 +748,8 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
     </div>
     <span class="pill pill-o" id="topOmar2">—</span>
   </div>
+  <!-- Breadcrumb de OMARs hermanas del plan (se muestra solo si aplica) -->
+  <div id="pg1Hermanas" style="display:none;padding:0 14px;background:rgba(7,8,15,.5);border-bottom:1px solid var(--ln)"></div>
   <div class="steps" id="stepsBar">
     <div class="stp on" onclick="goSec(0)"><span class="stp-n">1</span>Hoja de Campo</div>
     <div class="stp" onclick="goSec(1)"><span class="stp-n">2</span>Custodia</div>
@@ -981,7 +1107,8 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 
 
 
-  <script>(function(){["pgHome","pg0","pg1"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});["sec0","sec1","sec2"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});})();</script>
+  <script>(function(){["pgHome","pgPlan","pg0","pg1"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});["sec0","sec1","sec2"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});})();</script>
+  <script src="js/jspdf.umd.min.js"></script>
   <script src="js/app.js"></script>
 
 </div><!-- /pg1 -->
