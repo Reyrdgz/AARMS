@@ -36,7 +36,10 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 /* TOPBAR */
 .bar{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(7,8,15,.97);border-bottom:1px solid var(--ln2);display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,0px) calc(52px + env(safe-area-inset-right,0px)) 0 calc(14px + env(safe-area-inset-left,0px));height:calc(54px + env(safe-area-inset-top,0px));box-sizing:border-box;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 .bar-l{display:flex;align-items:center;gap:10px;min-width:0;flex:1;overflow:hidden}
-.bar-logo{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(74,158,255,.5));flex-shrink:0}
+/* Logo barra: botón invisible → inicio (sin cambiar aspecto) */
+.bar-logo-home{display:inline-flex;align-items:center;justify-content:center;padding:0;margin:0;border:none;background:transparent;cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:10px;flex-shrink:0}
+.bar-logo-home:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.bar-logo{width:32px;height:32px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(74,158,255,.7)) drop-shadow(0 0 12px rgba(74,158,255,.35));flex-shrink:0;display:block}
 .bar-name{font-family:var(--syne);font-size:14px;font-weight:800;letter-spacing:.01em;line-height:1.1;white-space:nowrap}
 .bar-sub{font-size:9px;color:var(--g1);letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar-r{display:flex;gap:8px;align-items:center;flex-shrink:0}
@@ -80,6 +83,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 .ct::before{content:'';width:3px;height:13px;background:var(--acc);border-radius:2px;opacity:.7}
 .cb{padding:16px}
 .cbadge{font-family:var(--mono);font-size:10px;color:var(--g2)}
+.sel-sino{width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px;font-family:var(--mono);font-size:12.5px}
 
 /* FIELDS */
 .f{margin-bottom:13px}
@@ -206,6 +210,24 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 .btn-g:hover{background:var(--accg)}
 .btn-d{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:var(--red)}
 
+/* Barra de título tipo documento (banner oscuro) */
+.doc-titlebar{background:linear-gradient(90deg,#050508 0%,#0f1118 50%,#050508 100%);border:1px solid rgba(74,158,255,.15);border-radius:10px;padding:12px 14px;margin-bottom:14px;box-shadow:0 4px 24px rgba(0,0,0,.45)}
+.doc-titlebar .dt-main{font-family:var(--syne);font-size:13px;font-weight:800;color:#f0f8ff;letter-spacing:.02em;line-height:1.25}
+.doc-titlebar .dt-sub{font-size:10px;color:var(--g2);font-family:var(--mono);margin-top:4px;letter-spacing:.05em;text-transform:uppercase}
+
+/* Agrupación checklist plan */
+.plan-doc-gr{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--g2);padding:10px 4px 6px;border-top:1px solid var(--ln);margin-top:4px}
+.plan-doc-gr:first-child{border-top:none;margin-top:0;padding-top:4px}
+
+/* Bitácora BM — pasos */
+.bm-stepper{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap}
+.bm-step{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:8px;background:var(--bg2);border:1px solid var(--g3);cursor:pointer;font-family:var(--syne);font-size:10px;font-weight:700;color:var(--g2);transition:.15s}
+.bm-step.on{border-color:var(--acc);color:var(--acc);background:rgba(74,158,255,.1)}
+.bm-step .n{width:18px;height:18px;border-radius:50%;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:9px}
+.bm-step.on .n{background:var(--acc);color:var(--bg0)}
+.bm-panel{display:none}
+.bm-panel.on{display:block;animation:rise .2s ease}
+
 /* BOTTOM BAR */
 .bbar{position:fixed;bottom:0;left:0;right:0;background:rgba(7,8,15,.98);border-top:1px solid var(--ln2);padding:10px calc(16px + env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) calc(16px + env(safe-area-inset-left,0px));display:none;gap:10px;z-index:50}
 .page.on .bbar{display:flex}
@@ -255,11 +277,90 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   text-shadow:0 2px 20px rgba(74,158,255,.4);
   filter:drop-shadow(0 0 12px rgba(74,158,255,.25))}
 
-/* Logos de barras superiores — glow suave pero presente */
-.bar-logo{filter:drop-shadow(0 0 6px rgba(74,158,255,.7)) drop-shadow(0 0 12px rgba(74,158,255,.35))}
-
 @media(prefers-reduced-motion:reduce){.hero-logo{animation:none}}
 @keyframes instSlide{from{transform:translateY(-100%);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ═════ LVAR — inputs sueltos heredan el estilo de los .f del resto de la app ═════ */
+#pgLVAR input[type="text"],
+#pgLVAR input[type="number"],
+#pgLVAR input[type="date"],
+#pgLVAR input[type="time"],
+#pgLVAR select,
+#pgLVAR textarea{
+  background:var(--bg2);
+  border:1px solid var(--g3);
+  border-radius:var(--r);
+  color:var(--w);
+  font-family:var(--dm);
+  font-size:13.5px;
+  padding:9px 11px;
+  -webkit-appearance:none;
+  appearance:none;
+  width:100%;
+  box-sizing:border-box;
+  transition:all .15s;
+  min-height:38px;
+}
+#pgLVAR input[type="number"]{font-variant-numeric:tabular-nums;text-align:center}
+#pgLVAR input:focus,#pgLVAR select:focus,#pgLVAR textarea:focus{
+  outline:none;
+  border-color:var(--acc);
+  background:var(--bg3);
+  box-shadow:0 0 0 2px rgba(74,158,255,.12);
+}
+#pgLVAR input::placeholder,#pgLVAR textarea::placeholder{color:var(--g3);font-size:12.5px}
+#pgLVAR input[type="checkbox"]{
+  width:18px;height:18px;min-height:18px;
+  accent-color:var(--acc);
+  cursor:pointer;
+  flex-shrink:0;
+  margin:0;
+  padding:0;
+}
+#pgLVAR input[readonly]{
+  color:var(--acc);
+  border-color:rgba(74,158,255,.18);
+  background:rgba(74,158,255,.04);
+}
+#pgBpm input#bpm_bomar[readonly]{
+  color:var(--acc);
+  border-color:rgba(74,158,255,.18);
+  background:rgba(74,158,255,.04);
+  font-family:var(--mono);
+  font-size:13px;
+  letter-spacing:.03em;
+  cursor:default;
+}
+#pgLVAR .ch{padding:14px 16px}
+#pgLVAR .ct{font-size:13px}
+#pgLVAR .cb{padding:12px 16px}
+
+/* Chips de analitos en cada OMAR del LVAR */
+#pgLVAR .lv-aChips{display:flex;flex-wrap:wrap;gap:8px}
+#pgLVAR .lv-aChip{
+  background:var(--bg3);
+  border:1px solid var(--ln);
+  color:var(--g1);
+  padding:8px 12px;
+  border-radius:8px;
+  font-size:11.5px;
+  font-family:var(--syne);
+  font-weight:700;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:all .12s;
+  width:auto !important;
+  min-height:0;
+  white-space:nowrap;
+  line-height:1.1;
+}
+#pgLVAR .lv-aChip:active{transform:scale(.95)}
+#pgLVAR .lv-aChip.on{
+  background:rgba(74,158,255,.18);
+  border-color:rgba(74,158,255,.55);
+  color:#fff;
+  box-shadow:0 0 0 1px rgba(74,158,255,.25) inset;
+}
 .nm-chip{min-width:44px;height:40px;padding:0 14px;background:var(--bg3);border:1px solid var(--ln);border-radius:9px;color:var(--g1);font-family:var(--syne);font-weight:800;font-size:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .12s}
 .nm-chip.on{background:var(--acc);border-color:var(--acc);color:#fff;box-shadow:0 4px 12px rgba(74,158,255,.35)}
 .nm-chip:active{transform:scale(.95)}
@@ -282,30 +383,22 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       <button onclick="cerrarModalNuevoMuestreo()" style="width:32px;height:32px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:50%;color:var(--g1);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0" aria-label="Cerrar">×</button>
     </div>
 
-    <div class="f"><label>Folio del plan <span style="color:var(--g2);font-weight:500">(opcional — lo pides luego)</span></label><input id="nm_folio" type="text" placeholder="ej. 40" autocomplete="off"></div>
+        <div class="f"><label>Folio del plan <span style="color:var(--g2);font-weight:500">(opcional — lo pides luego)</span></label><input id="nm_folio" type="text" placeholder="ej. 40" autocomplete="off"></div>
     <div class="g2">
       <div class="f"><label>Fecha</label><input id="nm_fecha" type="date"></div>
       <div class="f"><label>Muestreador</label><input id="nm_muest" type="text" placeholder="Nombre" autocomplete="off"></div>
     </div>
+    <div class="f" style="margin-top:10px"><label>Cantidad de OMARs en este plan</label><input id="nm_num_omars" type="number" inputmode="numeric" min="1" value="1" style="max-width:120px" title="Sin límite superior. Cantidades muy grandes pueden tardar un poco al crear."></div>
+    <div class="f" style="margin-top:8px"><label>Empresa cliente <span style="color:var(--g2);font-weight:500">(opcional — se copia a todas las OMAR)</span></label><input id="nm_empresa" type="text" placeholder="Razón social" autocomplete="off"></div>
 
-    <div class="f">
-      <label>¿Cuántas OMARs lleva este plan?</label>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
-        <button class="nm-chip on" data-n="1" onclick="setNuevoMuestreoOmars(1,event)">1</button>
-        <button class="nm-chip" data-n="2" onclick="setNuevoMuestreoOmars(2,event)">2</button>
-        <button class="nm-chip" data-n="3" onclick="setNuevoMuestreoOmars(3,event)">3</button>
-        <button class="nm-chip" data-n="4" onclick="setNuevoMuestreoOmars(4,event)">4</button>
-        <button class="nm-chip" data-n="5" onclick="setNuevoMuestreoOmars(5,event)">5</button>
-        <button class="nm-chip" data-n="6" onclick="setNuevoMuestreoOmars(6,event)">6</button>
-        <input id="nm_omars_custom" type="number" min="1" placeholder="Otro"
-               style="width:80px;text-align:center" oninput="setNuevoMuestreoOmarsCustom(this.value)">
-      </div>
-      <div style="font-size:10px;color:var(--g2);margin-top:6px">Podrás agregar o quitar OMARs después.</div>
+    <div style="background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.25);border-radius:10px;padding:12px;margin-top:14px">
+      <div style="font-family:var(--syne);font-size:12px;font-weight:800;color:var(--acc);margin-bottom:4px">Siguiente paso</div>
+      <div style="font-size:12px;color:var(--g1);line-height:1.5">Si creas varias OMARs, cada una tendrá su propio folio y punto de muestreo; puedes igualar empresa y analitos desde el plan o desde el formulario OMAR.</div>
     </div>
 
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="btn btn-g" onclick="cerrarModalNuevoMuestreo()" style="flex:1">Cancelar</button>
-      <button class="btn btn-p" onclick="confirmarNuevoMuestreo()" style="flex:2;font-family:var(--syne);font-weight:800">Crear y empezar →</button>
+      <button class="btn btn-p" onclick="confirmarNuevoMuestreo()" style="flex:2;font-family:var(--syne);font-weight:800">Crear plan →</button>
     </div>
   </div>
 </div>
@@ -336,7 +429,9 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 <div class="page" id="pgHome">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_pdf.png" class="bar-logo"/>
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C.</div>
@@ -384,33 +479,6 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       </div>
     </div>
 
-    <!-- Flujo de trabajo -->
-    <div class="card" style="margin-top:4px">
-      <div class="ch"><div class="ct">Flujo de trabajo</div></div>
-      <div class="cb" style="display:flex;flex-direction:column;gap:0;padding-top:4px">
-
-        <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--ln)">
-          <div style="width:28px;height:28px;border-radius:50%;background:rgba(74,158,255,.12);border:1.5px solid var(--acc);display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-size:12px;font-weight:800;color:var(--acc);flex-shrink:0">1</div>
-          <div><div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)">Orden de Muestreo</div><div style="font-size:11px;color:var(--g1);margin-top:2px">Captura los datos del cliente y analitos solicitados</div></div>
-        </div>
-
-        <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--ln)">
-          <div style="width:28px;height:28px;border-radius:50%;background:rgba(251,191,36,.12);border:1.5px solid var(--amber);display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-size:12px;font-weight:800;color:var(--amber);flex-shrink:0">2</div>
-          <div><div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)">Hoja de Campo</div><div style="font-size:11px;color:var(--g1);margin-top:2px">Registra cada toma con pH, temperatura, flujo y conductividad</div></div>
-        </div>
-
-        <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--ln)">
-          <div style="width:28px;height:28px;border-radius:50%;background:rgba(167,139,250,.12);border:1.5px solid #a78bfa;display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-size:12px;font-weight:800;color:#a78bfa;flex-shrink:0">3</div>
-          <div><div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)">Cadena de Custodia</div><div style="font-size:11px;color:var(--g1);margin-top:2px">Verifica parámetros, preservación y firma del cliente</div></div>
-        </div>
-
-        <div style="display:flex;gap:14px;align-items:flex-start;padding:12px 0">
-          <div style="width:28px;height:28px;border-radius:50%;background:rgba(134,239,172,.12);border:1.5px solid var(--green);display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-size:12px;font-weight:800;color:var(--green);flex-shrink:0">4</div>
-          <div><div style="font-family:var(--syne);font-size:13px;font-weight:700;color:var(--w)">Cierre y PDFs</div><div style="font-size:11px;color:var(--g1);margin-top:2px">Genera los documentos y entrégalos al laboratorio</div></div>
-        </div>
-
-      </div>
-    </div>
   </div>
 </div>
 
@@ -418,7 +486,9 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 <div class="page" id="pgPlan">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_pdf.png" class="bar-logo" />
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">ASESORÍA Y ANÁLISIS S.C. REGISTRO Y MONITOREO DE SERVICIO</div>
@@ -473,18 +543,36 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       </div>
     </div>
 
+    <!-- BPM (F-AA-134-1): mismo flujo que datos del plan → documentos -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch">
+        <div class="ct">BPM — Plan de muestreo</div>
+      </div>
+      <div class="cb" style="padding-top:4px">
+        <div style="font-size:11px;color:var(--g2);line-height:1.55;margin-bottom:10px">
+          Formulario y PDF <b style="color:var(--w)">F-AA-134-1</b>. Abre antes una <b style="color:var(--w)">OMAR del plan</b> (lista de arriba o menú «Orden de muestreo») para que el BPM quede ligado a ese folio y punto.
+        </div>
+        <button type="button" class="btn btn-p" style="width:100%;font-family:var(--syne);font-weight:800" onclick="abrirBpmDesdePlan()">Abrir BPM / PDF</button>
+      </div>
+    </div>
+
     <!-- Documentos del plan -->
     <div class="card" style="margin-top:14px">
       <div class="ch">
         <div class="ct">Documentos del Plan</div>
-        <span class="cbadge" id="planDocsBadge">0/7</span>
+        <span class="cbadge" id="planDocsBadge">0/8</span>
       </div>
-      <div class="cb" id="planDocsList">
+      <div class="cb" id="planDocsList" style="padding-top:0">
         <!-- se rellena dinámicamente desde JS -->
       </div>
     </div>
 
-    <div style="display:flex;gap:10px;margin-top:14px">
+    <div style="font-size:10px;color:var(--g2);line-height:1.5;margin-top:12px;padding:10px 12px;background:var(--bg2);border:1px solid var(--ln);border-radius:10px">Los datos viven en <b style="color:var(--w)">este dispositivo</b> (almacenamiento local). En tablet o teléfono conviene usar <b style="color:var(--w)">Descargar muestreo completo</b> como respaldo.</div>
+
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-p" style="flex:1;font-family:var(--syne);font-weight:800;min-width:200px" onclick="descargarMuestreoCompleto()">📦 Descargar Muestreo Completo</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
       <button class="btn btn-g" style="flex:1;color:#f87171;border-color:rgba(248,113,113,.3)" onclick="eliminarPlanActual()">Eliminar plan</button>
     </div>
   </div>
@@ -494,7 +582,9 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 <div class="page" id="pg0">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_pdf.png" class="bar-logo" />
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C. Registro y Monitoreo de Servicio</div>
@@ -615,7 +705,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
             <div class="ai" onclick="togA(this,'Cloro')" data-a="Cloro"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cloro</span></div>
             <div class="ai" onclick="togA(this,'Cloro Libre')" data-a="Cloro Libre"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cloro Libre</span></div>
             <div class="ai" onclick="togA(this,'Cloruros')" data-a="Cloruros"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Cloruros</span></div>
-            <div class="ai" onclick="togA(this,'Color')" data-a="Color"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Color</span></div>
+            <div class="ai" onclick="togA(this,'Color verdadero')" data-a="Color verdadero"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Color verdadero</span></div>
             <div class="ai" onclick="togA(this,'Conductividad Eléctrica')" data-a="Conductividad Eléctrica"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">Conductividad Eléctrica</span></div>
             <div class="ai" onclick="togA(this,'COT')" data-a="COT"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">COT</span></div>
             <div class="ai" onclick="togA(this,'DBO5')" data-a="DBO5"><div class="abox"><svg class="achk" width="9" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span class="albl">DBO5</span></div>
@@ -698,9 +788,13 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
         </div>
       </div>
 
-      <div class="bbar" style="padding:10px 16px 16px">
-        <button class="btn btn-g" onclick="goHome()" style="flex:.35;font-size:12px">← Inicio</button>
-        <button class="btn btn-p" onclick="guardarOMAR()" style="flex:1">Confirmar OMAR →</button>
+      <div class="bbar" style="flex-direction:column;gap:8px;padding:10px 16px 16px">
+        <div style="display:flex;gap:8px;width:100%">
+          <button class="btn btn-g" onclick="goHome()" style="flex:.35;font-size:12px">← Inicio</button>
+          <button class="btn btn-p" onclick="guardarOMARyContinuarLVAR()" style="flex:1;font-family:var(--syne);font-weight:800">Guardar y continuar al LVAR →</button>
+        </div>
+        <button class="btn btn-g" onclick="guardarOMARyAgregarOtro()" style="width:100%;font-size:12px;border-color:rgba(167,139,250,.3);color:#a78bfa">+ Guardar y agregar otro OMAR</button>
+        <button type="button" class="btn btn-g" onclick="replicarDatosComunesDesdeFormularioActual()" style="width:100%;font-size:12px;border-color:rgba(74,158,255,.35);color:var(--acc)">Copiar empresa y analitos a las demás OMARs del plan</button>
       </div>
     </div>
   </div>
@@ -736,7 +830,9 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 <div class="page" id="pg1">
   <div class="bar">
     <div class="bar-l">
-      <img src="logo_pdf.png" class="bar-logo" />  
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
       <div>
         <div class="bar-name">AARMS</div>
         <div class="bar-sub">Asesoría y Análisis S.C. Registro y Monitoreo de Servicio</div>
@@ -755,7 +851,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   <!-- SEC 0: HOJA DE CAMPO -->
   <div class="sec on" id="sec0">
     <div class="main">
-      <div class="ph-ey">F-AA-45A-12</div>
+      <div class="ph-ey">Informe de muestreo</div>
       <div class="ph-t">Hoja de Campo</div>
       <div class="ph-s">Hoja de campo / informe de muestreo</div>
 
@@ -805,6 +901,31 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
         <div class="cb">
           <div id="tomasDiv"></div>
           <div class="add-t" onclick="addToma()"><div class="add-ico">+</div>Agregar toma</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="ch"><div class="ct">Bitácoras de campo</div><span class="cbadge" style="font-size:10px">entre tomas</span></div>
+        <div class="cb">
+          <div style="font-size:11.5px;color:var(--g1);margin-bottom:12px;line-height:1.5">
+            Registra las 3 lecturas de pH y conductividad para cada toma. El promedio se escribe automáticamente arriba.
+          </div>
+          <div style="display:grid;gap:10px">
+            <button onclick="abrirBitacoraPH()" style="display:flex;align-items:center;gap:12px;padding:13px 14px;background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.35);border-radius:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;width:100%;text-align:left">
+              <div style="flex:1">
+                <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--acc)">Bitácora pH-metro</div>
+                <div style="font-size:10.5px;color:var(--g1);margin-top:2px">Entre tomas</div>
+              </div>
+              <div style="color:var(--acc);font-size:18px">→</div>
+            </button>
+            <button onclick="abrirBitacoraCond()" style="display:flex;align-items:center;gap:12px;padding:13px 14px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);border-radius:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;width:100%;text-align:left">
+              <div style="flex:1">
+                <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--amber)">Bitácora Conductímetro</div>
+                <div style="font-size:10.5px;color:var(--g1);margin-top:2px">Entre tomas</div>
+              </div>
+              <div style="color:var(--amber);font-size:18px">→</div>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -879,7 +1000,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   <!-- SEC 1: CADENA DE CUSTODIA -->
   <div class="sec" id="sec1">
     <div class="main">
-      <div class="ph-ey">F-AA-01A-15</div>
+      <div class="ph-ey">Cadena de custodia</div>
       <div class="ph-t">Cadena de Custodia</div>
       <div class="ph-s">Preservación, envases y control de muestras</div>
 
@@ -1096,18 +1217,163 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
     </div>
   </div>
 </div>
+</div>
 
+<!-- ═══════ PAGE: LVAR — Lista de Verificación de Muestreo ═══════ -->
+<div class="page" id="pgLVAR">
+  <div class="bar">
+    <div class="bar-l">
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
+      <div>
+        <div class="bar-name">AARMS</div>
+        <div class="bar-sub">Lista de Verificación de Muestreo</div>
+      </div>
+    </div>
+    <span class="pill pill-o" id="lvarPill">LVAR —</span>
+  </div>
 
+  <div class="cont" style="padding:16px;max-width:640px;margin:0 auto">
+    <button class="btn btn-g" onclick="cerrarLVAR()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Volver al plan</button>
+
+    <div id="lvarBlockedBanner" style="display:none;background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.4);border-radius:11px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div style="font-size:20px;flex-shrink:0">🔒</div>
+        <div>
+          <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--acc);margin-bottom:3px">LVAR bloqueado</div>
+          <div style="font-size:11.5px;color:var(--g1);line-height:1.5">Este documento ya fue generado como PDF y queda en solo lectura. No se pueden modificar OMARs ni datos del LVAR.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CABECERA -->
+    <div class="card">
+      <div class="ch"><div class="ct">Datos Generales</div></div>
+      <div class="cb">
+        <div class="g2">
+          <div class="f"><label>Folio LVAR</label><input id="lv_folio" type="text" placeholder="________"></div>
+          <div class="f"><label>Fecha</label><input id="lv_fecha" type="date"></div>
+        </div>
+        <div class="f"><label>Lugar de muestreo</label><input id="lv_lugar" type="text"></div>
+        <div class="f"><label>Dirección</label><input id="lv_dir" type="text"></div>
+        <div class="g2">
+          <div class="f"><label>Ciudad</label><input id="lv_ciudad" type="text"></div>
+          <div class="f"><label>Tipo de muestreo</label><input id="lv_tipo" type="text" placeholder="Simple / Compuesto"></div>
+        </div>
+        <div class="f"><label>Norma de referencia</label><input id="lv_norma" type="text" placeholder="ej. NOM-001-SEMARNAT-2021"></div>
+      </div>
+    </div>
+
+    <!-- ═════ OMARs A MUESTREAR ═════ -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch">
+        <div class="ct">OMARs a muestrear</div>
+        <span class="cbadge" id="lv_omarsBadge" style="font-size:10px">0 OMARs</span>
+      </div>
+      <div class="cb">
+        <div style="font-size:11px;color:var(--g2);margin-bottom:10px;line-height:1.5">
+          Lista de OMARs declarados en este plan. Los envases se calculan automáticamente sumando todos los OMARs.
+        </div>
+        <div id="lv_omars_list"></div>
+        <button onclick="lvarAgregarNuevoOmar()" style="margin-top:10px;width:100%;background:rgba(167,139,250,.1);border:1px dashed rgba(167,139,250,.4);color:#a78bfa;padding:11px;border-radius:10px;font-family:var(--syne);font-size:12.5px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Agregar otro OMAR</button>
+      </div>
+    </div>
+
+    <!-- EQUIPOS PRINCIPALES -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><div class="ct">Equipos (marca el número del equipo)</div></div>
+      <div class="cb" id="lv_equipos">
+        <!-- Se genera en JS — permite prefijos fijos AA/PT/, AA/CO/, etc. -->
+      </div>
+    </div>
+
+    <!-- EQUIPO PERSONAL -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><div class="ct">Equipo personal</div></div>
+      <div class="cb" id="lv_personal"></div>
+    </div>
+
+    <!-- DISOLUCIONES -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><div class="ct">Disoluciones</div></div>
+      <div class="cb" id="lv_disol"></div>
+    </div>
+
+    <!-- REACTIVOS -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><div class="ct">Reactivos</div></div>
+      <div class="cb" id="lv_react"></div>
+    </div>
+
+    <!-- PATRONES DE CALIBRACIÓN -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><div class="ct">Soluciones de calibración</div></div>
+      <div class="cb" id="lv_patrones"></div>
+    </div>
+
+    <!-- EQUIPO SECUNDARIO -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><div class="ct">Equipo secundario</div></div>
+      <div class="cb" id="lv_secundario"></div>
+    </div>
+
+    <!-- MATERIAL -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><div class="ct">Material</div></div>
+      <div class="cb" id="lv_material"></div>
+    </div>
+
+    <!-- CONTENEDORES -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch">
+        <div class="ct">Contenedores por tipo de muestra</div>
+        <span class="cbadge" id="lv_envasesCalc" style="font-size:10px">total auto</span>
+      </div>
+      <div class="cb">
+        <div style="font-size:11px;color:var(--g2);margin-bottom:10px;line-height:1.5">
+          Cantidades autocalculadas <b>sumando los envases requeridos por cada OMAR</b> (OMARs marcados como "no realizada" no cuentan). Editable.
+        </div>
+        <div id="lv_envases"></div>
+      </div>
+    </div>
+
+    <!-- FIRMAS -->
+    <div class="card" style="margin-top:14px">
+      <div class="ch"><div class="ct">Responsables</div></div>
+      <div class="cb">
+        <div class="f"><label>Persona asignada (muestreador)</label><input id="lv_asig" type="text"></div>
+        <div class="g2">
+          <div class="f"><label>Fecha</label><input id="lv_asigFecha" type="date"></div>
+          <div class="f"><label>Hora</label><input id="lv_asigHora" type="time"></div>
+        </div>
+        <div class="f"><label>Supervisor</label><input id="lv_sup" type="text"></div>
+        <div class="g2">
+          <div class="f"><label>Fecha</label><input id="lv_supFecha" type="date"></div>
+          <div class="f"><label>Hora</label><input id="lv_supHora" type="time"></div>
+        </div>
+        <div class="f"><label>Observaciones</label><textarea id="lv_obs" rows="3"></textarea></div>
+      </div>
+    </div>
+
+    <!-- ACCIONES -->
+    <div style="margin-top:14px">
+      <button class="btn btn-p" style="width:100%;font-family:var(--syne);font-weight:800;padding:14px" onclick="generarPDFLVAR()">📄 Generar PDF del LVAR</button>
+      <div style="text-align:center;font-size:10.5px;color:var(--g2);margin-top:8px;font-style:italic">Los datos se guardan automáticamente al escribir.</div>
+    </div>
+    <div style="height:40px"></div>
+  </div>
+</div>
 
 <div id="toast"></div>
 
 
 
-  <script>(function(){["pgHome","pgPlan","pg0","pg1"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});["sec0","sec1","sec2"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});})();</script>
+  <script>(function(){["pgHome","pgPlan","pg0","pg1","pgLVAR"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});["sec0","sec1","sec2"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});})();</script>
   <script src="js/jspdf.umd.min.js"></script>
   <script src="js/app.js"></script>
-
-</div><!-- /pg1 -->
+  <script src="js/documents-suite.js"></script>
+  <script src="js/taller-aarms.js"></script>
 
 <!-- OVERLAY -->
 <div id="fabOverlay" onclick="toggleFabMenu()" style="display:none;position:fixed;inset:0;background:rgba(7,8,15,.5);z-index:99990"></div>
@@ -1148,6 +1414,22 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 
     <div style="height:1px;background:var(--ln);margin:8px 0"></div>
 
+    <div class="nav-item" onclick="drawerIrPlan()">
+      <div class="nav-ico" style="background:rgba(74,158,255,.12);color:var(--acc)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+      </div>
+      <div><div class="nav-lbl">Plan de muestreo</div><div class="nav-sub">Folio, OMARs y documentos del plan</div></div>
+    </div>
+
+    <div class="nav-item" onclick="drawerIrLVAR()">
+      <div class="nav-ico" style="background:rgba(167,139,250,.12);color:#a78bfa">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      </div>
+      <div><div class="nav-lbl">Lista de verificación</div><div class="nav-sub">LVAR del plan activo</div></div>
+    </div>
+
+    <div style="height:1px;background:var(--ln);margin:8px 0"></div>
+
     <div class="nav-item" onclick="irOMAR();toggleFabMenu()">
       <div class="nav-ico" style="background:rgba(251,191,36,.12);color:var(--amber)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>
@@ -1183,5 +1465,879 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 .nav-sub{font-size:10px;color:var(--g1);margin-top:1px}
 
 </style>
+<!-- ═══════ PAGE: LIMPIEZA pH-METRO (BLMP) — plan.blmp ═══════ -->
+<div class="page" id="pgBlmp">
+  <div class="bar">
+    <div class="bar-l">
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
+      <div>
+        <div class="bar-name">AARMS</div>
+        <div class="bar-sub">Limpieza y Mantenimiento del pH-metro</div>
+      </div>
+    </div>
+    <span class="pill pill-o" id="blmpPill">Plan —</span>
+  </div>
+  <div class="cont" style="padding:16px;max-width:640px;margin:0 auto">
+    <button class="btn btn-g" onclick="cerrarPagBlmp()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Volver al plan</button>
+
+    <div class="card"><div class="ch"><div class="ct">Identificación</div></div><div class="cb g2">
+      <div class="f"><label>Equipo pH-metro</label><input type="text" id="blmp_aapt" placeholder="AA/PT/____"></div>
+      <div class="f"><label>Fecha</label><input type="date" id="blmp_fecha"></div>
+      <div class="f"><label>Hora</label><input type="time" id="blmp_hora"></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">1. Verificación visual</div><span class="cbadge">SI / NO / N.A.</span></div><div class="cb">
+      <div class="g2">
+        <div class="f"><label>Panel dañado</label><select id="blmp_v_panel" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+        <div class="f"><label>Cables dañados</label><select id="blmp_v_cables" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+        <div class="f"><label>Cuerpo sucio</label><select id="blmp_v_cuerpo" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+        <div class="f"><label>Código de error</label><select id="blmp_v_error" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+        <div class="f"><label>Batería con vida útil</label><select id="blmp_v_vida" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+        <div class="f"><label>Electrodo envejecido</label><select id="blmp_v_eenv" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+        <div class="f"><label>Electrodo sucio</label><select id="blmp_v_esuc" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+        <div class="f"><label>Electrodo completo</label><select id="blmp_v_ecomp" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+        <div class="f"><label>Permite calibrar</label><select id="blmp_v_calib" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      </div>
+      <div class="f" style="margin-top:8px"><label>Observaciones (verificación)</label><textarea id="blmp_obs_v" rows="2"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">2. Limpieza</div></div><div class="cb">
+      <div class="g2">
+        <div class="f" style="grid-column:span 2"><label>Actividad realizada</label><textarea id="blmp_act_txt" rows="2" placeholder="Describe la actividad"></textarea></div>
+        <div class="f" style="grid-column:span 2"><label>Código de actividad</label><input type="text" id="blmp_cod_act" placeholder="ej. 1, 2, 3, 4"></div>
+      </div>
+      <div class="param-lbl" style="margin-top:10px">Pasos aplicados</div>
+      <div class="g2" style="margin-top:6px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--g1)"><input type="checkbox" id="blmp_l_enj"> 1. Enjuagar (agua)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--g1)"><input type="checkbox" id="blmp_l_alc"> 2. Alcohol</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--g1)"><input type="checkbox" id="blmp_l_grasa"> Quitar grasa</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--g1)"><input type="checkbox" id="blmp_l_hcl"> 4. HCl 1:1</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--g1)"><input type="checkbox" id="blmp_l_det"> 3. Detergente</label>
+      </div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">3. Mantenimiento</div></div><div class="cb g2">
+      <div class="f"><label>CEE/AA/N-3/__</label><input type="text" id="blmp_m_exp" placeholder="folio carpeta"></div>
+      <div class="f"><label>Apartado AA/PT/__</label><input type="text" id="blmp_m_aapt" placeholder="AA/PT/____"></div>
+      <div class="f" style="grid-column:span 2"><label>Folio F-AA-22 (vigente)</label><input type="text" id="blmp_m_folio" placeholder="folio"></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Observaciones generales</div></div><div class="cb">
+      <div class="f"><textarea id="blmp_obs" rows="2"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Responsables</div></div><div class="cb g2">
+      <div class="f"><label>Realizó</label><input type="text" id="blmp_realizo"></div>
+      <div class="f"><label>Supervisó</label><input type="text" id="blmp_superviso"></div>
+    </div></div>
+
+    <button class="btn btn-p" style="width:100%;margin-top:14px;padding:14px;font-family:var(--syne);font-weight:800" onclick="generarPDFBlmpForm()">Generar PDF</button>
+    <div style="text-align:center;font-size:10.5px;color:var(--g2);margin-top:8px;font-style:italic">Los datos se guardan automáticamente.</div>
+    <div style="height:48px"></div>
+  </div>
+</div>
+
+<!-- ═══════ PAGE: CONDUCTÍMETRO (F-AA-289-2) — plan.colab ═══════ -->
+<div class="page" id="pgColab">
+  <div class="bar">
+    <div class="bar-l">
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
+      <div>
+        <div class="bar-name">AARMS</div>
+        <div class="bar-sub">Conductímetro · F-AA-289-2</div>
+      </div>
+    </div>
+    <span class="pill pill-o" id="colabPill">Plan —</span>
+  </div>
+  <div class="cont" style="padding:16px;max-width:640px;margin:0 auto">
+    <button class="btn btn-g" onclick="cerrarPagColab()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Volver al plan</button>
+
+    <!-- ════ IDENTIFICACIÓN ════ -->
+    <div class="card"><div class="ch"><div class="ct">Identificación de equipo</div></div><div class="cb g2">
+      <div class="f"><label>Folio</label><input type="text" id="colab_folio"></div>
+      <div class="f"><label>Equipo (AA/CO/__)</label><input type="text" id="colab_clave" placeholder="AA/CO/____"></div>
+      <div class="f"><label>Fecha</label><input type="date" id="colab_fecha"></div>
+      <div class="f"><label>Hora</label><input type="time" id="colab_hora"></div>
+    </div></div>
+
+    <!-- ════ VERIFICACIÓN VISUAL ════ -->
+    <div class="card"><div class="ch"><div class="ct">Verificación</div><span class="cbadge">SI / NO / N.A.</span></div><div class="cb g2">
+      <div class="f"><label>Panel dañado</label><select id="colab_v1" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Cables dañados</label><select id="colab_v2" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Cuerpo sucio</label><select id="colab_v3" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Código de error</label><select id="colab_v4" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Celda envejecida</label><select id="colab_v5" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Celda sucia</label><select id="colab_v6" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Faltan partes</label><select id="colab_v7" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f" style="grid-column:span 2"><label>Observaciones</label><textarea id="colab_obs_v" rows="2"></textarea></div>
+    </div></div>
+
+    <!-- ════ LIMPIEZA ════ -->
+    <div class="card"><div class="ch"><div class="ct">Limpieza</div></div><div class="cb g2">
+      <div class="f"><label>Enjuagar con agua</label><select id="colab_l_enj" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Limpiar con alcohol</label><select id="colab_l_alc" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Quitar grasa</label><select id="colab_l_grasa" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>HCl</label><select id="colab_l_hcl" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Detergente</label><select id="colab_l_det" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Cuerpo / Celda</label><input type="text" id="colab_cuerpo_celda" placeholder="Texto libre"></div>
+      <div class="f" style="grid-column:span 2"><label>Actividad efectiva</label><select id="colab_l_efec" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+    </div></div>
+
+    <!-- ════ MANTENIMIENTO ════ -->
+    <div class="card"><div class="ch"><div class="ct">Mantenimiento</div></div><div class="cb g2">
+      <div class="f"><label>Reemplazo de baterías</label><select id="colab_m_bat" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Reemplazo de celdas</label><select id="colab_m_cel" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Replatinización</label><select id="colab_m_plat" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+      <div class="f"><label>Envío técnico externo</label><select id="colab_m_ext" class="sel-sino"><option value="">—</option><option value="si">SI</option><option value="no">NO</option><option value="na">N.A.</option></select></div>
+    </div></div>
+
+    <!-- ════════════════════ ACTIVIDAD EN LABORATORIO ════════════════════ -->
+    <div style="background:rgba(74,158,255,.10);border:1px solid rgba(74,158,255,.4);border-radius:11px;padding:11px 14px;margin-top:18px;text-align:center">
+      <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--acc);letter-spacing:.05em">ACTIVIDAD EN LABORATORIO</div>
+    </div>
+
+    <div class="card"><div class="ch"><div class="ct">Calibración (Material de Referencia)</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="colab_lab_cal_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="colab_lab_cal_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="colab_lab_cal_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="colab_lab_cal_marca"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Valor Nominal (µS/cm)</label><input type="number" step="any" id="colab_lab_cal_nom" oninput="colabCalcVN('lab_cal')"></div>
+        <div class="f"><label>Incertidumbre</label><input type="number" step="any" id="colab_lab_cal_inc" oninput="colabCalcVN('lab_cal')"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>VN + I</label><input type="text" id="colab_lab_cal_vn_mas" readonly style="opacity:.7"></div>
+        <div class="f"><label>VN − I</label><input type="text" id="colab_lab_cal_vn_men" readonly style="opacity:.7"></div>
+      </div>
+      <div class="g2">
+        <div class="f"><label>Lectura equipo</label><input type="number" step="any" id="colab_lab_cal_lec"></div>
+        <div class="f"><label>Acepta / Rechaza</label><select id="colab_lab_cal_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      </div>
+      <div style="font-size:10px;color:var(--g2);font-style:italic;margin-top:8px;line-height:1.4">
+        Criterio: para patrón comercial cumplir con incertidumbre del certificado; para preparada en lab estimar y cumplir VN±I.
+      </div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Comprobación (Material de Referencia)</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="colab_lab_com_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="colab_lab_com_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="colab_lab_com_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="colab_lab_com_marca"></div>
+      </div>
+      <div class="f" style="margin-bottom:6px"><label>Valor Nominal (µS/cm)</label><input type="number" step="any" id="colab_lab_com_nom"></div>
+      <div style="font-size:10px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-family:var(--mono)">Lecturas µS/cm</div>
+      <div class="g3" style="margin-bottom:6px">
+        <div class="f"><label>L1</label><input type="number" step="any" id="colab_lab_com_l1" oninput="colabL3Check('lab_com')"></div>
+        <div class="f"><label>L2</label><input type="number" step="any" id="colab_lab_com_l2" oninput="colabL3Check('lab_com')"></div>
+        <div class="f"><label>L3</label><input type="number" step="any" id="colab_lab_com_l3" oninput="colabL3Check('lab_com')"></div>
+      </div>
+      <div class="f"><label>Acepta / Rechaza</label><select id="colab_lab_com_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      <div id="colab_lab_com_check" style="margin-top:6px;font-size:10.5px;color:var(--g2);font-style:italic"></div>
+      <div style="font-size:10px;color:var(--g2);font-style:italic;margin-top:8px;line-height:1.4">
+        Criterio: ≤ ±5% entre lecturas independientes del valor nominal del MRC.
+      </div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Verificación (Muestra Control)</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="colab_lab_ver_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="colab_lab_ver_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="colab_lab_ver_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="colab_lab_ver_marca"></div>
+      </div>
+      <div class="f" style="margin-bottom:6px"><label>Valor Nominal (µS/cm)</label><input type="number" step="any" id="colab_lab_ver_nom"></div>
+      <div style="font-size:10px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-family:var(--mono)">Lecturas µS/cm</div>
+      <div class="g3" style="margin-bottom:6px">
+        <div class="f"><label>L1</label><input type="number" step="any" id="colab_lab_ver_l1" oninput="colabL3Check('lab_ver')"></div>
+        <div class="f"><label>L2</label><input type="number" step="any" id="colab_lab_ver_l2" oninput="colabL3Check('lab_ver')"></div>
+        <div class="f"><label>L3</label><input type="number" step="any" id="colab_lab_ver_l3" oninput="colabL3Check('lab_ver')"></div>
+      </div>
+      <div class="f"><label>Acepta / Rechaza</label><select id="colab_lab_ver_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      <div id="colab_lab_ver_check" style="margin-top:6px;font-size:10.5px;color:var(--g2);font-style:italic"></div>
+      <div style="font-size:10px;color:var(--g2);font-style:italic;margin-top:8px;line-height:1.4">
+        Criterio: ≤ ±5% entre lecturas independientes del valor nominal del control.
+      </div>
+    </div></div>
+
+    <!-- ════════════════════ ACTIVIDAD EN CAMPO ════════════════════ -->
+    <div style="background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.4);border-radius:11px;padding:11px 14px;margin-top:18px;text-align:center">
+      <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:#fbbf24;letter-spacing:.05em">ACTIVIDAD EN CAMPO</div>
+    </div>
+
+    <div class="card"><div class="ch"><div class="ct">Calibración (Material de Referencia)</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="colab_cam_cal_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="colab_cam_cal_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="colab_cam_cal_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="colab_cam_cal_marca"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Valor Nominal (µS/cm)</label><input type="number" step="any" id="colab_cam_cal_nom" oninput="colabCalcVN('cam_cal')"></div>
+        <div class="f"><label>Incertidumbre</label><input type="number" step="any" id="colab_cam_cal_inc" oninput="colabCalcVN('cam_cal')"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>VN + I</label><input type="text" id="colab_cam_cal_vn_mas" readonly style="opacity:.7"></div>
+        <div class="f"><label>VN − I</label><input type="text" id="colab_cam_cal_vn_men" readonly style="opacity:.7"></div>
+      </div>
+      <div class="g2">
+        <div class="f"><label>Lectura equipo</label><input type="number" step="any" id="colab_cam_cal_lec"></div>
+        <div class="f"><label>Acepta / Rechaza</label><select id="colab_cam_cal_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      </div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Comprobación (Material de Referencia)</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="colab_cam_com_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="colab_cam_com_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="colab_cam_com_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="colab_cam_com_marca"></div>
+      </div>
+      <div class="f" style="margin-bottom:6px"><label>Valor Nominal (µS/cm)</label><input type="number" step="any" id="colab_cam_com_nom"></div>
+      <div style="font-size:10px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-family:var(--mono)">Lecturas µS/cm</div>
+      <div class="g3" style="margin-bottom:6px">
+        <div class="f"><label>L1</label><input type="number" step="any" id="colab_cam_com_l1" oninput="colabL3Check('cam_com')"></div>
+        <div class="f"><label>L2</label><input type="number" step="any" id="colab_cam_com_l2" oninput="colabL3Check('cam_com')"></div>
+        <div class="f"><label>L3</label><input type="number" step="any" id="colab_cam_com_l3" oninput="colabL3Check('cam_com')"></div>
+      </div>
+      <div class="f"><label>Acepta / Rechaza</label><select id="colab_cam_com_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      <div id="colab_cam_com_check" style="margin-top:6px;font-size:10.5px;color:var(--g2);font-style:italic"></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Verificación (Muestra Control)</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="colab_cam_ver_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="colab_cam_ver_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="colab_cam_ver_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="colab_cam_ver_marca"></div>
+      </div>
+      <div class="f" style="margin-bottom:6px"><label>Valor Nominal (µS/cm)</label><input type="number" step="any" id="colab_cam_ver_nom"></div>
+      <div style="font-size:10px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;font-family:var(--mono)">Lecturas µS/cm</div>
+      <div class="g3" style="margin-bottom:6px">
+        <div class="f"><label>L1</label><input type="number" step="any" id="colab_cam_ver_l1" oninput="colabL3Check('cam_ver')"></div>
+        <div class="f"><label>L2</label><input type="number" step="any" id="colab_cam_ver_l2" oninput="colabL3Check('cam_ver')"></div>
+        <div class="f"><label>L3</label><input type="number" step="any" id="colab_cam_ver_l3" oninput="colabL3Check('cam_ver')"></div>
+      </div>
+      <div class="f"><label>Acepta / Rechaza</label><select id="colab_cam_ver_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      <div id="colab_cam_ver_check" style="margin-top:6px;font-size:10.5px;color:var(--g2);font-style:italic"></div>
+    </div></div>
+
+    <!-- ════ TABLA ENTRE TOMAS ════ -->
+    <div class="card" style="margin-top:18px"><div class="ch">
+      <div class="ct">Registros entre tomas</div>
+      <span class="cbadge" id="colabTomasBadge">0</span>
+    </div><div class="cb">
+      <div style="font-size:11px;color:var(--g1);line-height:1.5;margin-bottom:10px">
+        Tabla compartida por todos los OMARs del plan. Cada fila: Hora · Folio OMAR · No. Toma · Actividad (Ca/Co/V) · Limpieza · L1 L2 L3 · Acepta/Rechaza · Promedio · Dato a Reportar.
+      </div>
+      <div id="colabTomasLista"></div>
+      <button onclick="colabAgregarToma()" style="margin-top:8px;width:100%;background:rgba(167,139,250,.1);border:1px dashed rgba(167,139,250,.4);color:#a78bfa;padding:11px;border-radius:9px;font-family:var(--syne);font-size:12px;font-weight:700;cursor:pointer">+ Agregar registro de toma</button>
+    </div></div>
+
+    <!-- ════ OBSERVACIONES + RESPONSABLES ════ -->
+    <div class="card"><div class="ch"><div class="ct">Observaciones</div></div><div class="cb">
+      <div class="f"><textarea id="colab_obs" rows="2"></textarea></div>
+    </div></div>
+    <div class="card"><div class="ch"><div class="ct">Responsables</div></div><div class="cb g2">
+      <div class="f"><label>Muestreador</label><input type="text" id="colab_realizo"></div>
+      <div class="f"><label>Supervisó</label><input type="text" id="colab_superviso"></div>
+    </div></div>
+
+    <button class="btn btn-p" style="width:100%;margin-top:14px;padding:14px;font-family:var(--syne);font-weight:800" onclick="generarPDFColabCompleto()">Generar PDF</button>
+    <div style="text-align:center;font-size:10.5px;color:var(--g2);margin-top:8px;font-style:italic">Los datos se guardan automáticamente.</div>
+    <div style="height:48px"></div>
+  </div>
+</div>
+
+<!-- ═══════ PAGE: BPM Plan de muestreo ═══════ -->
+<div class="page" id="pgBpm">
+  <div class="bar">
+    <div class="logo"><svg viewBox="0 0 100 100"><polygon points="50,18 12,82 88,82" fill="none" stroke="#a78bfa" stroke-width="6" stroke-linejoin="round"/></svg></div>
+    <div class="ttl">Plan de muestreo</div>
+    <span class="pill pill-o" id="bpmPill">OMAR</span>
+  </div>
+  <div class="cont" style="padding:16px;max-width:720px;margin:0 auto">
+    <button class="btn btn-g" onclick="cerrarDocSuite()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Volver al plan</button>
+    <div class="doc-titlebar">
+      <div class="dt-main">Plan de muestreo (BPM) — F-AA-134-1</div>
+      <div class="dt-sub">Todos los apartados son obligatorios para generar PDF. Si falta foto o GPS en hoja de campo, llena la justificación (≥12 caracteres).</div>
+    </div>
+
+    <div class="card"><div class="ch"><div class="ct">Identificación</div></div><div class="cb g2">
+      <div class="f"><label>Fecha</label><input type="date" id="bpm_fecha"></div>
+      <div class="f"><label>Folio del plan (BPM)</label><input type="text" id="bpm_folio_bpm" placeholder="Del plan activo"></div>
+      <div class="f" style="grid-column:span 2"><label>Empresa / cliente</label><input type="text" id="bpm_empresa" placeholder="Razón social"></div>
+      <div class="f"><label>Folio OMAR</label><input type="text" id="bpm_omar"></div>
+      <div class="f"><label>Referencia BOMAR</label><input type="text" id="bpm_bomar" readonly placeholder="" title="Código fijo según BOMAR/AA/N-3 (como en lista de verificación)" aria-label="Referencia BOMAR, código fijo"></div>
+      <div class="f"><label>Tipo de muestreo</label><input type="text" id="bpm_tipo_muestreo" placeholder="Compuesto, puntual…"></div>
+      <div class="f"><label>Matriz</label><input type="text" id="bpm_matriz" placeholder="Agua, efluente…"></div>
+      <div class="f" style="grid-column:span 2"><label>Contacto en sitio</label><input type="text" id="bpm_contacto_site" placeholder="Nombre y cargo"></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">1. Equipo y material</div></div><div class="cb g2">
+      <div class="f"><label>Folio lista de verificación (LVAR)</label><input type="text" id="bpm_f1_lvar"></div>
+      <div class="f"><label>Bitácora BLVM (código / folio)</label><input type="text" id="bpm_f1_blvm" placeholder="BLVM/AA/N-3/"></div>
+      <div class="f" style="grid-column:span 2"><label>Otros equipos y material relevante</label><textarea id="bpm_f1_equip_obs" rows="2" placeholder="Conductímetro, termómetro, botella punzocortantes, neveras…"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">2. Verificación del equipo</div></div><div class="cb g2">
+      <div class="f"><label>Código BUCCVpH</label><input type="text" id="bpm_f2_bucc" placeholder="BUCCVpH…/AA/N-3/"></div>
+      <div class="f"><label>Folio BUCCVpH</label><input type="text" id="bpm_f2_bucc_fol"></div>
+      <div class="f"><label>¿Equipo conforme?</label><select id="bpm_f2_cumple" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="SI">SI</option><option value="NO">NO</option><option value="N.A.">N.A.</option></select></div>
+      <div class="f" style="grid-column:span 2"><label>Observaciones de verificación</label><textarea id="bpm_f2_obs" rows="2"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">3. Descarga y ubicación</div></div><div class="cb g2">
+      <div class="f" style="grid-column:span 2"><label>Tipo de descarga / fuente</label><input type="text" id="bpm_f3_tipo_fuente" placeholder="Descarga continua, pozo, etc."></div>
+      <div class="f" style="grid-column:span 2"><label>Descripción detallada del punto</label><textarea id="bpm_f3_descripcion" rows="3"></textarea></div>
+      <div class="f"><label>Acceso y seguridad</label><textarea id="bpm_f3_acceso" rows="2"></textarea></div>
+      <div class="f"><label>Condiciones hidráulicas / caudal</label><textarea id="bpm_f3_hidraulica" rows="2"></textarea></div>
+      <div class="f" style="grid-column:span 2"><label>Condiciones ambientales</label><textarea id="bpm_f3_ambiente" rows="2"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Vista del sitio (hoja de campo)</div></div><div class="cb">
+      <div style="font-size:11px;color:var(--g1);line-height:1.45;margin-bottom:10px">Fotografía y mapa desde la hoja de campo. Si no aplican, completa las justificaciones abajo.</div>
+      <div class="g2" style="gap:10px;align-items:stretch">
+        <div style="min-height:150px;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column">
+          <div style="font-size:10px;font-family:var(--mono);color:var(--g2);padding:6px 10px;border-bottom:1px solid var(--ln)">Fotografía</div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:130px;position:relative">
+            <img id="bpmVistaFoto" alt="" style="max-width:100%;max-height:220px;object-fit:contain;display:none"/>
+            <span id="bpmVistaFotoVac" style="font-size:11px;color:var(--g2);padding:12px;text-align:center">Sin foto en hoja de campo</span>
+          </div>
+        </div>
+        <div style="min-height:150px;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column">
+          <div style="font-size:10px;font-family:var(--mono);color:var(--g2);padding:6px 10px;border-bottom:1px solid var(--ln)">Mapa (OSM)</div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;min-height:130px">
+            <img id="bpmVistaMap" alt="" style="max-width:100%;max-height:220px;object-fit:contain;display:none"/>
+            <span id="bpmVistaMapVac" style="font-size:11px;color:var(--g2);padding:12px;text-align:center">Sin GPS o sin mapa</span>
+          </div>
+        </div>
+      </div>
+      <div class="f" style="margin-top:12px"><label>Justificación si no hay fotografía en hoja (≥12 caracteres; o «N.A.» si sí hay foto)</label><textarea id="bpm_justif_sin_foto" rows="2"></textarea></div>
+      <div class="f"><label>Justificación si no hay GPS en hoja (≥12 caracteres; o «N.A.» si sí hay GPS)</label><textarea id="bpm_justif_sin_gps" rows="2"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">4. Calibración al llegar al sitio</div></div><div class="cb g2">
+      <div class="f"><label>Folio BUCCVpH en sitio</label><input type="text" id="bpm_f4_fol"></div>
+      <div class="f"><label>Buffers / soluciones usados</label><input type="text" id="bpm_f4_buffers"></div>
+      <div class="f"><label>Lecturas / comprobación</label><input type="text" id="bpm_f4_lecturas" placeholder="pH buffer 4, 7, etc."></div>
+      <div class="f"><label>Temperatura relevante</label><input type="text" id="bpm_f4_temp"></div>
+      <div class="f" style="grid-column:span 2"><label>¿Calibración conforme?</label><select id="bpm_f4_conforme" style="width:100%;max-width:280px;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="SI">SI</option><option value="NO">NO</option><option value="N.A.">N.A.</option></select></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">5. Control de calidad en campo</div></div><div class="cb">
+      <div style="font-size:12px;color:var(--g1);line-height:1.5;margin-bottom:10px"><b>Blanco de campo y lote de agua reactivo</b> se definen una sola vez en el <b>plan</b> (Pantalla plan → Datos del plan → Opciones avanzadas). Aquí solo se muestran; edita el plan si necesitas cambiarlos.</div>
+      <input type="hidden" id="bpm_f5_blanco" value="">
+      <input type="hidden" id="bpm_f5_lote" value="">
+      <div id="bpm_blanco_resumen" style="font-size:13px;color:var(--w);padding:12px;background:var(--bg2);border:1px solid var(--ln);border-radius:var(--r);margin-bottom:12px;line-height:1.45"></div>
+      <div class="g2">
+        <div class="f"><label>¿Muestra duplicada?</label><select id="bpm_f5_duplicado" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="SI">SI</option><option value="NO">NO</option></select></div>
+        <div class="f"><label>Parámetro duplicado (si aplica)</label><input type="text" id="bpm_f5_dup_param" placeholder="N.A. si no hay duplicado"></div>
+        <div class="f" style="grid-column:span 2"><label>Otros controles de calidad</label><textarea id="bpm_f5_otros_cc" rows="2"></textarea></div>
+      </div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">6. Procedimiento de muestreo</div></div><div class="cb g2">
+      <div class="f"><label>Tipo (simple / compuesto / otro)</label><input type="text" id="bpm_f6_tipo_m"></div>
+      <div class="f"><label>Intervalo entre submuestras</label><input type="text" id="bpm_f6_intervalo"></div>
+      <div class="f"><label>Número de submuestras / tomas</label><input type="text" id="bpm_f6_num_sub"></div>
+      <div class="f"><label>Volumen o condiciones del compuesto</label><input type="text" id="bpm_f6_volumen"></div>
+      <div class="f" style="grid-column:span 2"><label>Detalle del procedimiento</label><textarea id="bpm_f6_proc" rows="4" placeholder="Homogeneización, orden de tomas, manejo de equipos…"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">7. Preservación y conservación</div></div><div class="cb g2">
+      <div class="f" style="grid-column:span 2"><label>Preservación y conservación de muestras</label><textarea id="bpm_f7_preserv" rows="3" placeholder="Refrigeración, ácidos, tiempo máximo, etc."></textarea></div>
+      <div class="f"><label>Cadena de frío</label><select id="bpm_f7_cad_frio" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="SI">SI</option><option value="NO">NO</option><option value="N.A.">N.A.</option></select></div>
+      <div class="f"><label>Etiquetado conforme</label><select id="bpm_f7_etiq" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="SI">SI</option><option value="NO">NO</option></select></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">8. Muestra compuesta — Bitácora BM</div></div><div class="cb g2">
+      <div class="f"><label>Código BM</label><input type="text" id="bpm_f7_bm" placeholder="BM/AA/N-3/"></div>
+      <div class="f"><label>Folio BM</label><input type="text" id="bpm_f7_folio"></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">9. Cadena de custodia</div></div><div class="cb g2">
+      <div class="f" style="grid-column:span 2"><label>Registros y folios (CCIAR, COC, etc.)</label><textarea id="bpm_f8_cc" rows="2"></textarea></div>
+      <div class="f"><label>Cadena conforme</label><select id="bpm_f8_conforme" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="SI">SI</option><option value="NO">NO</option></select></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">10. Transporte al laboratorio</div></div><div class="cb g2">
+      <div class="f" style="grid-column:span 2"><label>Medio, condiciones y responsable</label><textarea id="bpm_f9_trans" rows="3"></textarea></div>
+      <div class="f"><label>Hora estimada o real de arribo</label><input type="text" id="bpm_f9_hora_lab" placeholder="HH:MM o fecha/hora"></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">11. Documentación anexa</div></div><div class="cb">
+      <div class="f"><label>Listado de anexos (o N.A.)</label><textarea id="bpm_f10_anexos" rows="2"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">12. Modificaciones y observaciones finales</div></div><div class="cb g2">
+      <div class="f"><label>Modificaciones al plan en campo</label><textarea id="bpm_f11_modif" rows="2"></textarea></div>
+      <div class="f"><label>Observaciones finales</label><textarea id="bpm_f11_obs" rows="2"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Croquis</div></div><div class="cb">
+      <div class="f"><label>Descripción o referencia del croquis</label><textarea id="bpm_croquis" rows="3"></textarea></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Firmas</div></div><div class="cb g2">
+      <div class="f"><label>Supervisor</label><input type="text" id="bpm_super"></div>
+      <div class="f"><label>Muestreador</label><input type="text" id="bpm_muest"></div>
+      <div class="f" style="grid-column:span 2"><label>Testigo / representante del cliente</label><input type="text" id="bpm_testigo_cliente"></div>
+    </div></div>
+
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn btn-g" style="flex:1;min-width:120px" onclick="guardarBpmPage()">Guardar</button>
+      <button class="btn btn-p" style="flex:1;min-width:140px" onclick="generarPDFBpm()">Generar PDF</button>
+    </div>
+    <div style="height:40px"></div>
+  </div>
+</div>
+
+<!-- ═══════ PAGE: BM Bitácora de muestreo (5 hojas) ═══════ -->
+<div class="page" id="pgBm">
+  <div class="bar">
+    <div class="logo"><svg viewBox="0 0 100 100"><polygon points="50,18 12,82 88,82" fill="none" stroke="#86efac" stroke-width="6" stroke-linejoin="round"/></svg></div>
+    <div class="ttl">Bitácora de muestreo</div>
+    <span class="pill pill-o" id="bmPill">OMAR</span>
+  </div>
+  <div class="cont" style="padding:16px;max-width:720px;margin:0 auto">
+    <button class="btn btn-g" onclick="cerrarDocSuite()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Volver al plan</button>
+
+    <div class="doc-titlebar">
+      <div class="dt-main">Bitácora de muestreo</div>
+      <div class="dt-sub">Varios bloques como en papel · Trae datos desde la hoja de campo</div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-p" onclick="aplicarBmDesdeHojaCampo()" style="width:auto;flex:1;min-width:200px">Traer datos de Hoja de campo</button>
+      <button class="btn btn-g" onclick="guardarBmPage()" style="width:auto;flex:0">Guardar</button>
+      <button class="btn btn-p" style="width:auto;flex:0;border-color:rgba(74,158,255,.4);color:var(--acc)" onclick="generarPDFBm()">Generar PDF</button>
+    </div>
+
+    <div class="bm-stepper" id="bmStepper">
+      <div class="bm-step on" data-bm-step="0" onclick="bmGoStep(0)"><span class="n">1</span> Generales</div>
+      <div class="bm-step" data-bm-step="1" onclick="bmGoStep(1)"><span class="n">2</span> Lab</div>
+      <div class="bm-step" data-bm-step="2" onclick="bmGoStep(2)"><span class="n">3</span> Arribo / recolección</div>
+      <div class="bm-step" data-bm-step="3" onclick="bmGoStep(3)"><span class="n">4</span> Temp / pH / flujos</div>
+      <div class="bm-step" data-bm-step="4" onclick="bmGoStep(4)"><span class="n">5</span> Cierre</div>
+    </div>
+
+    <!-- HOJA 1 -->
+    <div class="bm-panel on" id="bmP0">
+      <div class="card"><div class="ch"><div class="ct">Datos generales</div></div><div class="cb g2">
+        <div class="f"><label>Fecha</label><input type="date" id="bm_s1_fecha"></div>
+        <div class="f"><label>Nombre empresa</label><input type="text" id="bm_s1_empresa"></div>
+        <div class="f" style="grid-column:span 2"><label>Dirección</label><input type="text" id="bm_s1_dir"></div>
+        <div class="f"><label>Lugar de muestreo</label><input type="text" id="bm_s1_lugar"></div>
+        <div class="f"><label>Punto de muestreo</label><input type="text" id="bm_s1_punto"></div>
+        <div class="f"><label>Ciudad</label><input type="text" id="bm_s1_ciudad"></div>
+        <div class="f"><label>Estado</label><input type="text" id="bm_s1_estado"></div>
+        <div class="f"><label>Tipo de muestreo</label><input type="text" id="bm_s1_tipo" placeholder="Simple / Compuesto"></div>
+        <div class="f"><label>No. muestras simples</label><input type="text" id="bm_s1_nsimples"></div>
+        <div class="f" style="grid-column:span 2"><label>Parámetros / analitos</label><textarea id="bm_s1_analitos" rows="2"></textarea></div>
+        <div class="f"><label>Lista de verificación de materiales (folio BLVM / LVAR)</label><input type="text" id="bm_s1_lvar" placeholder="Folio como en la lista de verificación"></div>
+        <div class="f"><label>Ref. BLVM / BPM</label><input type="text" id="bm_s1_blvm" placeholder="BLVM/AA/N-3/…"></div>
+        <div class="f" style="grid-column:span 2"><label>Texto plan de muestreo (BOMAR / BPM)</label><textarea id="bm_s1_plan" rows="3" placeholder="En base a la BOMAR…"></textarea></div>
+      </div></div>
+    </div>
+
+    <!-- HOJA 2 -->
+    <div class="bm-panel" id="bmP1">
+      <div class="card"><div class="ch"><div class="ct">Procedimiento en laboratorio</div><span class="cbadge">pH-metro</span></div><div class="cb g2">
+        <div class="f" style="grid-column:span 2"><label>BUCCVpH — código / referencia</label><input type="text" id="bm_s2_bucc" placeholder="BUCCVpH____/AA/N-3/"></div>
+        <div class="f"><label>BUCCVpH — folio</label><input type="text" id="bm_s2_bucc_fol"></div>
+        <div class="f"><label>Equipo pH — clave</label><input type="text" id="bm_s2_ph_clave" placeholder="AA/PT/…"></div>
+        <div class="f" style="grid-column:span 2"><label>BLMP — bitácora limpieza (código / folio)</label><input type="text" id="bm_s2_blmp" placeholder="BLMP____/AA/N-3/____ folio ____"></div>
+        <div class="f" style="grid-column:span 2"><label>Conductímetro — bitácora lab (referencia)</label><input type="text" id="bm_s2_cond_ref" placeholder="Código o folio"></div>
+      </div></div>
+    </div>
+
+    <!-- HOJA 3 -->
+    <div class="bm-panel" id="bmP2">
+      <div class="card"><div class="ch"><div class="ct">Arribo y recolección</div></div><div class="cb g2">
+        <div class="f"><label>Hora arribo</label><input type="time" id="bm_s3_arribo_h"></div>
+        <div class="f"><label>Fecha arribo</label><input type="date" id="bm_s3_arribo_d"></div>
+        <div class="f"><label>Recibió (nombre)</label><input type="text" id="bm_s3_recibe_nom"></div>
+        <div class="f"><label>Puesto</label><input type="text" id="bm_s3_recibe_puesto"></div>
+        <div class="f"><label>Inicio recolección (hora)</label><input type="time" id="bm_s3_inicio_h"></div>
+        <div class="f"><label>Periodo descarga diaria (h)</label><input type="text" id="bm_s3_periodo_h"></div>
+        <div class="f"><label>Termómetro — clave</label><input type="text" id="bm_s3_termo"></div>
+        <div class="f"><label>Malla — clave (materia flotante)</label><input type="text" id="bm_s3_malla"></div>
+        <div class="f" style="grid-column:span 2"><label>Procedimiento temperatura (elige y describe)</label>
+          <select id="bm_s3_proc_temp" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px;margin-bottom:8px">
+            <option value="">— Selecciona —</option>
+            <option value="directo">Lectura directa en sitio de descarga</option>
+            <option value="nodif">No en sitio; Δ T agua vs ambiente ≤ 5°C</option>
+            <option value="dif">No en sitio; Δ T agua vs ambiente &gt; 5°C</option>
+          </select>
+          <textarea id="bm_s3_proc_temp_txt" rows="2" placeholder="Detalle del procedimiento usado"></textarea>
+        </div>
+        <div class="f" style="grid-column:span 2"><label>Notas oxígeno disuelto / otros</label><textarea id="bm_s3_od" rows="2"></textarea></div>
+        <div class="f" style="grid-column:span 2"><label>Procedimiento recolección (MM/AA/N-3)</label><textarea id="bm_s3_recoleccion" rows="2"></textarea></div>
+      </div></div>
+    </div>
+
+    <!-- HOJA 4 -->
+    <div class="bm-panel" id="bmP3">
+      <div class="card"><div class="ch"><div class="ct">Referencias y registros de campo</div></div><div class="cb g2">
+        <div class="f"><label>BFCMT / folio (factor corrección temp.)</label><input type="text" id="bm_s4_bfcmt"></div>
+        <div class="f"><label>Folio BFCMT</label><input type="text" id="bm_s4_bfcmt_fol"></div>
+        <div class="f"><label>BHCAR — Hoja de campo</label><input type="text" id="bm_s4_bhcar" placeholder="BHCAR/AA/N-3/…"></div>
+        <div class="f"><label>Folio HCAR (app)</label><input type="text" id="bm_s4_hcar_fol"></div>
+        <div class="f" style="grid-column:span 2"><label>Bitácora pH entre tomas</label><input type="text" id="bm_s4_bitph" placeholder="Registro digital / folio"></div>
+        <div class="f" style="grid-column:span 2"><label>Bitácora conductividad (campo)</label><input type="text" id="bm_s4_bitcond"></div>
+        <div class="f"><label>Hora — tira pH aprox.</label><input type="time" id="bm_s4_tira_h"></div>
+        <div class="f"><label>Lectura aprox. pH (tira)</label><input type="text" id="bm_s4_tira_val"></div>
+        <div class="f" style="grid-column:span 2"><label>Reporte de flujos (resumen o tabla libre)</label><textarea id="bm_s4_flujos" rows="3" placeholder="Se anexan en PDF las tomas desde la app; aquí puedes complementar."></textarea></div>
+        <div class="f" style="grid-column:span 2"><label>Conservadores usados (por toma / parámetro)</label><textarea id="bm_s4_conserv" rows="4" placeholder="Códigos 1–14 según manual, o descripción por frasco."></textarea></div>
+      </div></div>
+    </div>
+
+    <!-- HOJA 5 -->
+    <div class="bm-panel" id="bmP4">
+      <div class="card"><div class="ch"><div class="ct">Muestra compuesta y cierre</div></div><div class="cb">
+        <div class="f"><label>BCCIAR — Cadena de custodia</label><input type="text" id="bm_s5_bcciar" placeholder="BCCIAR/AA/N-3/"></div>
+        <div class="f"><label>Folio CCIAR (hoja de campo)</label><input type="text" id="bm_s5_cciar_fol"></div>
+        <div class="f"><label>Preparación muestra compuesta</label><textarea id="bm_s5_prep" rows="5" placeholder="Volúmenes, probeta, envases, etiquetado…"></textarea></div>
+        <div class="f"><label>Volumen total / cálculos (nota)</label><textarea id="bm_s5_vol" rows="2"></textarea></div>
+        <div class="f"><label>Observaciones 1</label><textarea id="bm_s5_obs1" rows="2"></textarea></div>
+        <div class="f"><label>Observaciones 2</label><textarea id="bm_s5_obs2" rows="2"></textarea></div>
+        <div class="f"><label>Observaciones 3</label><textarea id="bm_s5_obs3" rows="2"></textarea></div>
+      </div></div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;margin-top:16px;gap:10px">
+      <button class="btn btn-g" style="flex:1" onclick="bmStepNav(-1)">← Anterior</button>
+      <button class="btn btn-p" style="flex:1" onclick="bmStepNav(1)">Siguiente →</button>
+    </div>
+    <div style="height:36px"></div>
+  </div>
+</div>
+
+<!-- ═══════ PAGE: pH-metro LAB ═══════ -->
+<!-- ═══════ PAGE: pH-METRO HOJA 1 (F-AA-264-4) — plan.phlab ═══════ -->
+<div class="page" id="pgPh2644">
+  <div class="bar">
+    <div class="bar-l">
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
+      <div>
+        <div class="bar-name">AARMS</div>
+        <div class="bar-sub">pH-metro · F-AA-264-4 Hoja 1</div>
+      </div>
+    </div>
+    <span class="pill pill-o" id="ph2644Pill">Plan —</span>
+  </div>
+  <div class="cont" style="padding:16px;max-width:640px;margin:0 auto">
+    <button class="btn btn-g" onclick="cerrarPagPh2644Lab()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Volver al plan</button>
+
+    <div class="card"><div class="ch"><div class="ct">Identificación</div></div><div class="cb g2">
+      <div class="f"><label>Folio</label><input type="text" id="ph1_folio"></div>
+      <div class="f"><label>Equipo</label><input type="text" id="ph1_aapt" placeholder="AA/PT/____"></div>
+      <div class="f"><label>Fecha</label><input type="date" id="ph1_fecha"></div>
+      <div class="f"><label>Hora</label><input type="time" id="ph1_hora"></div>
+    </div></div>
+
+    <!-- ════════════════════ ACTIVIDAD EN LABORATORIO ════════════════════ -->
+    <div style="background:rgba(74,158,255,.10);border:1px solid rgba(74,158,255,.4);border-radius:11px;padding:11px 14px;margin-top:18px;text-align:center">
+      <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--acc);letter-spacing:.05em">ACTIVIDAD EN LABORATORIO</div>
+    </div>
+
+    <div class="card"><div class="ch"><div class="ct">Calibración en el Laboratorio</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="ph1_lab_cal_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="ph1_lab_cal_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="ph1_lab_cal_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="ph1_lab_cal_marca"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Buffer</label><input type="text" id="ph1_lab_cal_buffer" placeholder="ej. 7.00"></div>
+        <div class="f"><label>Lectura</label><input type="number" step="any" id="ph1_lab_cal_lec"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Actividad (CA/CO/V)</label><input type="text" id="ph1_lab_cal_act" placeholder="CA / CO / V"></div>
+        <div class="f"><label>Criterio de aceptación</label><input type="text" id="ph1_lab_cal_crit"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Slope</label><input type="text" id="ph1_lab_cal_slope"></div>
+        <div class="f"><label>Temperatura (°C)</label><input type="text" id="ph1_lab_cal_temp"></div>
+      </div>
+      <div class="f"><label>Se acepta / Se rechaza</label><select id="ph1_lab_cal_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Comprobación de Calibración en Laboratorio</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="ph1_lab_com_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="ph1_lab_com_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="ph1_lab_com_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="ph1_lab_com_marca"></div>
+      </div>
+      <div class="f" style="margin-bottom:6px"><label>Buffer (valor nominal)</label><input type="text" id="ph1_lab_com_buffer" placeholder="ej. 7.00"></div>
+      <div class="g3" style="margin-bottom:6px">
+        <div class="f"><label>L1</label><input type="number" step="any" id="ph1_lab_com_l1" oninput="ph1ComprobCheck('lab_com')"></div>
+        <div class="f"><label>L2</label><input type="number" step="any" id="ph1_lab_com_l2" oninput="ph1ComprobCheck('lab_com')"></div>
+        <div class="f"><label>L3</label><input type="number" step="any" id="ph1_lab_com_l3" oninput="ph1ComprobCheck('lab_com')"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Actividad (CA/CO/V)</label><input type="text" id="ph1_lab_com_act" placeholder="CA / CO / V"></div>
+        <div class="f"><label>Promedio</label><input type="text" id="ph1_lab_com_prom" readonly style="opacity:.7"></div>
+      </div>
+      <div style="background:rgba(74,158,255,.05);border:1px solid var(--ln);border-radius:9px;padding:8px;margin-bottom:6px">
+        <div style="font-size:10.5px;color:var(--g1);margin-bottom:6px">La medición no debe desviarse ±0,05 UpH del valor nominal:</div>
+        <div class="f"><select id="ph1_lab_com_ar1" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      </div>
+      <div style="background:rgba(74,158,255,.05);border:1px solid var(--ln);border-radius:9px;padding:8px">
+        <div style="font-size:10.5px;color:var(--g1);margin-bottom:6px">Diferencia entre lecturas ≤ 0,03 UpH:</div>
+        <div class="f"><select id="ph1_lab_com_ar2" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      </div>
+      <div id="ph1_lab_com_check" style="margin-top:6px;font-size:10.5px;color:var(--g2);font-style:italic"></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Verificación en Laboratorio</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="ph1_lab_ver_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="ph1_lab_ver_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="ph1_lab_ver_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="ph1_lab_ver_marca"></div>
+      </div>
+      <div class="f" style="margin-bottom:6px"><label>Buffer (valor nominal)</label><input type="text" id="ph1_lab_ver_buffer"></div>
+      <div class="g3" style="margin-bottom:6px">
+        <div class="f"><label>L1</label><input type="number" step="any" id="ph1_lab_ver_l1" oninput="ph1VerifCheck('lab_ver')"></div>
+        <div class="f"><label>L2</label><input type="number" step="any" id="ph1_lab_ver_l2" oninput="ph1VerifCheck('lab_ver')"></div>
+        <div class="f"><label>L3</label><input type="number" step="any" id="ph1_lab_ver_l3" oninput="ph1VerifCheck('lab_ver')"></div>
+      </div>
+      <div class="g2">
+        <div class="f"><label>Actividad (CA/CO/V)</label><input type="text" id="ph1_lab_ver_act" placeholder="CA / CO / V"></div>
+        <div class="f"><label>Se acepta / Se rechaza</label><select id="ph1_lab_ver_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      </div>
+      <div id="ph1_lab_ver_check" style="margin-top:6px;font-size:10.5px;color:var(--g2);font-style:italic"></div>
+      <div style="font-size:10px;color:var(--g2);font-style:italic;margin-top:8px;line-height:1.4">
+        Criterio: diferencia entre lecturas ≤ 0.03 UpH. El promedio no debe desviarse más de 0.05 UpH del Valor Nominal.
+      </div>
+    </div></div>
+
+    <!-- ════════════════════ ACTIVIDAD EN CAMPO ════════════════════ -->
+    <div style="background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.4);border-radius:11px;padding:11px 14px;margin-top:18px;text-align:center">
+      <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:#fbbf24;letter-spacing:.05em">ACTIVIDAD EN CAMPO</div>
+    </div>
+
+    <div class="card"><div class="ch"><div class="ct">Calibración en el Campo</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="ph1_cam_cal_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="ph1_cam_cal_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="ph1_cam_cal_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="ph1_cam_cal_marca"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Buffer</label><input type="text" id="ph1_cam_cal_buffer" placeholder="ej. 7.00"></div>
+        <div class="f"><label>Lectura</label><input type="number" step="any" id="ph1_cam_cal_lec"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Actividad (CA/CO/V)</label><input type="text" id="ph1_cam_cal_act" placeholder="CA / CO / V"></div>
+        <div class="f"><label>Criterio de aceptación</label><input type="text" id="ph1_cam_cal_crit"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Slope</label><input type="text" id="ph1_cam_cal_slope"></div>
+        <div class="f"><label>Temperatura (°C)</label><input type="text" id="ph1_cam_cal_temp"></div>
+      </div>
+      <div class="f"><label>Se acepta / Se rechaza</label><select id="ph1_cam_cal_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Comprobación de Calibración en Campo</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="ph1_cam_com_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="ph1_cam_com_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="ph1_cam_com_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="ph1_cam_com_marca"></div>
+      </div>
+      <div class="f" style="margin-bottom:6px"><label>Buffer (valor nominal)</label><input type="text" id="ph1_cam_com_buffer" placeholder="ej. 7.00"></div>
+      <div class="g3" style="margin-bottom:6px">
+        <div class="f"><label>L1</label><input type="number" step="any" id="ph1_cam_com_l1" oninput="ph1ComprobCheck('cam_com')"></div>
+        <div class="f"><label>L2</label><input type="number" step="any" id="ph1_cam_com_l2" oninput="ph1ComprobCheck('cam_com')"></div>
+        <div class="f"><label>L3</label><input type="number" step="any" id="ph1_cam_com_l3" oninput="ph1ComprobCheck('cam_com')"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Actividad (CA/CO/V)</label><input type="text" id="ph1_cam_com_act" placeholder="CA / CO / V"></div>
+        <div class="f"><label>Promedio</label><input type="text" id="ph1_cam_com_prom" readonly style="opacity:.7"></div>
+      </div>
+      <div style="background:rgba(74,158,255,.05);border:1px solid var(--ln);border-radius:9px;padding:8px;margin-bottom:6px">
+        <div style="font-size:10.5px;color:var(--g1);margin-bottom:6px">La medición no debe desviarse ±0,05 UpH del valor nominal:</div>
+        <div class="f"><select id="ph1_cam_com_ar1" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      </div>
+      <div style="background:rgba(74,158,255,.05);border:1px solid var(--ln);border-radius:9px;padding:8px">
+        <div style="font-size:10.5px;color:var(--g1);margin-bottom:6px">Diferencia entre lecturas ≤ 0,03 UpH:</div>
+        <div class="f"><select id="ph1_cam_com_ar2" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      </div>
+      <div id="ph1_cam_com_check" style="margin-top:6px;font-size:10.5px;color:var(--g2);font-style:italic"></div>
+    </div></div>
+
+    <div class="card"><div class="ch"><div class="ct">Verificación en Campo</div></div><div class="cb">
+      
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Fecha</label><input type="date" id="ph1_cam_ver_fecha"></div>
+        <div class="f"><label>Hora</label><input type="time" id="ph1_cam_ver_hora"></div>
+      </div>
+      <div class="g2" style="margin-bottom:6px">
+        <div class="f"><label>Lote</label><input type="text" id="ph1_cam_ver_lote"></div>
+        <div class="f"><label>Marca</label><input type="text" id="ph1_cam_ver_marca"></div>
+      </div>
+      <div class="f" style="margin-bottom:6px"><label>Buffer (valor nominal)</label><input type="text" id="ph1_cam_ver_buffer"></div>
+      <div class="g3" style="margin-bottom:6px">
+        <div class="f"><label>L1</label><input type="number" step="any" id="ph1_cam_ver_l1" oninput="ph1VerifCheck('cam_ver')"></div>
+        <div class="f"><label>L2</label><input type="number" step="any" id="ph1_cam_ver_l2" oninput="ph1VerifCheck('cam_ver')"></div>
+        <div class="f"><label>L3</label><input type="number" step="any" id="ph1_cam_ver_l3" oninput="ph1VerifCheck('cam_ver')"></div>
+      </div>
+      <div class="g2">
+        <div class="f"><label>Actividad (CA/CO/V)</label><input type="text" id="ph1_cam_ver_act" placeholder="CA / CO / V"></div>
+        <div class="f"><label>Se acepta / Se rechaza</label><select id="ph1_cam_ver_ar" class="sel-sino"><option value="">—</option><option value="acepta">Acepta</option><option value="rechaza">Rechaza</option></select></div>
+      </div>
+      <div id="ph1_cam_ver_check" style="margin-top:6px;font-size:10.5px;color:var(--g2);font-style:italic"></div>
+    </div></div>
+
+    <div class="card" style="margin-top:14px"><div class="ch"><div class="ct">Observaciones</div></div><div class="cb">
+      <div class="f"><textarea id="ph1_obs" rows="2"></textarea></div>
+    </div></div>
+    <div class="card"><div class="ch"><div class="ct">Responsables</div></div><div class="cb g2">
+      <div class="f"><label>Muestreador</label><input type="text" id="ph1_realizo"></div>
+      <div class="f"><label>Supervisó</label><input type="text" id="ph1_superviso"></div>
+    </div></div>
+
+    <button class="btn btn-p" style="width:100%;margin-top:14px;padding:14px;font-family:var(--syne);font-weight:800" onclick="generarPDFPh2644H1()">Generar PDF Hoja 1</button>
+    <div style="text-align:center;font-size:10.5px;color:var(--g2);margin-top:8px;font-style:italic">Los datos se guardan automáticamente.<br>El registro entre tomas está en Hoja de campo → Bitácora pH-metro.</div>
+    <div style="height:48px"></div>
+  </div>
+</div>
+
+<!-- ═══════ PAGE: BITÁCORA pH-METRO ENTRE TOMAS ═══════ -->
+<div class="page" id="pgBitPH">
+  <div class="bar">
+    <div class="logo"><svg viewBox="0 0 100 100"><polygon points="50,18 12,82 88,82" fill="none" stroke="#4a9eff" stroke-width="6" stroke-linejoin="round"/></svg></div>
+    <div class="ttl">Bitácora pH-metro · entre tomas</div>
+    <span class="pill pill-o" id="bitPhPill">— OMAR —</span>
+  </div>
+  <div class="cont" style="padding:16px;max-width:680px;margin:0 auto">
+    <button class="btn btn-g" onclick="cerrarBitacoraPH()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Volver a Hoja de campo</button>
+
+    <div style="background:rgba(74,158,255,.06);border:1px solid rgba(74,158,255,.25);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--g1);line-height:1.55">
+        Registra <b style="color:var(--w)">3 lecturas independientes</b> por cada registro (Ca, Co o V). El promedio del registro vinculado a la toma puede reflejarse en la hoja de campo.
+        <span style="color:var(--g2);font-size:10.5px;display:block;margin-top:6px"><b>Actividad de control:</b> Ca = calibración con buffer MCR · Co = comprobación · V = verificación entre tomas.</span>
+        <span style="color:var(--g2);font-size:10.5px;display:block;margin-top:4px"><b>Limpieza (código):</b> 1 agua tridestilada · 2 detergente suave · 3 HCl 1:1.</span>
+        <span style="color:var(--g2);font-size:10.5px;display:block;margin-top:4px"><b>Criterios:</b> Δ entre L1–L3 ≤ 0,03 UpH; vs buffer MCR ±0,05 UpH si aplica.</span>
+        <span style="color:var(--g2);font-size:10.5px;display:block;margin-top:4px"><b>Bloque 2 buffers (Ca→Co × 2):</b> se crea <b>solo</b> al abrir esta bitácora si aún no existe (buffers típicos 9,18 y 6,86; ajusta lote/marca en los renglones). Si el muestreo <b>cruza medianoche</b> (inicio/fin en hoja o horas de tomas), las lecturas Ca/Co van en <b>PENDIENTE</b> hasta que las captures; si no hay cruce, capturas L1–L3 al momento.</span>
+      </div>
+    </div>
+    <div class="f" style="margin-bottom:12px">
+      <label>Folio del documento (opcional, sale en el PDF)</label>
+      <input type="text" id="bitPhFolioDocInp" placeholder="Ej. F-AA-264-4 / folio interno" oninput="if(typeof _bitPhFolioDocSet==='function')_bitPhFolioDocSet(this.value);if(typeof guardarBorradorActual==='function')guardarBorradorActual();if(typeof _persistPlanBitPh==='function')void _persistPlanBitPh();">
+    </div>
+
+    <div id="bitPhRegistros"></div>
+
+    <button type="button" id="bitPhBtnOtroBloqueCalib" onclick="bitPhAbrirModalCalib2()" style="display:none;margin-top:10px;width:100%;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.28);color:#a78bfa;padding:10px;border-radius:10px;font-family:var(--syne);font-size:11px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">＋ Otro bloque 2 buffers (2.ª calibración Ca/Co en la misma jornada)…</button>
+    <button onclick="bitPhAgregarRegistro()" style="margin-top:10px;width:100%;background:rgba(167,139,250,.1);border:1px dashed rgba(167,139,250,.4);color:#a78bfa;padding:12px;border-radius:10px;font-family:var(--syne);font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Agregar registro (V / toma)</button>
+
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+      <button class="btn btn-p" onclick="generarPDFBitacoraPHOficial()" style="width:100%">Generar PDF</button>
+    </div>
+
+    <div style="height:60px"></div>
+  </div>
+</div>
+
+<!-- ═══════ PAGE: BITÁCORA CONDUCTÍMETRO ENTRE TOMAS ═══════ -->
+<div class="page" id="pgBitCond">
+  <div class="bar">
+    <div class="logo"><svg viewBox="0 0 100 100"><polygon points="50,18 12,82 88,82" fill="none" stroke="#fbbf24" stroke-width="6" stroke-linejoin="round"/></svg></div>
+    <div class="ttl">Bitácora conductímetro</div>
+    <span class="pill pill-o" id="bitCondPill">— OMAR —</span>
+  </div>
+  <div class="cont" style="padding:16px;max-width:680px;margin:0 auto">
+    <button class="btn btn-g" onclick="cerrarBitacoraCond()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Volver a Hoja de campo</button>
+
+    <div style="background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:11px;color:var(--g1);line-height:1.5">
+        Una sola bitácora compartida por todos los OMARs del plan. Cada registro elige <b style="color:var(--w)">OMAR + Toma</b>.
+        <span style="color:var(--g2);font-size:10.5px;display:block;margin-top:6px"><b>Actividad de control:</b> Ca / Co / V (calibración, comprobación, verificación).</span>
+        <span style="color:var(--g2);font-size:10.5px;display:block;margin-top:4px"><b>Limpieza (código):</b> 1 agua tridestilada · 2 detergente suave · 3 HCl 1:1.</span>
+        <span style="color:var(--g2);font-size:10.5px;display:block;margin-top:4px"><b>Dispersión:</b> entre L1–L3 ≤ 3% respecto al promedio.</span>
+        <span style="color:var(--g2);font-size:10.5px;display:block;margin-top:4px"><b>Cruce de día:</b> al agregar un registro con fecha distinta a la anterior, la app inserta automáticamente un bloque <b style="color:var(--w)">Ca Ca Co Co</b> (recalibración) con 1 lectura cada uno.</span>
+      </div>
+    </div>
+    <div class="f" style="margin-bottom:12px">
+      <label>Folio del documento — campo (opcional, sale en el PDF conductímetro)</label>
+      <input type="text" id="bitCondFolioDocInp" placeholder="Ej. folio bitácora campo" oninput="if(typeof _bitCondFolioDocSet==='function')_bitCondFolioDocSet(this.value);if(typeof guardarBorradorActual==='function')guardarBorradorActual();if(typeof _persistPlanBitCond==='function')void _persistPlanBitCond();">
+    </div>
+
+    <div id="bitCondRegistros"></div>
+
+    <button onclick="bitCondAgregarRegistro()" style="margin-top:10px;width:100%;background:rgba(167,139,250,.1);border:1px dashed rgba(167,139,250,.4);color:#a78bfa;padding:12px;border-radius:10px;font-family:var(--syne);font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Agregar registro</button>
+
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+      <button class="btn btn-p" onclick="generarPDFColabCompleto()" style="width:100%">Generar PDF (laboratorio + campo)</button>
+    </div>
+
+    <div style="height:60px"></div>
+  </div>
+</div>
+
+<!-- Modal: bloque calibración 2 buffers pH (F-AA-264-4) -->
+<div id="bitPhModalCalib2" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;padding:16px" onclick="if(event.target===this && typeof bitPhCerrarModalCalib2==='function')bitPhCerrarModalCalib2()">
+  <div style="background:var(--bg2);border-radius:14px;max-width:400px;width:100%;padding:16px;border:1px solid var(--ln);box-shadow:0 12px 40px rgba(0,0,0,.4)" onclick="event.stopPropagation()">
+    <div style="font-family:var(--syne);font-weight:800;font-size:15px;margin-bottom:8px;color:var(--w)">Bloque 2 buffers (oficial)</div>
+    <p style="font-size:11px;color:var(--g2);line-height:1.45;margin-bottom:12px">Se insertan <b>4 renglones</b>: Ca y Co en buffer 1, Ca y Co en buffer 2. Folio OMAR y toma quedan <b>anulados</b>. Las lecturas pueden mostrarse como <b>PENDIENTE</b> (dos renglones por buffer).</p>
+    <div class="f" style="margin-bottom:8px"><label>Buffer 1 (valor nominal pH)</label><input type="number" step="0.01" id="bitPhMcB1" value="9.18"></div>
+    <div class="f" style="margin-bottom:8px"><label>Buffer 2 (valor nominal pH)</label><input type="number" step="0.01" id="bitPhMcB2" value="6.86"></div>
+    <div class="f" style="margin-bottom:8px"><label>Lote (compartido, opcional)</label><input type="text" id="bitPhMcLote" placeholder="Ej. buffer / certificado"></div>
+    <div class="f" style="margin-bottom:8px"><label>Marca / ref. (opcional)</label><input type="text" id="bitPhMcMarca" placeholder="Ej. equipo o solución"></div>
+    <div class="f" style="margin-bottom:10px"><label>Fecha (los 4 renglones; ajusta horas después)</label><input type="date" id="bitPhMcFecha"></div>
+    <div id="bitPhMcPendMsg" style="font-size:11px;line-height:1.45;color:var(--g1);margin-bottom:14px;padding:10px;border-radius:10px;background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2)"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button type="button" class="btn btn-g" onclick="bitPhCerrarModalCalib2()">Cancelar</button>
+      <button type="button" class="btn btn-p" onclick="bitPhConfirmarModalCalib2()">Insertar bloque</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

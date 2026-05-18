@@ -1,6 +1,6 @@
 // AARMS Service Worker — offline-first
 // Estrategia: precache en install; fallback a red + cache runtime; devuelve index.html en SPA nav offline
-const CACHE = 'aarms-planes-v21';
+const CACHE = 'aarms-planes-v51';
 
 // Archivos críticos. Paths relativos para que funcione en GitHub Pages (/AARMS/).
 const FILES = [
@@ -8,6 +8,8 @@ const FILES = [
   './index.html',
   './manifest.json',
   './js/app.js',
+  './js/documents-suite.js',
+  './js/taller-aarms.js',
   './js/jspdf.umd.min.js',
   './icon-192.png',
   './icon-512.png',
