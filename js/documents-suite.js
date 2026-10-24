@@ -9,9 +9,16 @@ function _dg(id){ const e=document.getElementById(id); if(!e) return ''; if(e.ty
 function _ds(id,v){ const e=document.getElementById(id); if(!e) return; if(e.type==='checkbox') e.checked=!!v; else e.value=v!=null?String(v):''; }
 
 function _planPorOmar(){
+  // AARMS bmfresco: _cachedPlanes es léxico de app.js; este archivo no lo ve.
+  // Preferir el plan activo (tiene LVAR, bitácoras y flujos). El plan migrado
+  // «plan_»+id no trae esos datos y no debe ganar si ambos contienen el OMAR.
   const mid = typeof omar !== 'undefined' && omar && omar.ts;
-  if(!mid || typeof _cachedPlanes === 'undefined') return null;
-  return _cachedPlanes.find(p=>(p.omarIds||[]).includes(mid)) || null;
+  if(typeof _planActivo === 'function'){
+    const p = _planActivo();
+    if(p && (!mid || (p.omarIds || []).map(String).includes(String(mid)))) return p;
+  }
+  if(mid && typeof getPlanDeMuestreo === 'function') return getPlanDeMuestreo(mid) || null;
+  return null;
 }
 
 function _lvarFolioPlan(){
@@ -19,6 +26,140 @@ function _lvarFolioPlan(){
   const lv=p&&p.lvar&&p.lvar.folio;
   return lv?String(lv):'';
 }
+
+// AARMS lote3a: folios del contador del plan y claves solo del catálogo
+function _lote3aRangoFolios(nums){
+  const out = [];
+  (nums || []).forEach(n => {
+    String(n == null ? '' : n).split(/[-–—]/).forEach(p => {
+      const t = String(p || '').trim();
+      if(/^\d+$/.test(t) && out.indexOf(t) < 0) out.push(t);
+    });
+  });
+  if(out.length <= 1) return out[0] || '';
+  return out[0] + '-' + out[out.length - 1];
+}
+function _lote3aSoloNumero(v){ return _lote3aRangoFolios([v]); }
+function _lote3aBandaSinH(v){ return String(v || '').trim().replace(/\s*h\s*$/i, '').trim(); }
+function _lote3aHora(v){
+  const m = String(v || '').trim().match(/(\d{2}:\d{2})/);
+  return m ? m[1] : '';
+}
+function _lote3aClave(tipo){
+  if(typeof _equipoActivo !== 'function' || typeof _equipoClave !== 'function') return '';
+  const eq = _equipoActivo(tipo);
+  return eq ? (_equipoClave(tipo, eq) || '') : '';
+}
+function _lote3aPlanDe(plan){
+  return plan || (typeof _planPorOmar === 'function' ? _planPorOmar() : null);
+}
+function _lote3aFolioPh(plan){
+  const p = _lote3aPlanDe(plan);
+  return _lote3aRangoFolios([p && p.bitPhFolioDoc]);
+}
+function _lote3aFolioBlmp(plan){
+  const p = _lote3aPlanDe(plan);
+  const ref = (p && p.blmpRef) || {};
+  return _lote3aRangoFolios([ref.folio, ref.folioP2]);
+}
+function _lote3aFolioCond(plan, colab){
+  const p = _lote3aPlanDe(plan);
+  const ref = (p && p.condRef) || {};
+  const c = colab || {};
+  return _lote3aRangoFolios([c.folio || ref.folio, c.folioP2 || ref.folioP2, c.folioP3 || ref.folioP3]);
+}
+function _lote3aFolioLvar(plan){
+  const p = _lote3aPlanDe(plan);
+  return _lote3aSoloNumero(p && p.lvar && p.lvar.folio);
+}
+function _lote3aHorasEntre(banda){
+  const b = String(banda || '').trim();
+  if(typeof HORAS_ENTRE_TOMAS !== 'undefined' && HORAS_ENTRE_TOMAS[b] != null) return String(HORAS_ENTRE_TOMAS[b]);
+  return '';
+}
+function _lote14cTextoBlanco(p){
+  // AARMS lote14c: una sola frase. El folio es el de la OMAR marcada como blanco, si ya existe.
+  if(!(p && p.blancoCampo)) return 'Blanco de campo: NO según plan (N.A. lote).';
+  const lote = p.loteBlanco ? String(p.loteBlanco).trim() : '';
+  let folio = '';
+  const lista = (typeof _cachedMuestreos !== 'undefined' && _cachedMuestreos) ? _cachedMuestreos : [];
+  for(const mid of (p.omarIds || [])){
+    const m = lista.find(x => String(x.id) === String(mid));
+    if(!m) continue;
+    let o = {};
+    try { o = m.omar ? JSON.parse(m.omar) : {}; } catch(e){ o = {}; }
+    if(o.blancoCampo){
+      folio = String(o.folio || m.folio || '').trim();
+      break;
+    }
+  }
+  let s = 'Blanco de campo: SÍ. Lote de agua reactivo: ' + lote;
+  if(folio) s += ' (OMAR ' + folio + ')';
+  return s;
+}
+function _lote3aObservacion(omarRef, plan){
+  const p = _lote3aPlanDe(plan);
+  const obsBlanco = _lote14cTextoBlanco(p);
+  const extra = omarRef && omarRef.campo && omarRef.campo.obs ? String(omarRef.campo.obs).trim() : '';
+  return extra ? (obsBlanco + ' ' + extra) : obsBlanco;
+}
+function _lote3aVolumenRequerido(omarRef){
+  const TABLA = [
+    ['FQ', 4000], ['MP', 500], ['AsSe', 250], ['CIAN', 1000], ['FOS.', 500],
+    ['DQO', 500], ['DBO5', 1000], ['SAAM', 1000], ['N.TOT', 2000], ['NO2', 500],
+    ['NO3', 500], ['Hg', 500], ['HELM', 5000], ['TOC', 1000], ['CLOR', 500],
+    ['CLR', 250], ['CrHx', 500]
+  ];
+  const paramsUsados = new Set();
+  const arr = (typeof tomas !== 'undefined' && tomas) ? tomas : [];
+  arr.forEach(t => {
+    const ps = t.params instanceof Set ? [...t.params] : (t.params || []);
+    ps.forEach(x => paramsUsados.add(x));
+  });
+  ((omarRef && omarRef.analitos) || []).forEach(a => paramsUsados.add(a));
+  let total = 0;
+  TABLA.forEach(([key, vol]) => {
+    const aplica = key === 'AsSe'
+      ? (paramsUsados.has('MP') || paramsUsados.has('Hg'))
+      : paramsUsados.has(key);
+    if(aplica) total += vol;
+  });
+  return total;
+}
+const _LOTE3A_MANUAL = { bm_s2_bdal: 1, bm_s4_bfcmt: 1, bm_s4_bfcmt_fol: 1 };
+function _lote3aPintarCalculados(snap){
+  if(!snap) return;
+  Object.keys(snap).forEach(id => {
+    if(_LOTE3A_MANUAL[id]) return;
+    if(!/^bm_/.test(id)) return;
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.value = snap[id] == null ? '' : String(snap[id]);
+  });
+}
+let _lote3aOmarPintado = null;
+function _lote3aSyncManualAlOmar(){
+  if(!omar || !omar.ts) return;
+  if(_lote3aOmarPintado === omar.ts) return;
+  _lote3aOmarPintado = omar.ts;
+  const F = omar.bmForm || {};
+  ['bm_s2_bdal', 'bm_s4_bfcmt', 'bm_s4_bfcmt_fol'].forEach(id => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.value = F[id] == null ? '' : String(F[id]);
+  });
+}
+let _lote3aSaveT = null;
+function lote3aAutosaveBm(){
+  clearTimeout(_lote3aSaveT);
+  _lote3aSaveT = setTimeout(() => {
+    try {
+      leerBmForm();
+      if(typeof saveMuestreoActual === 'function') saveMuestreoActual();
+    } catch(e){}
+  }, 400);
+}
+window.lote3aAutosaveBm = lote3aAutosaveBm;
 
 function cerrarDocSuite(){
   if(typeof cerrarPagInstrumento==='function') cerrarPagInstrumento();
@@ -52,8 +193,8 @@ function _pdfMembreteStd(doc, logo, opts, fuente){
   // AARMS foliofix: bloque más alto/ligeramente más estrecho si lleva FOLIO (solo Machiote)
   // AARMS phfolio2: landscape+FOLIO clona geometría de portrait (caja alta, FOLIO dentro)
   const folioStr = (opts.folio != null && String(opts.folio).trim()) ? String(opts.folio).trim() : '';
-  const tieneFolio = !!folioStr;
-  const blockW = landscape
+  const tieneFolio = !!folioStr || !!opts.folioSiempre;
+  let blockW = landscape
     ? (tieneFolio ? 162 : 150)
     : (tieneFolio ? 162 : 168);
   const by = landscape
@@ -62,6 +203,39 @@ function _pdfMembreteStd(doc, logo, opts, fuente){
   const blockH = landscape
     ? (tieneFolio ? 78 : 58)
     : (tieneFolio ? 78 : 60);
+  // AARMS lvartitulofix: pre-calcular fuente/ancho del título si docTituloFit (solo callers explícitos)
+  const titRaw = String(opts.docTitulo || '');
+  let titFs = landscape && !tieneFolio ? 9 : (tieneFolio ? 9.5 : 10);
+  let titLines = null;
+  if(opts.docTituloFit && titRaw){
+    const padX = 24; // margen lateral cómodo dentro del bloque
+    doc.setFont(fuente, 'bold');
+    doc.setFontSize(titFs);
+    // 1) reducir fuente hasta ~8pt
+    while(titFs > 8 && doc.getTextWidth(titRaw) > blockW - padX){
+      titFs -= 0.25;
+      doc.setFontSize(titFs);
+    }
+    // 2) ensanchar caja si aún no cabe
+    while(doc.getTextWidth(titRaw) > (blockW - padX) && blockW < 220){
+      blockW += 4;
+    }
+    // holgura extra (~6pt por lado) para que no quede pegado al borde
+    if(doc.getTextWidth(titRaw) <= (blockW - padX) && blockW < 220){
+      blockW = Math.min(220, blockW + 12);
+    }
+    // 3) shrink extra si hace falta
+    while(titFs > 6.5 && doc.getTextWidth(titRaw) > blockW - padX){
+      titFs -= 0.25;
+      doc.setFontSize(titFs);
+    }
+    // 4) wrap 2 líneas como último recurso
+    if(doc.getTextWidth(titRaw) > (blockW - padX) && typeof doc.splitTextToSize === 'function'){
+      titFs = Math.max(titFs, 7.5);
+      doc.setFontSize(titFs);
+      titLines = doc.splitTextToSize(titRaw, blockW - padX).slice(0, 2);
+    }
+  }
   const bx = W - M - blockW;
   // Logo
   if(logo && typeof addLogoProportional === 'function'){
@@ -78,7 +252,8 @@ function _pdfMembreteStd(doc, logo, opts, fuente){
   doc.setFontSize(landscape ? 6.2 : 6.4); doc.setTextColor(100, 110, 130);
   const addrMax = Math.max(120, textRight - textLeft);
   const addr1 = 'Calle 12 Ave. Serdán Ext. 465 Int. 201  |  Edif. Puertas del Sol';
-  const addr2 = 'Col. Centro C.P. 85400  |  Tel: 622 224 0910   FAX 622 224 207';
+  // AARMS lote8a: FAX oficial (faltaba un dígito: 622 224 207)
+  const addr2 = 'Col. Centro C.P. 85400  |  Tel: 622 224 0910  FAX 622 222 4207';
   // AARMS foliofix: dirección en 2 líneas (no queda bajo el bloque)
   if(typeof doc.splitTextToSize === 'function'){
     const a1 = doc.splitTextToSize(addr1, addrMax);
@@ -97,9 +272,14 @@ function _pdfMembreteStd(doc, logo, opts, fuente){
   const titY = tieneFolio ? 16 : (landscape ? 18 : 20);
   const subY = tieneFolio ? 30 : (landscape ? 32 : 36);
   const codY = tieneFolio ? 42 : (landscape ? 46 : 50);
-  doc.setFont(fuente, 'bold'); doc.setFontSize(landscape && !tieneFolio ? 9 : (tieneFolio ? 9.5 : 10)); doc.setTextColor(...STD.WHITE);
-  const tit = String(opts.docTitulo || '');
-  doc.text(tit, bx + blockW / 2, by + titY, { align:'center' });
+  doc.setFont(fuente, 'bold'); doc.setFontSize(titFs); doc.setTextColor(...STD.WHITE);
+  const titCx = bx + blockW / 2;
+  if(titLines && titLines.length > 1){
+    doc.text(titLines[0], titCx, by + titY - 4, { align:'center' });
+    doc.text(titLines[1], titCx, by + titY + 6, { align:'center' });
+  } else {
+    doc.text(titRaw || titLines?.[0] || '', titCx, by + titY, { align:'center' });
+  }
   if(opts.docSubtitulo){
     doc.setFont(fuente, 'normal'); doc.setFontSize(tieneFolio ? 7.5 : (landscape ? 7 : 7.5)); doc.setTextColor(210, 220, 235);
     doc.text(String(opts.docSubtitulo), bx + blockW / 2, by + subY, { align:'center' });
@@ -108,15 +288,16 @@ function _pdfMembreteStd(doc, logo, opts, fuente){
     doc.setFontSize(tieneFolio ? 7 : (landscape ? 6.5 : 7)); doc.setTextColor(180, 195, 220);
     doc.text(String(opts.codigoFormato), bx + blockW / 2, by + codY, { align:'center' });
   }
-  // AARMS foliofix / phfolio2: FOLIO dentro del bloque (última línea) — número azul claro brillante
-  if(tieneFolio){
+  // AARMS lote3bc: el Machiote pide la etiqueta aunque el folio venga vacío
+  const mostrarFolio = tieneFolio || !!opts.folioSiempre;
+  if(mostrarFolio){
     doc.setDrawColor(70, 85, 110); doc.setLineWidth(0.5);
     doc.line(bx + 12, by + 50, bx + blockW - 12, by + 50);
     doc.setFont(fuente, 'bold'); doc.setFontSize(9); doc.setTextColor(200, 212, 230);
     doc.text('FOLIO:', bx + 14, by + 66);
     doc.setFont(fuente, 'bold'); doc.setFontSize(13);
     doc.setTextColor(96, 165, 250); // azul claro que resalta sobre DARK
-    doc.text(folioStr.substring(0, 18), bx + blockW - 14, by + 67, { align:'right' });
+    if(folioStr) doc.text(folioStr.substring(0, 18), bx + blockW - 14, by + 67, { align:'right' });
   }
   if(opts.extraIzq){
     doc.setFont(fuente, 'normal'); doc.setFontSize(7.5); doc.setTextColor(...STD.TEXT);
@@ -201,6 +382,87 @@ function _pdfBadgeAceptaRechaza(doc, x, y, estado, opts){
 window._pdfBadgeAceptaRechaza = _pdfBadgeAceptaRechaza;
 
 /**
+ * AARMS blmpfiel: marca SI/NO en celda (check vectorial limpio, sin "X" suelta).
+ * Dibuja centrado en (cx, cy) si marcado=true.
+ */
+function _pdfBadgeSiNo(doc, cx, cy, marcado, opts){
+  opts = opts || {};
+  if(!marcado) return { w: 0, h: 0 };
+  const sz = opts.size || 10;
+  const kind = (opts.kind === 'no') ? 'no' : 'si';
+  // AARMS condpulido: neutral = azul/gris (inspección); si/no default = verde/rojo (solo aceptación)
+  let fill, stroke;
+  if(opts.neutral){
+    fill = kind === 'si' ? [226, 236, 250] : [236, 240, 245];
+    stroke = kind === 'si' ? [37, 99, 235] : [100, 116, 139];
+  } else {
+    fill = kind === 'si' ? [230, 244, 234] : [251, 234, 234];
+    stroke = kind === 'si' ? [30, 123, 52] : [179, 38, 30];
+  }
+  const x = cx - sz / 2, y = cy - sz / 2;
+  doc.setFillColor(...fill);
+  doc.setDrawColor(...stroke);
+  doc.setLineWidth(0.7);
+  if(typeof doc.roundedRect === 'function') doc.roundedRect(x, y, sz, sz, 2, 2, 'FD');
+  else doc.rect(x, y, sz, sz, 'FD');
+  doc.setDrawColor(...stroke);
+  doc.setLineWidth(1.2);
+  if(kind === 'si'){
+    doc.line(x + 2.2, y + sz / 2, x + 4.2, y + sz - 2.4);
+    doc.line(x + 4.2, y + sz - 2.4, x + sz - 2.2, y + 2.4);
+  } else {
+    doc.line(x + 2.5, y + 2.5, x + sz - 2.5, y + sz - 2.5);
+    doc.line(x + sz - 2.5, y + 2.5, x + 2.5, y + sz - 2.5);
+  }
+  return { w: sz, h: sz };
+}
+window._pdfBadgeSiNo = _pdfBadgeSiNo;
+
+/**
+ * AARMS condcancelado + condcanceladofix: raya diagonal de cancelado (mismo criterio BM/OMAR).
+ * Cruza SOLO el rectángulo pasado (típicamente celdas SI/NO) — no el texto de la actividad.
+ */
+function _lote4bcTachar(doc, x, y, w, h){
+  try{ if(typeof window !== 'undefined') window.__lote4bcObsTachar = (window.__lote4bcObsTachar || 0) + 1; }catch(_){}
+  _pdfTacharFila(doc, x, y, w, h);
+}
+window._lote4bcTachar = _lote4bcTachar;
+// AARMS lote4bc: barra OBSERVACIONES siempre visible. Cuerpo vacío, una diagonal. Con texto, sin tacha.
+function _lote4bcCuerpoObs(doc, x, y, w, texto, fuente){
+  fuente = fuente || 'helvetica';
+  const yBody = _pdfBarraSeccion(doc, 'OBSERVACIONES', x, y, w, fuente);
+  const body = String(texto || '').trim();
+  doc.setFont(fuente, 'normal');
+  doc.setFontSize(8);
+  const lines = body ? doc.splitTextToSize(body, Math.max(20, w - 12)) : [];
+  const hBody = body ? Math.max(22, 8 + lines.length * 11) : 26;
+  doc.setDrawColor(180, 188, 200);
+  doc.setLineWidth(0.35);
+  doc.setFillColor(252, 252, 253);
+  doc.rect(x, yBody, w, hBody, 'FD');
+  if(body){
+    doc.setTextColor(30, 40, 60);
+    let ty = yBody + 12;
+    lines.forEach(ln => { doc.text(String(ln), x + 6, ty); ty += 11; });
+  } else {
+    _lote4bcTachar(doc, x, yBody, w, hBody);
+  }
+  return yBody + hBody + 4;
+}
+window._lote4bcCuerpoObs = _lote4bcCuerpoObs;
+function _pdfTacharFila(doc, x, y, w, h, opts){
+  opts = opts || {};
+  const stroke = opts.color || [150, 155, 165];
+  const lw = opts.lineWidth != null ? opts.lineWidth : 0.55;
+  doc.setDrawColor(...stroke);
+  doc.setLineWidth(lw);
+  // Diagonal ↙↗ (igual que volúmenes BM / celdas OMAR canceladas)
+  doc.line(x + 1, y + h - 1, x + w - 1, y + 1);
+  return { w, h };
+}
+window._pdfTacharFila = _pdfTacharFila;
+
+/**
  * Caja de leyenda/nota — texto NORMAL, sin letter-spacing / italic tirado.
  * CRÍTICO sub10: reemplaza pies "C r i t e r i o" rotos.
  */
@@ -241,442 +503,545 @@ function _pdfSeccionStd(doc, titulo, x, y, ancho, drawBody, fuente){
 window._pdfSeccionStd = _pdfSeccionStd;
 
 // ─── BPM (Plan de muestreo — F-AA-134-1) ───
-function _bpmTrim(id){
-  const e=document.getElementById(id);
-  if(!e) return '';
-  if(e.type==='checkbox') return e.checked ? 'SI' : '';
-  return (e.value||'').trim();
-}
-function _bpmHayFotoHoja(){
-  return typeof photoData!=='undefined' && photoData && photoData!=='p';
-}
-function _bpmHayGpsHoja(){
-  const c=typeof omar!=='undefined'&&omar&&omar.campo?omar.campo:{};
-  const lat=parseFloat(String(c.gpsN||'').replace('°','').trim());
-  const lngAbs=parseFloat(String(c.gpsW||'').replace('°','').trim());
-  return !isNaN(lat)&&!isNaN(lngAbs)&&lat!==0&&lngAbs!==0;
-}
+// AARMS lote16: un BPM por plan, texto del formato oficial, solo se llenan los huecos.
 
-/** Sincroniza blanco/lote desde el plan (fuente única) y arrastra datos típicos desde hoja de campo / OMAR sin pisar lo que ya escribió el usuario. */
-function _bpmRellenoInteligente(){
-  const p=_planPorOmar();
-  const c=typeof omar!=='undefined'&&omar&&omar.campo?omar.campo:{};
-  const blSi=!!(p&&p.blancoCampo);
-  const lot=(p&&p.loteBlanco)?String(p.loteBlanco).trim():'';
-  const elB=document.getElementById('bpm_f5_blanco');
-  const elL=document.getElementById('bpm_f5_lote');
-  if(elB) elB.value=blSi?'SI':'NO';
-  if(elL) elL.value=blSi?(lot||''):'N.A.';
-  const sum=document.getElementById('bpm_blanco_resumen');
-  if(sum){
-    if(blSi){
-      sum.textContent = lot
-        ? `Blanco de campo: SÍ (según plan). Lote agua reactivo: ${lot}`
-        : 'Blanco de campo: SÍ según plan, pero falta el lote en el plan. Abre el plan → Opciones avanzadas y captura el lote.';
-    }else{
-      sum.textContent = 'Blanco de campo: NO según plan. No aplica lote de agua reactivo para blanco (N.A. en registro).';
-    }
+function _lote16Plan(){
+  if(typeof _planActivo === 'function'){
+    const p = _planActivo();
+    if(p) return p;
   }
-  const setIf=(id,val)=>{ const e=document.getElementById(id); if(e&&!String(e.value||'').trim()&&val) e.value=String(val); };
-  const partes=[];
-  if(c.dir) partes.push('Dirección (hoja): '+c.dir);
-  if(c.idm) partes.push('ID muestra: '+c.idm);
-  if(c.hcar) partes.push('HCAR: '+c.hcar);
-  if(c.mat) partes.push('Matriz (hoja): '+c.mat);
-  if(c.ate) partes.push('Atención (hoja): '+c.ate);
-  const descH=partes.join(' · ');
-  if(descH) setIf('bpm_f3_descripcion', descH);
-  setIf('bpm_f3_ambiente', c.clima||'');
-  setIf('bpm_f3_hidraulica', c.obs||'');
-  setIf('bpm_f3_tipo_fuente', c.tipo||'');
-  const nt=typeof tomas!=='undefined'&&tomas&&tomas.length?tomas.length:0;
-  if(nt) setIf('bpm_f6_num_sub', String(nt));
-  setIf('bpm_f6_tipo_m', omar.tipo||c.tipo||'');
-  setIf('bpm_f6_intervalo', omar.intervalo||c.int||'');
-  const hcarF=(c.hcar!=null&&String(c.hcar).trim())?String(c.hcar).trim():'';
-  const cciarF=(c.cciar!=null&&String(c.cciar).trim())?String(c.cciar).trim():'';
-  if(hcarF||cciarF){
-    const partesCc=[];
-    if(hcarF) partesCc.push('Folio HCAR: '+hcarF);
-    if(cciarF) partesCc.push('Folio CCIAR: '+cciarF);
-    setIf('bpm_f8_cc', partesCc.join(' · '));
-  }
-  if(_bpmHayFotoHoja()) setIf('bpm_justif_sin_foto','N.A. — fotografía disponible en hoja de campo.');
-  if(_bpmHayGpsHoja()) setIf('bpm_justif_sin_gps','N.A. — coordenadas GPS en hoja de campo.');
+  return _planPorOmar();
 }
-
-/** Lista de pendientes para PDF (y aviso al guardar). */
-function validarBpmParaPdf(){
-  const f=[];
-  const r=(id,msg)=>{ if(!_bpmTrim(id)) f.push(msg); };
-  r('bpm_fecha','Cabecera: fecha');
-  r('bpm_empresa','Cabecera: empresa / cliente');
-  r('bpm_omar','Cabecera: folio OMAR');
-  r('bpm_bomar','Cabecera: referencia BOMAR');
-  r('bpm_folio_bpm','Cabecera: folio del plan BPM');
-  r('bpm_tipo_muestreo','Cabecera: tipo de muestreo');
-  r('bpm_matriz','Cabecera: matriz');
-  r('bpm_contacto_site','Cabecera: contacto en sitio');
-  r('bpm_f1_lvar','1. Folio lista de verificación (LVAR)');
-  r('bpm_f1_blvm','1. Bitácora BLVM (código/folio)');
-  r('bpm_f1_equip_obs','1. Otros equipos / material relevante');
-  r('bpm_f2_bucc','2. Código BUCCVpH');
-  r('bpm_f2_bucc_fol','2. Folio BUCCVpH');
-  r('bpm_f2_cumple','2. ¿Equipo conforme? (SI / NO / N.A.)');
-  r('bpm_f2_obs','2. Observaciones de verificación');
-  r('bpm_f3_tipo_fuente','3. Tipo de descarga / fuente');
-  r('bpm_f3_descripcion','3. Descripción detallada del punto');
-  r('bpm_f3_acceso','3. Acceso y seguridad en sitio');
-  r('bpm_f3_hidraulica','3. Condiciones hidráulicas / caudal');
-  r('bpm_f3_ambiente','3. Condiciones ambientales');
-  r('bpm_f4_fol','4. Folio calibración en sitio (BUCCVpH)');
-  r('bpm_f4_buffers','4. Buffers o soluciones usados');
-  r('bpm_f4_lecturas','4. Lecturas / comprobación (valores)');
-  r('bpm_f4_temp','4. Temperatura ambiente u otra relevante');
-  r('bpm_f4_conforme','4. ¿Calibración conforme? (SI / NO / N.A.)');
-  const pVal=typeof _planPorOmar==='function'?_planPorOmar():null;
-  if(pVal && pVal.blancoCampo && !(String(pVal.loteBlanco||'').trim()))
-    f.push('Plan: lote de agua reactivo (en el plan activaste blanco de campo = SI; captura el lote en Datos del plan → Opciones avanzadas)');
-  r('bpm_f5_duplicado','5. ¿Muestra duplicada? (SI / NO)');
-  if((_bpmTrim('bpm_f5_duplicado')||'').toUpperCase()==='SI' && !_bpmTrim('bpm_f5_dup_param')) f.push('5. Parámetro del duplicado');
-  r('bpm_f5_otros_cc','5. Otros controles de calidad en campo');
-  r('bpm_f6_tipo_m','6. Tipo (simple / compuesto / otro)');
-  r('bpm_f6_intervalo','6. Intervalo entre submuestras');
-  r('bpm_f6_num_sub','6. Número de submuestras / tomas');
-  r('bpm_f6_volumen','6. Volumen o condiciones del compuesto');
-  r('bpm_f6_proc','6. Procedimiento de muestreo (detalle)');
-  r('bpm_f7_preserv','7. Preservación y conservación de muestras');
-  r('bpm_f7_cad_frio','7. Cadena de frío (SI / NO / N.A.)');
-  r('bpm_f7_etiq','7. Etiquetado conforme (SI / NO)');
-  r('bpm_f7_bm','8. Código bitácora BM');
-  r('bpm_f7_folio','8. Folio bitácora BM');
-  r('bpm_f8_cc','9. Registro / folios cadena de custodia');
-  r('bpm_f8_conforme','9. Cadena de custodia conforme (SI / NO)');
-  r('bpm_f9_trans','10. Transporte al laboratorio');
-  r('bpm_f9_hora_lab','10. Hora estimada o real de arribo a laboratorio');
-  r('bpm_f10_anexos','11. Documentación anexa (listado o N.A.)');
-  r('bpm_f11_modif','12. Modificaciones al plan en campo');
-  r('bpm_f11_obs','12. Observaciones finales');
-  r('bpm_croquis','Croquis (descripción o referencia)');
-  r('bpm_super','Firma: supervisor');
-  r('bpm_muest','Firma: muestreador');
-  r('bpm_testigo_cliente','Firma: testigo / representante del cliente');
-  if(!_bpmHayFotoHoja()){
-    if((_bpmTrim('bpm_justif_sin_foto')||'').length<12) f.push('Vista sitio: motivo sin fotografía (≥12 caracteres) o capture foto en Hoja de campo');
-  }
-  if(!_bpmHayGpsHoja()){
-    if((_bpmTrim('bpm_justif_sin_gps')||'').length<12) f.push('Vista sitio: motivo sin GPS (≥12 caracteres) o capture coordenadas en Hoja de campo');
-  }
-  return f;
+function _lote16Esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-function poblarBpm(){
-  if(!omar||!omar.ts){ return; }
-  omar.bpm=omar.bpm||{};
-  const b=omar.bpm;
-  const p=_planPorOmar();
-  const mig=(n,o)=> (b[n]!==undefined&&b[n]!==null&&String(b[n]).trim()!=='') ? b[n] : (o||'');
-  _ds('bpm_fecha', mig('fecha', (p&&p.fecha)||(omar.fecha)||''));
-  _ds('bpm_empresa', mig('empresa', omar.empresa||''));
-  _ds('bpm_omar', mig('omar', omar.folio||''));
-  const CANON_BOMAR='BOMAR/AA/N-3';
-  let bomVal=mig('bomar', CANON_BOMAR);
-  const bomT=String(bomVal||'').trim();
-  if(!bomT||/^BOMAR\/AA\/N-3\/?$/i.test(bomT)) bomVal=CANON_BOMAR;
-  _ds('bpm_bomar', bomVal);
-  _ds('bpm_folio_bpm', mig('folio_bpm', (p&&p.folio)||''));
-  _ds('bpm_tipo_muestreo', mig('tipo_muestreo', omar.tipo||''));
-  _ds('bpm_matriz', mig('matriz', (omar.mat||'')||(document.getElementById('o_mat')?document.getElementById('o_mat').value:'')||''));
-  _ds('bpm_contacto_site', mig('contacto_site', omar.contacto||''));
-  _ds('bpm_f1_lvar', mig('f1_lvar', _lvarFolioPlan()));
-  _ds('bpm_f1_blvm', mig('f1_blvm', 'BLVM/AA/N-3/'));
-  _ds('bpm_f1_equip_obs', mig('f1_equip_obs', b.f1_equip_obs||''));
-  _ds('bpm_f2_bucc', mig('f2_bucc', 'BUCCVpH'));
-  _ds('bpm_f2_bucc_fol', mig('f2_bucc_fol', ''));
-  _ds('bpm_f2_cumple', mig('f2_cumple', ''));
-  _ds('bpm_f2_obs', mig('f2_obs', ''));
-  const oldF3=b.f3||'';
-  _ds('bpm_f3_tipo_fuente', mig('f3_tipo_fuente', ''));
-  _ds('bpm_f3_descripcion', mig('f3_descripcion', oldF3));
-  _ds('bpm_f3_acceso', mig('f3_acceso', ''));
-  _ds('bpm_f3_hidraulica', mig('f3_hidraulica', ''));
-  _ds('bpm_f3_ambiente', mig('f3_ambiente', ''));
-  _ds('bpm_f4_fol', mig('f4_fol', ''));
-  _ds('bpm_f4_buffers', mig('f4_buffers', ''));
-  _ds('bpm_f4_lecturas', mig('f4_lecturas', ''));
-  _ds('bpm_f4_temp', mig('f4_temp', ''));
-  _ds('bpm_f4_conforme', mig('f4_conforme', ''));
-  _ds('bpm_f5_duplicado', mig('f5_duplicado', ''));
-  _ds('bpm_f5_dup_param', mig('f5_dup_param', ''));
-  _ds('bpm_f5_otros_cc', mig('f5_otros_cc', ''));
-  const oldP6=b.p610||'';
-  _ds('bpm_f6_tipo_m', mig('f6_tipo_m', ''));
-  _ds('bpm_f6_intervalo', mig('f6_intervalo', omar.intervalo||''));
-  _ds('bpm_f6_num_sub', mig('f6_num_sub', ''));
-  _ds('bpm_f6_volumen', mig('f6_volumen', ''));
-  _ds('bpm_f6_proc', mig('f6_proc', oldP6));
-  _ds('bpm_f7_preserv', mig('f7_preserv', ''));
-  _ds('bpm_f7_cad_frio', mig('f7_cad_frio', ''));
-  _ds('bpm_f7_etiq', mig('f7_etiq', ''));
-  _ds('bpm_f7_bm', mig('f7_bm', 'BM/AA/N-3/'));
-  _ds('bpm_f7_folio', mig('f7_folio', ''));
-  _ds('bpm_f8_cc', mig('f8_cc', ''));
-  (function(){
-    const el=document.getElementById('bpm_f8_cc');
-    if(!el) return;
-    const t=String(el.value||'').replace(/\s+/g,' ').trim();
-    if(/^HCAR:\s*[—\-–]\s*·\s*CCIAR:\s*[—\-–]$/i.test(t)) el.value='';
-  })();
-  _ds('bpm_f8_conforme', mig('f8_conforme', ''));
-  _ds('bpm_f9_trans', mig('f9_trans', ''));
-  _ds('bpm_f9_hora_lab', mig('f9_hora_lab', ''));
-  _ds('bpm_f10_anexos', mig('f10_anexos', ''));
-  _ds('bpm_f11_modif', mig('f11_modif', b.modif||''));
-  _ds('bpm_f11_obs', mig('f11_obs', b.obs||''));
-  _ds('bpm_croquis', mig('croquis', b.croquis||''));
-  _ds('bpm_super', mig('super', ''));
-  _ds('bpm_muest', mig('muest', omar.muestreador||''));
-  _ds('bpm_testigo_cliente', mig('testigo_cliente', ''));
-  _ds('bpm_justif_sin_foto', mig('justif_sin_foto', ''));
-  _ds('bpm_justif_sin_gps', mig('justif_sin_gps', ''));
-  _bpmRellenoInteligente();
+function _lote16Anio2(plan){
+  const f = plan && plan.fecha ? String(plan.fecha) : '';
+  const y = /^\d{4}/.test(f) ? f.slice(0, 4) : String(new Date().getFullYear());
+  return y.slice(-2);
 }
-
-function leerBpm(){
-  if(!omar) return;
-  // AARMS simfix: no pisar omar.bpm con el form vacío si no estamos en pgBpm
-  const pageOn = !!(document.getElementById('pgBpm') && document.getElementById('pgBpm').classList.contains('on'));
-  const probe = document.getElementById('bpm_f1_blvm');
-  const formSignal = !!(probe && String(probe.value || '').trim());
-  const prev = omar.bpm || {};
-  const prevGate = !!(prev.f1_blvm || prev.f2_bucc || prev.f4_fol);
-  if(!pageOn && !formSignal && prevGate) return;
-
-  const pPlan=typeof _planPorOmar==='function'?_planPorOmar():null;
-  const f5Bl=(pPlan&&pPlan.blancoCampo)?'SI':'NO';
-  const f5Lot=(pPlan&&pPlan.blancoCampo)?String(pPlan.loteBlanco||'').trim():'N.A.';
-  omar.bpm={
-    fecha:_dg('bpm_fecha'), empresa:_dg('bpm_empresa'), omar:_dg('bpm_omar'), bomar:_dg('bpm_bomar'),
-    folio_bpm:_dg('bpm_folio_bpm'), tipo_muestreo:_dg('bpm_tipo_muestreo'), matriz:_dg('bpm_matriz'), contacto_site:_dg('bpm_contacto_site'),
-    f1_lvar:_dg('bpm_f1_lvar'), f1_blvm:_dg('bpm_f1_blvm'), f1_equip_obs:_dg('bpm_f1_equip_obs'),
-    f2_bucc:_dg('bpm_f2_bucc'), f2_bucc_fol:_dg('bpm_f2_bucc_fol'), f2_cumple:_dg('bpm_f2_cumple'), f2_obs:_dg('bpm_f2_obs'),
-    f3_tipo_fuente:_dg('bpm_f3_tipo_fuente'), f3_descripcion:_dg('bpm_f3_descripcion'), f3_acceso:_dg('bpm_f3_acceso'),
-    f3_hidraulica:_dg('bpm_f3_hidraulica'), f3_ambiente:_dg('bpm_f3_ambiente'),
-    f3:_dg('bpm_f3_descripcion'),
-    f4_fol:_dg('bpm_f4_fol'), f4_buffers:_dg('bpm_f4_buffers'), f4_lecturas:_dg('bpm_f4_lecturas'), f4_temp:_dg('bpm_f4_temp'), f4_conforme:_dg('bpm_f4_conforme'),
-    f5_blanco:f5Bl, f5_lote:f5Lot, f5_duplicado:_dg('bpm_f5_duplicado'), f5_dup_param:_dg('bpm_f5_dup_param'), f5_otros_cc:_dg('bpm_f5_otros_cc'),
-    f6_tipo_m:_dg('bpm_f6_tipo_m'), f6_intervalo:_dg('bpm_f6_intervalo'), f6_num_sub:_dg('bpm_f6_num_sub'), f6_volumen:_dg('bpm_f6_volumen'), f6_proc:_dg('bpm_f6_proc'),
-    f7_preserv:_dg('bpm_f7_preserv'), f7_cad_frio:_dg('bpm_f7_cad_frio'), f7_etiq:_dg('bpm_f7_etiq'),
-    f7_bm:_dg('bpm_f7_bm'), f7_folio:_dg('bpm_f7_folio'),
-    f8_cc:_dg('bpm_f8_cc'), f8_conforme:_dg('bpm_f8_conforme'),
-    f9_trans:_dg('bpm_f9_trans'), f9_hora_lab:_dg('bpm_f9_hora_lab'),
-    f10_anexos:_dg('bpm_f10_anexos'),
-    f11_modif:_dg('bpm_f11_modif'), f11_obs:_dg('bpm_f11_obs'),
-    croquis:_dg('bpm_croquis'), modif:_dg('bpm_f11_modif'), obs:_dg('bpm_f11_obs'),
-    super:_dg('bpm_super'), muest:_dg('bpm_muest'), testigo_cliente:_dg('bpm_testigo_cliente'),
-    justif_sin_foto:_dg('bpm_justif_sin_foto'), justif_sin_gps:_dg('bpm_justif_sin_gps'),
-    p610:'',
+function _lote16Empresa(plan){
+  if(!plan) return '';
+  if(plan.empresaEnPlan) return String(plan.empresa || '').trim();
+  const ms = _lote16Muestreos(plan);
+  for(const m of ms){
+    const o = _lote16OmarDe(m);
+    const e = String((m && m.empresa) || o.empresa || '').trim();
+    if(e) return e;
+  }
+  return String(plan.empresa || '').trim();
+}
+function _lote16OmarDe(m){
+  if(!m) return {};
+  if(m.omar && typeof m.omar === 'object') return m.omar;
+  try { return JSON.parse(m.omar || '{}'); } catch(e){ return {}; }
+}
+function _lote16Muestreos(plan){
+  const todos = typeof getMuestreos === 'function' ? getMuestreos() : [];
+  return (plan && plan.omarIds || []).map(id => todos.find(x => String(x.id) === String(id))).filter(Boolean);
+}
+function _lote16FoliosOmar(plan){
+  const out = [];
+  _lote16Muestreos(plan).forEach(m => {
+    const o = _lote16OmarDe(m);
+    const f = String((m && m.folio) || o.folio || '').trim();
+    if(f && out.indexOf(f) < 0) out.push(f);
+  });
+  return out.join(', ');
+}
+function _lote16ClavePh(){
+  if(typeof _equipoActivo !== 'function') return '';
+  const eq = _equipoActivo('potenciometros');
+  return eq && eq.id != null && String(eq.id).trim() ? String(eq.id).trim() : '';
+}
+function _lote16Gps(o){
+  const c = (o && o.campo) || {};
+  const lat = parseFloat(String(c.gpsN || '').replace('°','').trim());
+  const lngAbs = parseFloat(String(c.gpsW || '').replace('°','').trim());
+  if(isNaN(lat) || isNaN(lngAbs) || lat === 0 || lngAbs === 0) return null;
+  return { lat, lng: -Math.abs(lngAbs) };
+}
+function _lote16CroquisFuente(plan){
+  const ms = _lote16Muestreos(plan);
+  let elegido = null;
+  for(const m of ms){
+    const o = _lote16OmarDe(m);
+    const foto = m.photoData && m.photoData !== 'p' ? m.photoData : '';
+    const gps = _lote16Gps(o);
+    if(foto || gps){ elegido = { m, o, foto, gps }; break; }
+  }
+  return elegido;
+}
+async function _lote16AsegurarFolio2(plan){
+  if(!plan) return '';
+  if(plan.folioBpm2) return String(plan.folioBpm2);
+  if(typeof _folioTomar !== 'function') return '';
+  const nums = await _folioTomar('bpm', 1, {
+    planId: plan.id, doc: 'BPM', planFolio: plan.folio || '',
+    ya: () => plan.folioBpm2 ? [plan.folioBpm2] : []
+  });
+  plan.folioBpm2 = nums && nums[0] ? nums[0] : '';
+  if(plan.folioBpm2 && typeof idbPlanPut === 'function'){
+    await idbPlanPut(plan);
+    if(typeof refreshCache === 'function') await refreshCache();
+  }
+  return plan.folioBpm2 || '';
+}
+function _lote16Datos(plan){
+  const anio = _lote16Anio2(plan);
+  const foliosOmar = _lote16FoliosOmar(plan);
+  const lvar = (typeof _lote3aFolioLvar === 'function') ? _lote3aFolioLvar(plan) : ((plan && plan.lvar && plan.lvar.folio) || '');
+  const folPh = (typeof _lote3aFolioPh === 'function') ? _lote3aFolioPh(plan) : '';
+  const clave = _lote16ClavePh();
+  const blanco = !!(plan && plan.blancoCampo);
+  let lote = '';
+  if(blanco && typeof _lote14LoteAguaCatalogo === 'function') lote = _lote14LoteAguaCatalogo(plan) || '';
+  const mu = typeof _muestreadorActual === 'function' ? _muestreadorActual() : {};
+  if(plan && typeof _firmaMuestreadorAuto === 'function') _firmaMuestreadorAuto(plan);
+  const fm = (plan && plan.firmas && plan.firmas.muestreador) || {};
+  const fs = (plan && plan.firmas && plan.firmas.supervisor) || null;
+  return {
+    anio, foliosOmar, lvar: lvar || '', folPh: folPh || '', clave, blanco, lote,
+    fecha: (plan && plan.fecha) || '',
+    empresa: _lote16Empresa(plan),
+    folio1: (plan && plan.folio) || '',
+    folio2: (plan && plan.folioBpm2) || '',
+    punto3: String((plan && plan.bpmPunto3) || '').trim(),
+    obs: String((plan && plan.bpmObs) || '').trim(),
+    muNombre: (fm.nombre || mu.nombre || '').trim(),
+    muFirma: fm.firmaPng || mu.firmaPng || '',
+    suNombre: fs && fs.nombre ? String(fs.nombre).trim() : '',
+    suFirma: fs && fs.firmaPng ? fs.firmaPng : ''
   };
 }
-
+function _lote16Filas(plan, d){
+  const croq = _lote16CroquisFuente(plan);
+  const fila = (dato, valor, origen, ir, falta) => ({
+    dato, valor: valor || '', origen, ir,
+    estado: valor ? 'Listo' : ('Falta: ' + falta)
+  });
+  return [
+    fila('Folio, página 1', d.folio1, 'Plan', 'plan', 'sin folio de plan'),
+    fila('Folio, página 2', d.folio2, 'Contador bpm', 'plan', 'se reserva al generar el PDF'),
+    fila('Fecha', d.fecha, 'Plan', 'plan', 'sin fecha'),
+    fila('Empresa', d.empresa, 'Plan', 'plan', 'sin empresa'),
+    fila('Folios OMAR', d.foliosOmar, 'OMAR del plan', 'plan', 'sin folio OMAR'),
+    fila('Año de las bitácoras', d.anio, 'Fecha del plan', 'plan', 'sin año'),
+    fila('1. Folio LVAR', d.lvar, 'LVAR', 'lvar', 'sin folio de LVAR'),
+    fila('2. Clave del pH-metro', d.clave, 'Catálogo', 'catalogo', 'sin pH-metro en el catálogo'),
+    fila('2 y 4. Folios de pH', d.folPh, 'Bitácora de pH', 'ph', 'sin folio de pH'),
+    { dato: '5. Blanco de campo', valor: d.blanco ? 'Sí' : 'No', origen: 'Plan', ir: 'plan', estado: 'Listo' },
+    d.blanco
+      ? fila('5. Lote de agua reactivo', d.lote, 'Catálogo, Agua Reactivo', 'catalogo', 'sin lote en el catálogo')
+      : { dato: '5. Lote de agua reactivo', valor: '', origen: 'Catálogo, Agua Reactivo', ir: 'catalogo', estado: 'Listo' },
+    fila('7. Folios del Machiote', d.foliosOmar, 'Folios OMAR', 'plan', 'sin folio OMAR'),
+    fila('Firma del muestreador', d.muNombre, 'Ajustes', 'ajustes', 'sin nombre en Ajustes'),
+    fila('Firma del supervisor', d.suNombre, 'Firma de supervisor', 'plan', 'sin firma de supervisor')
+  ].concat([
+    croq
+      ? { dato: '11. Croquis', valor: (croq.gps ? 'Mapa' : '') + (croq.gps && croq.foto ? ' y ' : '') + (croq.foto ? 'Foto del sitio' : ''), origen: 'Hoja de Campo', ir: 'hoja', estado: 'Listo' }
+      : { dato: '11. Croquis', valor: '', origen: 'Hoja de Campo', ir: 'hoja', estado: 'Falta: sin foto ni mapa en la Hoja' }
+  ]);
+}
+function _lote16PintarLista(plan){
+  const host = document.getElementById('lote16BpmLista');
+  if(!host || !plan) return;
+  const filas = _lote16Filas(plan, _lote16Datos(plan));
+  host.innerHTML = `<div style="display:grid;grid-template-columns:1.15fr 1.15fr .9fr .9fr;gap:8px;padding:6px 0;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)">
+      <div>Dato</div><div>Valor</div><div>Origen</div><div>Estado</div>
+    </div>` + filas.map(f => {
+    const col = f.estado === 'Listo' ? 'var(--green)' : '#f87171';
+    const origen = `<button type="button" data-lote16-ir="${_lote16Esc(f.ir)}" style="background:none;border:none;padding:0;color:var(--acc);font-size:12px;cursor:pointer;text-align:left">${_lote16Esc(f.origen)}</button>`;
+    return `<div data-lote16-fila="${_lote16Esc(f.dato)}" style="display:grid;grid-template-columns:1.15fr 1.15fr .9fr .9fr;gap:8px;padding:8px 0;border-top:1px solid var(--ln);align-items:start">
+      <div style="font-size:12px;color:var(--w)">${_lote16Esc(f.dato)}</div>
+      <div data-lote16-valor style="font-size:12px;color:var(--w);word-break:break-word">${_lote16Esc(f.valor)}</div>
+      <div>${origen}</div>
+      <div data-lote16-estado style="font-size:12px;color:${col}">${_lote16Esc(f.estado)}</div>
+    </div>`;
+  }).join('');
+}
+async function _lote16Ir(dest){
+  if(dest === 'lvar' && typeof abrirLVAR === 'function'){ abrirLVAR(); return; }
+  if(dest === 'catalogo'){ if(typeof goPage === 'function') goPage('pgCatalogo'); return; }
+  if(dest === 'ajustes'){ if(typeof goPage === 'function') goPage('pgAjustes'); return; }
+  if(dest === 'ph' && typeof abrirBitacoraPH === 'function'){ await abrirBitacoraPH(); return; }
+  if(dest === 'hoja' && typeof abrirDocPlan === 'function'){ await abrirDocPlan('omars'); return; }
+  if(typeof cerrarDocSuite === 'function') cerrarDocSuite();
+  else if(typeof goPage === 'function') goPage('pgPlan');
+}
+function validarBpmParaPdf(){ return []; }
+function poblarBpm(){
+  const plan = _lote16Plan();
+  const p3 = document.getElementById('lote16Punto3');
+  const ob = document.getElementById('lote16Obs');
+  if(p3 && document.activeElement !== p3) p3.value = plan && plan.bpmPunto3 ? plan.bpmPunto3 : '';
+  if(ob && document.activeElement !== ob) ob.value = plan && plan.bpmObs ? plan.bpmObs : '';
+  _lote16PintarLista(plan);
+  const host = document.getElementById('lote16BpmLista');
+  if(host && !host.dataset.lote16Click){
+    host.dataset.lote16Click = '1';
+    host.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-lote16-ir]');
+      if(!b) return;
+      ev.preventDefault();
+      _lote16Ir(b.getAttribute('data-lote16-ir'));
+    });
+  }
+}
+function leerBpm(){
+  // AARMS lote16: solo los dos textos libres. omar.bpm (y f7_preserv) no se reescribe.
+  const plan = _lote16Plan();
+  if(!plan) return;
+  const p3 = document.getElementById('lote16Punto3');
+  const ob = document.getElementById('lote16Obs');
+  if(p3) plan.bpmPunto3 = String(p3.value || '').trim();
+  if(ob) plan.bpmObs = String(ob.value || '').trim();
+}
 function abrirPagBpm(){
-  if(!omar||!omar.ts){ toast('Abre un OMAR del plan primero','w'); return; }
+  const plan = _lote16Plan();
+  if(!plan){ toast('Abre un plan primero','w'); return; }
   poblarBpm();
-  const pl=document.getElementById('bpmPill'); if(pl) pl.textContent=omar.folio?'OMAR '+omar.folio:'OMAR';
-  if(typeof _aplicarDocEstadoBadge==='function') _aplicarDocEstadoBadge('bpm');
+  const pl = document.getElementById('bpmPill');
+  if(pl) pl.textContent = plan.folio ? ('Folio ' + plan.folio) : 'Plan';
+  if(typeof _aplicarDocEstadoBadge === 'function') _aplicarDocEstadoBadge('bpm');
   goPage('pgBpm');
-  setTimeout(()=>{ try{ if(typeof _bpmRefreshVistaSitio==='function') _bpmRefreshVistaSitio(); }catch(_){} }, 0);
-  // AARMS lvarfix
   if(typeof _refreshBotonesContinuarLab === 'function') _refreshBotonesContinuarLab();
 }
-
 async function guardarBpmPage(){
   leerBpm();
-  const pend=validarBpmParaPdf();
-  try{ await saveMuestreoActual(); }catch(e){ console.warn(e); }
-  if(pend.length) toast('Borrador guardado. Para PDF faltan: '+pend.length+' requisito(s). Revisa los campos.','w');
-  else toast('Plan de muestreo guardado ✓','g');
-  // AARMS lvarfix: refrescar botones continuar lab
-  if(typeof _refreshBotonesContinuarLab === 'function') _refreshBotonesContinuarLab();
-  // AARMS simfix
+  const plan = _lote16Plan();
+  if(plan && typeof idbPlanPut === 'function'){
+    plan.ts = Date.now();
+    await idbPlanPut(plan);
+    if(typeof refreshCache === 'function') await refreshCache();
+  }
+  toast('Plan de muestreo guardado','g');
   if(typeof _actualizarGatePlanUI === 'function') _actualizarGatePlanUI();
+  if(typeof _refreshBotonesContinuarLab === 'function') _refreshBotonesContinuarLab();
+  if(typeof _aplicarDocEstadoBadge === 'function') _aplicarDocEstadoBadge('bpm');
+  poblarBpm();
+}
+
+function _lote16Texto(doc, fuente, texto, x, y, w, size, leading){
+  doc.setFont(fuente, 'normal');
+  doc.setFontSize(size);
+  doc.setTextColor(20, 24, 32);
+  const lines = doc.splitTextToSize(String(texto || ''), w);
+  lines.forEach((ln, i) => doc.text(ln, x, y + i * leading));
+  return y + lines.length * leading;
+}
+function _lote16Caja(doc, x, y, w, h, texto, fuente){
+  doc.setDrawColor(40, 48, 64);
+  doc.setLineWidth(0.6);
+  doc.setFillColor(252, 252, 253);
+  doc.rect(x, y, w, h, 'FD');
+  const body = String(texto || '').trim();
+  if(!body){
+    if(typeof _pdfTacharFila === 'function') _pdfTacharFila(doc, x, y, w, h);
+    return;
+  }
+  doc.setFont(fuente, 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(20, 24, 32);
+  const lines = doc.splitTextToSize(body, w - 12);
+  let ty = y + 14;
+  lines.forEach(ln => {
+    if(ty < y + h - 6){ doc.text(ln, x + 6, ty); ty += 12; }
+  });
+}
+function _lote16Caber(iw, ih, bw, bh){
+  if(!iw || !ih || !bw || !bh) return null;
+  const r = iw / ih;
+  let dw = bw, dh = bw / r;
+  if(dh > bh){ dh = bh; dw = bh * r; }
+  return { dw, dh };
+}
+async function _lote16Medir(src){
+  if(!src || typeof preloadImg !== 'function') return null;
+  const pre = await preloadImg(src);
+  if(!pre || !pre.w || !pre.h) return null;
+  return pre;
+}
+async function _lote16Croquis(doc, plan, x, y, w, h){
+  doc.setDrawColor(40, 48, 64);
+  doc.setLineWidth(0.7);
+  doc.setFillColor(248, 249, 251);
+  doc.rect(x, y, w, h, 'FD');
+  const src = _lote16CroquisFuente(plan);
+  let mapa = null, foto = null;
+  if(src && src.gps && typeof loadMapImage === 'function'){
+    try { mapa = await loadMapImage(src.gps.lat, src.gps.lng, 16, 900, 700); } catch(e){ mapa = null; }
+  }
+  if(src && src.foto) foto = src.foto;
+  const medM = mapa ? await _lote16Medir(mapa) : null;
+  const medF = foto ? await _lote16Medir(foto) : null;
+  const tiene = [];
+  if(medM) tiene.push({ pre: medM, pie: 'Mapa' });
+  if(medF) tiene.push({ pre: medF, pie: 'Foto del sitio' });
+  if(!tiene.length){
+    if(typeof _pdfTacharFila === 'function') _pdfTacharFila(doc, x, y, w, h);
+    return;
+  }
+  const pad = 10, gap = 18, pieH = 16;
+  const areaH = h - pad * 2 - pieH;
+  const areaW = w - pad * 2;
+  if(tiene.length === 1){
+    const it = tiene[0];
+    const box = _lote16Caber(it.pre.w, it.pre.h, areaW, areaH);
+    const dx = x + pad + (areaW - box.dw) / 2;
+    const dy = y + pad + (areaH - box.dh) / 2;
+    try { doc.addImage(it.pre.data, it.pre.data.indexOf('image/png') >= 0 ? 'PNG' : 'JPEG', dx, dy, box.dw, box.dh, '', 'FAST'); } catch(e){}
+    doc.setFontSize(8); doc.setTextColor(40, 48, 64);
+    doc.text(it.pie, x + w / 2, y + h - 8, { align: 'center' });
+    doc.setDrawColor(40, 48, 64); doc.setLineWidth(0.7); doc.rect(x, y, w, h, 'S');
+    return;
+  }
+  const colW = (areaW - gap) / 2;
+  let alt = areaH;
+  tiene.forEach(it => {
+    const r = it.pre.w / it.pre.h;
+    alt = Math.min(alt, colW / r);
+  });
+  tiene.forEach((it, i) => {
+    const dw = alt * (it.pre.w / it.pre.h);
+    const cx = x + pad + i * (colW + gap);
+    const dx = cx + (colW - dw) / 2;
+    const dy = y + pad + (areaH - alt) / 2;
+    try { doc.addImage(it.pre.data, it.pre.data.indexOf('image/png') >= 0 ? 'PNG' : 'JPEG', dx, dy, dw, alt, '', 'FAST'); } catch(e){}
+    doc.setFontSize(8); doc.setTextColor(40, 48, 64);
+    doc.text(it.pie, cx + colW / 2, y + h - 8, { align: 'center' });
+  });
+  doc.setDrawColor(40, 48, 64); doc.setLineWidth(0.7); doc.rect(x, y, w, h, 'S');
+}
+function _lote16Pie(doc, fuente, d, folio, n, W, H, M){
+  const y0 = H - 108;
+  doc.setDrawColor(40, 48, 64); doc.setLineWidth(0.4);
+  doc.line(M, y0, W - M, y0);
+  doc.setFont(fuente, 'bold'); doc.setFontSize(8); doc.setTextColor(20, 24, 32);
+  doc.text('Asesoría y Análisis S.C.', M, y0 + 11);
+  doc.setFont(fuente, 'normal'); doc.setFontSize(8);
+  doc.text('Laboratorio de Alimentos y Aguas', M, y0 + 21);
+  const boxW = 92, boxH = 20, boxX = W - M - boxW;
+  doc.setLineWidth(0.6); doc.rect(boxX, y0 + 4, boxW, boxH, 'S');
+  doc.setFontSize(7); doc.text('Folio', boxX + 4, y0 + 12);
+  doc.setFont(fuente, 'bold'); doc.setFontSize(10);
+  doc.text(String(folio || ''), boxX + boxW - 6, y0 + 17, { align: 'right' });
+  const col = (W - M * 2) / 2;
+  const sigY = y0 + 26;
+  [[d.suFirma, d.suNombre, 'Supervisor', M], [d.muFirma, d.muNombre, 'Muestreador', M + col]].forEach(([png, nom, rol, x]) => {
+    if(png){ try { doc.addImage(png, 'PNG', x + 4, sigY, 78, 16, '', 'FAST'); } catch(e){} }
+    doc.setDrawColor(40, 48, 64); doc.setLineWidth(0.4);
+    doc.line(x + 4, sigY + 18, x + 130, sigY + 18);
+    doc.setFont(fuente, 'normal'); doc.setFontSize(7); doc.setTextColor(20, 24, 32);
+    if(nom) doc.text(nom, x + 4, sigY + 28);
+    doc.setFont(fuente, 'bold'); doc.setFontSize(8);
+    doc.text(rol, x + 4, sigY + 40);
+  });
+  doc.setFont(fuente, 'normal'); doc.setFontSize(8); doc.setTextColor(20, 24, 32);
+  doc.text('F-AA-134-1', M, H - 22);
+  doc.text('pag. ' + n + ' de 2', W - M, H - 22, { align: 'right' });
+  doc.setFontSize(7); doc.setTextColor(80, 88, 100);
+  doc.text('Documento generado desde AARMS', W / 2, H - 10, { align: 'center' });
+}
+
+// AARMS lote18: encabezado arriba, con el logo de los demás PDF.
+async function _lote18Encabezado(doc, fuente, folio, opts){
+  opts = opts || {};
+  const W = doc.internal.pageSize.getWidth();
+  const M = opts.m != null ? opts.m : 42;
+  let logo = opts.logo || null;
+  if(!logo && typeof loadLogo === 'function'){
+    try { logo = await loadLogo('logo.png'); } catch(e){ logo = null; }
+  }
+  if(logo && typeof addLogoProportional === 'function') addLogoProportional(doc, logo, M, 16, 50, 38);
+  doc.setTextColor(20, 24, 32);
+  doc.setFont(fuente, 'bold'); doc.setFontSize(11);
+  doc.text('Asesoría y Análisis S.C.', M + 58, 32);
+  doc.setFont(fuente, 'normal'); doc.setFontSize(9);
+  doc.text('Laboratorio de Alimentos y Aguas', M + 58, 45);
+  doc.setFont(fuente, 'normal'); doc.setFontSize(10);
+  doc.text('Folio: ' + (folio || ''), W - M, 36, { align: 'right' });
+  const ancho = Math.max(72, doc.getTextWidth(String(folio || '')) + 6);
+  doc.setDrawColor(20, 24, 32); doc.setLineWidth(0.6);
+  doc.line(W - M - ancho, 39, W - M, 39);
+  if(opts.regla){
+    doc.setLineWidth(0.9);
+    doc.line(M, 56, W - M, 56);
+    return 70;
+  }
+  return 64;
+}
+function _lote18Firmas(doc, fuente, d, W, H, M){
+  const yLine = H - 74;
+  const ancho = 168;
+  [[d.suFirma, d.suNombre, 'Supervisor', M + 8], [d.muFirma, d.muNombre, 'Muestreador', W / 2 + 10]].forEach(([png, nom, rol, x]) => {
+    if(png){ try { doc.addImage(png, 'PNG', x + 20, yLine - 26, 100, 22, '', 'FAST'); } catch(e){} }
+    doc.setDrawColor(20, 24, 32); doc.setLineWidth(0.8);
+    doc.line(x, yLine, x + ancho, yLine);
+    doc.setFont(fuente, 'bold'); doc.setFontSize(10); doc.setTextColor(20, 24, 32);
+    doc.text(rol, x + ancho / 2, yLine + 13, { align: 'center' });
+    if(nom){
+      doc.setFont(fuente, 'normal'); doc.setFontSize(8);
+      doc.text(String(nom), x + ancho / 2, yLine + 24, { align: 'center' });
+    }
+  });
+}
+function _lote18Codigo(doc, fuente, codigo, sub, W, H, M, aarms){
+  doc.setFont(fuente, 'normal'); doc.setFontSize(8); doc.setTextColor(20, 24, 32);
+  doc.text(String(codigo || ''), W - M, H - 28, { align: 'right' });
+  doc.text(String(sub || ''), W - M, H - 17, { align: 'right' });
+  if(aarms){
+    doc.setFontSize(6.5); doc.setTextColor(120, 126, 136);
+    doc.text('Documento generado desde AARMS', W - M, H - 7, { align: 'right' });
+  }
+}
+function _lote18Vineta(doc, fuente, texto, x, y, w, size, lead, nivel){
+  const pad = nivel ? 18 : 0;
+  doc.setFont(fuente, 'normal'); doc.setFontSize(size); doc.setTextColor(20, 24, 32);
+  const lines = doc.splitTextToSize(String(texto || ''), w - 14 - pad);
+  doc.setFillColor(20, 24, 32);
+  doc.circle(x + 4 + pad, y - 3, 1.15, 'F');
+  lines.forEach((ln, i) => doc.text(ln, x + 12 + pad, y + i * lead));
+  return y + lines.length * lead;
+}
+function _lote18Num(doc, fuente, n, texto, x, y, w, size, lead){
+  doc.setFont(fuente, 'normal'); doc.setFontSize(size); doc.setTextColor(20, 24, 32);
+  const lines = doc.splitTextToSize(String(texto || ''), w - 18);
+  doc.text(String(n) + '.', x, y);
+  lines.forEach((ln, i) => doc.text(ln, x + 16, y + i * lead));
+  return y + Math.max(1, lines.length) * lead;
+}
+// AARMS lote18: renglones. Una diagonal cruza el bloque que no se usa.
+function _lote18Renglones(doc, fuente, x, y, w, n, paso, texto){
+  const body = String(texto || '').trim();
+  doc.setDrawColor(90, 96, 108); doc.setLineWidth(0.45);
+  for(let i = 0; i < n; i++) doc.line(x, y + (i + 1) * paso - 2, x + w, y + (i + 1) * paso - 2);
+  if(!body){
+    if(typeof _pdfTacharFila === 'function') _pdfTacharFila(doc, x, y, w, n * paso);
+    return y + n * paso;
+  }
+  let size = 10;
+  let lines = [];
+  doc.setFont(fuente, 'normal');
+  while(size >= 7){
+    doc.setFontSize(size);
+    lines = doc.splitTextToSize(body, w - 6);
+    if(lines.length <= n) break;
+    size -= 0.5;
+  }
+  doc.setTextColor(20, 24, 32);
+  const cabe = lines.length <= n;
+  const lead = cabe ? paso : ((n * paso - 2) / lines.length);
+  lines.forEach((ln, i) => {
+    const ty = y + (cabe ? (i + 1) * paso - 5 : 8 + i * lead);
+    doc.text(ln, x + 2, ty);
+  });
+  if(cabe && lines.length < n && typeof _pdfTacharFila === 'function'){
+    const y0 = y + lines.length * paso;
+    _pdfTacharFila(doc, x, y0, w, (n - lines.length) * paso);
+  }
+  return y + n * paso;
 }
 
 async function generarPDFBpm(){
-  if(!omar||!omar.ts){ toast('Sin OMAR','w'); return; }
-  // AARMS simfix: solo sincronizar desde form si la pantalla BPM está abierta
-  if(document.getElementById('pgBpm') && document.getElementById('pgBpm').classList.contains('on')){
-    leerBpm();
-  }
-  const b0 = omar.bpm || {};
-  const gateN = ['f1_blvm','f2_bucc','f4_fol'].filter(k => b0[k] && String(b0[k]).trim()).length;
-  if(gateN < 2){
-    toast('Sin datos mínimos de BPM. Abre Plan de muestreo, completa y guarda.','w');
-    return;
-  }
-  const pend=validarBpmParaPdf();
-  // AARMS simfix: no bloquear PDF si hay datos gate; huecos oficiales salen como "-"
-  if(pend.length){
-    toast('PDF BPM con '+pend.length+' campo(s) pendiente(s) del formato completo (se dejan en blanco).','w');
-  }
-  const b=omar.bpm||{};
-  const {jsPDF}=window.jspdf;
-  const logo=await loadLogo(LOGO_PDF_URI);
-  const doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter'});
-  const W=612,M=28,CW=W-M*2,H=792,HDR=72;
-  const NAVY=[10,22,40],WHITE=[255,255,255],MGRAY=[208,216,228],DGRAY=[51,65,85],ACCENT=[37,99,235];
-  // AARMS v66-est: helper de estilo condicional para valores
-  const valStyle = (txt) => {
-    const isEmpty = !txt || String(txt).trim() === '' || String(txt).trim() === '-';
-    if(isEmpty){
-      doc.setTextColor(170, 178, 191);
-      doc.setFont('helvetica','normal');
-    } else {
-      doc.setTextColor(...ACCENT);
-      doc.setFont('helvetica','bold');
+  const plan = _lote16Plan();
+  if(!plan){ toast('Abre un plan primero','w'); return; }
+  // AARMS lote21d: solo funde la pantalla si es este plan, y un cuadro vacío no borra el texto guardado.
+  const pgBpm = document.getElementById('pgBpm');
+  if(pgBpm && pgBpm.classList.contains('on')){
+    const p3 = document.getElementById('lote16Punto3');
+    const ob = document.getElementById('lote16Obs');
+    const t3 = p3 ? String(p3.value || '').trim() : '';
+    const to = ob ? String(ob.value || '').trim() : '';
+    if(t3) plan.bpmPunto3 = t3;
+    if(to) plan.bpmObs = to;
+    if((t3 || to) && typeof idbPlanPut === 'function'){
+      try{ await idbPlanPut(plan); }catch(e){}
     }
-    return isEmpty ? '-' : String(txt);
-  };
-  let y=HDR+6;
-  // AARMS sub10-std
-  const hdrPg=()=>{ _pdfStdHeader(doc,logo,W,M,HDR,'PLAN DE MUESTREO','BPM','F-AA-134-1'); y=HDR+6; };
-  hdrPg();
-  const ensure=(need)=>{ if(y+need>H-40){ doc.addPage(); hdrPg(); } };
-  const paraVal=(label,val,yy)=>{
-    ensure(40); yy=y; doc.setFontSize(8.2);
-    doc.setTextColor(...DGRAY); doc.setFont('helvetica','normal');
-    const pref = jsPdfAscii(label+': ');
-    const valTxt = jsPdfAscii(valStyle(val));
-    const lines = doc.splitTextToSize(valTxt, CW-8-4);
-    lines.forEach((ln,i)=>{
-      if(i===0){ doc.text(pref, M+4, yy); doc.text(ln, M+4+doc.getTextWidth(pref), yy); }
-      else doc.text(ln, M+4, yy+i*9.8);
-    });
-    return yy+Math.max(1,lines.length)*9.8+4;
-  };
-  const sec=(t,yy)=>{ ensure(24); yy=y; doc.setFillColor(...NAVY); doc.rect(M,yy,CW,11,'F'); doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(8.8); doc.text(jsPdfAscii(t),M+4,yy+7.5); return yy+14; };
-  const kv=(label,val,yy)=>{ ensure(40); yy=y; doc.setFontSize(8.2); doc.setTextColor(...DGRAY); doc.setFont('helvetica','normal'); const pref=jsPdfAscii(label+': '); doc.text(pref,M+4,yy); doc.text(jsPdfAscii(valStyle(val)),M+4+doc.getTextWidth(pref),yy); return yy+9.8+4; };
-
-  y=sec('Identificación', y);
-  y=kv('Fecha',b.fecha,y); y=kv('Empresa',b.empresa,y); y=kv('Folio plan BPM',b.folio_bpm,y);
-  y=kv('Folio OMAR',b.omar,y); y=kv('BOMAR / referencia',b.bomar,y);
-  y=kv('Tipo de muestreo',b.tipo_muestreo,y); y=kv('Matriz',b.matriz,y); y=kv('Contacto en sitio',b.contacto_site,y);
-
-  y=sec('1. Equipo y material', y);
-  y=kv('Lista verificación (LVAR)',b.f1_lvar,y); y=kv('Bitácora BLVM',b.f1_blvm,y);
-  y=paraVal('Otros equipos / material', b.f1_equip_obs, y);
-
-  y=sec('2. Verificación del equipo', y);
-  y=kv('Código BUCCVpH',b.f2_bucc,y); y=kv('Folio',b.f2_bucc_fol,y);
-  y=kv('Conforme',b.f2_cumple,y); y=paraVal('Observaciones', b.f2_obs, y);
-
-  y=sec('3. Características de la descarga y ubicación', y);
-  y=kv('Tipo de descarga / fuente',b.f3_tipo_fuente,y);
-  y=paraVal('Descripción del punto', b.f3_descripcion, y);
-  y=kv('Acceso y seguridad',b.f3_acceso,y); y=kv('Condiciones hidráulicas / caudal',b.f3_hidraulica,y);
-  y=kv('Condiciones ambientales',b.f3_ambiente,y);
-
-  y=sec('Vista del sitio (hoja de campo)', y);
-  const c=omar.campo||{};
-  const lat=parseFloat(String(c.gpsN||'').replace('°','').trim());
-  const lngAbs=parseFloat(String(c.gpsW||'').replace('°','').trim());
-  const hasCoords=!isNaN(lat)&&!isNaN(lngAbs)&&lat!==0&&lngAbs!==0;
-  const lng=-Math.abs(lngAbs);
-  const boxH=118;
-  const gap=8;
-  const half=(CW-gap)/2;
-  ensure(boxH+36);
-  const imgSite=await preloadImg(typeof photoData!=='undefined'&&photoData&&photoData!=='p'?photoData:null);
-  doc.setDrawColor(...MGRAY);doc.setLineWidth(0.35);
-  doc.rect(M,y,half,boxH,'S');
-  doc.rect(M+half+gap,y,half,boxH,'S');
-  if(imgSite) drawFittedImg(doc,imgSite,M+5,y+5,half-10,boxH-22);
-  else{
-    doc.setFont('helvetica','normal');doc.setFontSize(7);
-    const jtLines=(doc.splitTextToSize(jsPdfAscii(valStyle(b.justif_sin_foto)),half-14)).slice(0,8);
-    jtLines.forEach((ln,i)=>{ doc.text(ln,M+7,y+12+i*9); });
   }
-  doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...NAVY);
-  doc.text(jsPdfAscii('Fotografia / justificacion'),M+6,y+boxH-10);
-  let mapOk=false;
-  if(hasCoords){
-    try{
-      const mW=Math.round((half-10)*2), mH=Math.round((boxH-22)*2);
-      const mapB64=await loadMapImage(lat,lng,16,mW,mH);
-      if(mapB64){ doc.addImage(mapB64,'PNG',M+half+gap+5,y+5,half-10,boxH-22,'','FAST'); mapOk=true; }
-    }catch(_){ mapOk=false; }
-  }
-  if(!mapOk){
-    doc.setFont('helvetica','normal');doc.setFontSize(7);
-    const jgTxt=hasCoords?'Mapa no disponible.':(b.justif_sin_gps||'');
-    (doc.splitTextToSize(jsPdfAscii(valStyle(jgTxt)),half-14)).slice(0,8).forEach((ln,i)=>{ doc.text(ln,M+half+gap+7,y+12+i*9); });
-  }
-  doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...NAVY);
-  doc.text(jsPdfAscii('Mapa OSM / justificacion GPS'),M+half+gap+6,y+boxH-10);
-  doc.setFont('helvetica','normal');doc.setFontSize(6.5);
-  doc.setTextColor(...DGRAY);
-  doc.text('N: ',M+half+gap+6,y+boxH-3);
-  doc.text(jsPdfAscii(valStyle(String(c.gpsN||'').trim())),M+half+gap+6+doc.getTextWidth('N: '),y+boxH-3);
-  const wX=M+half+gap+6+doc.getTextWidth('N: '+jsPdfAscii(valStyle(String(c.gpsN||'').trim())))+4;
-  doc.setTextColor(...DGRAY); doc.setFont('helvetica','normal');
-  doc.text('W: ',wX,y+boxH-3);
-  doc.text(jsPdfAscii(valStyle(String(c.gpsW||'').trim())),wX+doc.getTextWidth('W: '),y+boxH-3);
-  y+=boxH+10;
+  await _lote16AsegurarFolio2(plan);
+  const d = _lote16Datos(plan);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
+  const fuente = typeof _pdfBmAplicarRoboto === 'function' ? await _pdfBmAplicarRoboto(doc) : 'helvetica';
+  const W = 612, H = 792, M = 42, CW = W - M * 2;
+  const logo = (typeof loadLogo === 'function') ? await loadLogo('logo.png') : null;
+  const cuerpo = 10, lead = 12.5;
 
-  y=sec('4. Calibración al llegar al sitio', y);
-  y=kv('Folio BUCCVpH en sitio',b.f4_fol,y); y=kv('Buffers / soluciones',b.f4_buffers,y);
-  y=kv('Lecturas / comprobación',b.f4_lecturas,y); y=kv('Temperatura',b.f4_temp,y); y=kv('Resultado conforme',b.f4_conforme,y);
+  let y = await _lote18Encabezado(doc, fuente, d.folio1, { logo, m: M });
+  y += 16;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(14); doc.setTextColor(20, 24, 32);
+  doc.text('Plan de Muestreo', W / 2, y, { align: 'center' });
+  y += 18;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(11);
+  doc.text('Fecha: ' + ((typeof _lote21FechaPantalla==='function' && d.fecha) ? _lote21FechaPantalla(d.fecha) : (d.fecha || '')), W - M, y, { align: 'right' });
+  y += 16;
+  doc.text('Empresa:', M, y);
+  doc.setFont(fuente, 'normal');
+  doc.text(d.empresa || '', M + doc.getTextWidth('Empresa: '), y);
+  y += 16;
+  const intro = 'Los datos del Cliente, el tipo de muestreo, número de descargas, parámetros y norma aplicable se localizan en la orden de muestreo de agua residual OMAR Folio: '
+    + (d.foliosOmar || '') + ' localizada en la bitácora BOMAR/AA/N-3/' + d.anio;
+  y = _lote16Texto(doc, fuente, intro, M, y, CW, cuerpo, lead) + 6;
+  const p1 = '1.- Equipo y Material: La relación de equipo y material usado durante el muestreo se registra en la Lista de Verificación folio '
+    + (d.lvar || '') + ', ubicada en la Bitácora BLVM/AA/N-3/' + d.anio + '. En la lista de verificación se indica la clave de identificación de los equipos utilizados.';
+  y = _lote16Texto(doc, fuente, p1, M, y, CW, cuerpo, lead) + 4;
+  const p2 = '2.- Verificación del Equipo: El equipo debe verificarse antes de salir a muestrear y se registra en la Bitácora BUCCVpH '
+    + (d.clave || '') + '/AA/N-3/' + d.anio + ', folio: ' + (d.folPh || '') + '.';
+  y = _lote16Texto(doc, fuente, p2, M, y, CW, cuerpo, lead) + 6;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(cuerpo); doc.setTextColor(20, 24, 32);
+  doc.text('3.- Características de la descarga y su ubicación:', M, y);
+  y += 4;
+  const paso3 = 12.2;
+  const n3 = Math.max(12, Math.min(22, Math.floor((H - 300 - y) / paso3)));
+  y = _lote18Renglones(doc, fuente, M, y, CW, n3, paso3, d.punto3) + 8;
+  const p4 = '4.- Calibración del Equipo: Los equipos se calibran al llegar al sitio de Muestreo y son registrados en la Bitácora BUCCVpH/AA/N-3/'
+    + d.anio + ', en el folio: ' + (d.folPh || '');
+  y = _lote16Texto(doc, fuente, p4, M, y, CW, cuerpo, lead) + 3;
+  const p5 = '5.- Control de Calidad: Graficar los datos de las Muestras de control analítico en las Cartas Control de pH y conductividad respectivamente y registrar en la Bitácora de Muestreo si se aceptan o rechazan.';
+  y = _lote16Texto(doc, fuente, p5, M, y, CW, cuerpo, lead) + 2;
+  y = _lote18Vineta(doc, fuente, 'Como control de calidad se toma un blanco de campo una vez al mes, de acuerdo a lo establecido en el Manual de Muestreo.', M + 8, y, CW - 8, cuerpo, lead, 0) + 1;
+  y = _lote18Vineta(doc, fuente, '¿Aplica tomar blanco de campo? ' + (d.blanco ? 'Sí' : 'No'), M + 8, y, CW - 8, cuerpo, lead, 1) + 1;
+  _lote18Vineta(doc, fuente, 'En caso afirmativo, lote de agua reactivo utilizado: ' + (d.blanco ? (d.lote || '') : ''), M + 8, y, CW - 8, cuerpo, lead, 1);
+  _lote18Firmas(doc, fuente, d, W, H, M);
+  _lote18Codigo(doc, fuente, 'F-AA-134-1', 'pag. 1 de 2', W, H, M, true);
 
-  y=sec('5. Control de calidad en campo', y);
-  y=kv('Blanco de campo',b.f5_blanco,y); y=kv('Lote agua reactivo',b.f5_lote,y);
-  y=kv('Muestra duplicada',b.f5_duplicado,y); y=kv('Parámetro duplicado',b.f5_dup_param,y);
-  y=paraVal('Otros CC', b.f5_otros_cc, y);
+  doc.addPage();
+  y = await _lote18Encabezado(doc, fuente, d.folio2, { logo, m: M });
+  y += 14;
+  y = _lote16Texto(doc, fuente, '6.- Tomar las muestras solicitadas y de acuerdo con lo establecido en el Manual de Muestreo AR (MMAR/AA/N-2) en los puntos 8 y 9.', M, y, CW, cuerpo, lead) + 3;
+  const p7 = '7.- Prepara la muestra compuesta de acuerdo con lo escrito en el Manual de Muestreo AR (MMAR/AA/N-2), apartado 9 y registrarlo en la bitácora de Muestreo BM/AA/N-3/'
+    + d.anio + ', en el folio: ' + (d.foliosOmar || '');
+  y = _lote16Texto(doc, fuente, p7, M, y, CW, cuerpo, lead) + 3;
+  y = _lote16Texto(doc, fuente, '8.- Preservar las muestras de acuerdo a lo indicado en el Manual de Muestreo AR punto 8 y utilizando los reactivos y preservadores indicados en la lista de verificación del punto 1 de este plan de muestreo.', M, y, CW, cuerpo, lead) + 1;
+  y = _lote18Vineta(doc, fuente, 'Medir los parámetros de campo que apliquen y registrarlos junto con los datos relevantes en la hoja de campo y en la bitácora de muestreo.', M + 8, y, CW - 8, cuerpo, lead, 0) + 1;
+  y = _lote18Vineta(doc, fuente, 'Colocar las muestras en una hielera con hielo.', M + 8, y, CW - 8, cuerpo, lead, 0) + 3;
+  y = _lote16Texto(doc, fuente, '9.- Al término del muestreo solicitar a los responsables de la empresa (cliente) que firmen de conformidad hoja de campo y cadena de custodia.', M, y, CW, cuerpo, lead) + 3;
+  y = _lote16Texto(doc, fuente, '10.-Transportar las muestras a una temperatura de 4ºC en una hielera con hielo, y entregarlas en el laboratorio.', M, y, CW, cuerpo, lead) + 6;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(cuerpo); doc.setTextColor(20, 24, 32);
+  doc.text('11.- Croquis:', M, y);
+  y += 4;
+  const pieTop = H - 150;
+  const obsPaso = 14;
+  const croqH = Math.max(210, Math.min(320, pieTop - (4 * obsPaso) - 28 - y));
+  await _lote16Croquis(doc, plan, M, y, CW, croqH);
+  y += croqH + 8;
+  y = _lote16Texto(doc, fuente, 'NOTA: Menciona si se realizó alguna modificación en campo al plan de muestreo.', M, y, CW, cuerpo, lead) + 4;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(cuerpo);
+  doc.text('Observaciones:', M, y);
+  y += 2;
+  _lote18Renglones(doc, fuente, M, y, CW, 4, obsPaso, d.obs);
+  _lote18Firmas(doc, fuente, d, W, H, M);
+  _lote18Codigo(doc, fuente, 'F-AA-134-1', 'pag. 2 de 2', W, H, M, true);
 
-  y=sec('6. Procedimiento de muestreo', y);
-  y=kv('Tipo (simple/compuesto)',b.f6_tipo_m,y); y=kv('Intervalo',b.f6_intervalo,y);
-  y=kv('Num. submuestras / tomas',b.f6_num_sub,y); y=kv('Volumen / condiciones',b.f6_volumen,y);
-  y=paraVal('Detalle procedimiento', b.f6_proc, y);
-
-  y=sec('7. Preservación y conservación', y);
-  y=paraVal('Preservación', b.f7_preserv, y);
-  y=kv('Cadena de frio',b.f7_cad_frio,y); y=kv('Etiquetado conforme',b.f7_etiq,y);
-
-  y=sec('8. Muestra compuesta — Bitácora BM', y);
-  y=kv('Código BM',b.f7_bm,y); y=kv('Folio BM',b.f7_folio,y);
-
-  y=sec('9. Cadena de custodia', y);
-  y=paraVal('Registros / folios', b.f8_cc, y);
-  y=kv('Conforme',b.f8_conforme,y);
-
-  y=sec('10. Transporte al laboratorio', y);
-  y=paraVal('Transporte', b.f9_trans, y);
-  y=kv('Hora arribo / estimado',b.f9_hora_lab,y);
-
-  y=sec('11. Documentación anexa', y);
-  y=paraVal('Documentación anexa', b.f10_anexos, y);
-
-  y=sec('12. Modificaciones y observaciones finales', y);
-  y=paraVal('Modificaciones al plan', b.f11_modif, y);
-  y=paraVal('Observaciones', b.f11_obs, y);
-
-  y=sec('Croquis', y);
-  y=paraVal('Croquis', b.croquis, y);
-
-  y=sec('Firmas', y);
-  y=kv('Supervisor',b.super,y); y=kv('Muestreador',b.muest,y);
-  y=kv('Testigo / cliente',b.testigo_cliente,y);
-
-  ensure(20);
-  doc.setFontSize(6.5);doc.setTextColor(100,110,125);doc.setFont('helvetica','italic');
-  doc.text(jsPdfAscii('F-AA-134-1 · Plan de muestreo (BPM) · Documento generado desde AARMS'),M,H-22);
-
-  await saveMuestreoActual();
-  doc.save(`BPM_OMAR-${omar.folio||omar.ts}.pdf`);
+  doc.save('BPM_' + (d.folio1 || 'plan') + '.pdf');
+  if(document.getElementById('lote16BpmLista')) _lote16PintarLista(plan);
   toast('PDF BPM generado','g');
-  if(typeof _maybeMarcarPlanDoc==='function') await _maybeMarcarPlanDoc('bpm');
+  if(typeof _maybeMarcarPlanDoc === 'function') await _maybeMarcarPlanDoc('bpm');
 }
 
 // ─── F-AA-264-4 Hoja 1 (laboratorio) ───
+
 function poblarPh1(){
   if(!omar) return;
   omar.ph2644h1=omar.ph2644h1||{};
@@ -699,6 +1064,8 @@ function poblarPh1(){
 }
 
 function leerPh1(){
+  // AARMS lote4a: la entrada nueva no reescribe omar.ph2644h1 desde la pantalla.
+  if(document.getElementById('phLabMount')) return;
   if(!omar) return;
   omar.ph2644h1={
     fecha:_dg('ph1_fecha'), hora:_dg('ph1_hora'), folio:_dg('ph1_folio'),
@@ -713,6 +1080,7 @@ function leerPh1(){
 }
 
 async function abrirPagPh2644Lab(){
+  if(typeof _lote4aAbrir === 'function') return _lote4aAbrir();
   if(!omar||!omar.ts){ toast('Abre un OMAR primero','w'); return; }
   poblarPh1();
   if(typeof _catalogoCargar==='function') await _catalogoCargar();
@@ -736,18 +1104,24 @@ async function guardarPh1Page(){
 
 async function generarPDFPh2644H1(){
   if(!omar||!omar.ts) return;
-  leerPh1();
+  // AARMS lote21c: con plan.ph2644 el único PDF es el de dos páginas.
+  const planPh = (typeof getPlanDeMuestreo === 'function') ? getPlanDeMuestreo(omar.ts) : null;
+  if(planPh && planPh.ph2644 && typeof generarPDFBitacoraPHOficial === 'function'){
+    return generarPDFBitacoraPHOficial(planPh.id);
+  }
+  const pgPh = document.getElementById('pgPh2644');
+  if(pgPh && pgPh.classList.contains('on') && !document.getElementById('phLabMount')) leerPh1();
   // AARMS v66-p0p1: fusionar catálogo antes de PDF (sin depender de abrir pantalla)
   if(typeof _catalogoCargar==='function') await _catalogoCargar();
-  omar.ph2644h1 = omar.ph2644h1 || {};
+  // AARMS lote21d: la fusión del catálogo queda en la copia que se imprime.
+  const h = Object.assign({}, (omar && omar.ph2644h1) || {});
   if(typeof _catalogoFusionPh2644h1==='function'){
-    _catalogoFusionPh2644h1(omar.ph2644h1);
+    _catalogoFusionPh2644h1(h);
   }
-  const h=omar.ph2644h1||{};
   const {jsPDF}=window.jspdf;
   const logo=await loadLogo(LOGO_PDF_URI);
   // AARMS sub8-pdfs: filas/firma premium (helpers Machiote, Helvetica); estructura oficial intacta
-  const doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter'});
+  const doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter',compress:true});
   const W=612,M=28,CW=W-M*2,HDR=72,H=792;
   const FONT='helvetica';
   const _firmaPrem=window._pdfFirmaPremium;
@@ -797,7 +1171,7 @@ async function generarPDFPh2644H1(){
   if(typeof _firmaPrem==='function'){
     _firmaPrem(doc, 'Pag. 1', 'F-AA-264-4', { font:FONT, W, H, yOffset:70 });
   }
-  await saveMuestreoActual();
+  // AARMS lote21d: el PDF viejo no reescribe el muestreo.
   doc.save(`Phmetro_Lab_OMAR-${omar.folio||omar.ts}.pdf`);
   toast('PDF Phmetro (lab) generado','g');
   if(typeof _maybeMarcarPlanDoc==='function') await _maybeMarcarPlanDoc('phlab');
@@ -888,19 +1262,14 @@ function _bmSnapshotOrigen(){
   else if(ini.length >= 10) fecha = ini.substring(0,10);
   const fe = fecha || (omar.fecha||'').substring(0,10);
 
-  const ph1 = omar.ph2644h1 || {};
   const bl = omar.blmpLab || {};
   const co = omar.colabLab || {};
   const folioPlan = p && p.folio ? String(p.folio) : '—';
   const tomasArr = typeof tomas !== 'undefined' && tomas ? tomas : [];
   const nTomas = tomasArr.length;
 
-  let buccFol = _bmTrimVal(ph1.folio);
-  const bf2 = _bmTrimVal(bpm.f2_bucc_fol);
-  if(bf2 && buccFol && bf2 !== buccFol) buccFol = buccFol + ' / ' + bf2;
-  else if(bf2 && !buccFol) buccFol = bf2;
+  // AARMS lote3a: el folio BUCCVpH sale del contador del plan, no de la pantalla de laboratorio ni del BPM
 
-  const blvmRef = _bmTrimVal(bpm.f1_blvm) || 'BLVM/AA/N-3/';
   let nPh = (omar.bitPh||[]).length;
   if(typeof _bitPhRegs==='function'){
     const br=_bitPhRegs();
@@ -908,7 +1277,8 @@ function _bmSnapshotOrigen(){
   }
   const nCd = (omar.bitCond||[]).length;
   // AARMS sub4-cons: planBm debe declararse antes de usarse (TDZ fix)
-  const planBm = typeof _planPorOmar === 'function' ? _planPorOmar() : (typeof _planActivo === 'function' ? _planActivo() : null);
+  const planBm = (typeof _planPorOmar === 'function' && _planPorOmar())
+    || (typeof _planActivo === 'function' ? _planActivo() : null);
   // AARMS sub3-flujos: resumen flujos desde plan.bitFlujos (fallback t.ls)
   const bitFlujosRegs = (planBm && Array.isArray(planBm.bitFlujos) ? planBm.bitFlujos : []).filter(r => String(r.omarTs) === String(omar.ts));
   let lines;
@@ -927,13 +1297,7 @@ function _bmSnapshotOrigen(){
     lines = tomasArr.map((t,i)=> `T${i+1}  ${t.hora||'—'}  flujo ${t.ls||'—'}  pH ${t.ph||'—'}  cond ${t.cond||'—'}`);
   }
 
-  const blancoSi = !!(p&&p.blancoCampo);
-  const loteB = p&&p.loteBlanco ? String(p.loteBlanco).trim() : '';
-  const obsBlanco = blancoSi
-    ? (loteB
-      ? `Blanco de campo: SÍ (plan). Lote agua reactivo: ${loteB}.`
-      : 'Blanco de campo: SÍ según plan — capture el lote en Datos del plan → Opciones avanzadas.')
-    : 'Blanco de campo: NO según plan (N.A. lote).';
+  const obsBlanco = _lote14cTextoBlanco(p);
 
   // AARMS sub21-bittemp: termómetro y procedimiento desde plan.bitTemp
   const bitTempRegs = (planBm && Array.isArray(planBm.bitTemp) ? planBm.bitTemp : []).filter(r => String(r.omarTs) === String(omar.ts));
@@ -965,40 +1329,35 @@ function _bmSnapshotOrigen(){
     bm_s1_tipo: omar.tipo || c.tipo || '',
     bm_s1_nsimples: String(nTomas),
     bm_s1_analitos: (omar.analitos||[]).join(', '),
-    bm_s1_lvar: typeof _lvarFolioPlan==='function' ? _lvarFolioPlan() : '',
-    bm_s1_blvm: blvmRef,
-    bm_s1_plan: `En base a la BOMAR/AA/N-3 se elaboró el plan de muestreo BPM (folio de plan ${folioPlan}). Tipo: ${omar.tipo||c.tipo||'—'}. Intervalo: ${omar.intervalo||c.int||'—'}. ${nTomas} toma(s) en hoja de campo digital.`,
+    bm_s1_lvar: _lote3aFolioLvar(p),
+    bm_s1_blvm: _lote3aSoloNumero(p && p.folio),
+    // AARMS lote1b: se quitó solo la frase «hoja de campo digital»
+    bm_s1_plan: `En base a la BOMAR/AA/N-3 se elaboró el plan de muestreo BPM (folio de plan ${folioPlan}). Tipo: ${omar.tipo||c.tipo||'—'}. Intervalo: ${omar.intervalo||c.int||'—'}. ${nTomas} toma(s).`,
     bm_s2_bucc: typeof _codigoBitacora === 'function' ? _codigoBitacora('BUCCVpH', 'potenciometros') : 'BUCCVpH',
-    bm_s2_bucc_fol: buccFol,
-    bm_s2_ph_clave: (() => {
-      if(typeof _equipoActivo === 'function' && typeof _equipoClave === 'function'){
-        const eqPh = _equipoActivo('potenciometros');
-        if(eqPh) return _equipoClave('potenciometros', eqPh);
-      }
-      return ph1.marca || '';
-    })(),
+    bm_s2_bucc_fol: _lote3aFolioPh(p),
+    bm_s2_ph_clave: _lote3aClave('potenciometros'),
+    bm_s2_blmp_fol: _lote3aFolioBlmp(p),
     bm_s2_blmp: typeof _codigoBitacora === 'function' ? _codigoBitacora('BLMP', 'potenciometros') : `Phmetro limpieza · OMAR ${omar.folio||omar.ts}${bl.fecha?' · fecha '+bl.fecha:''}`,
     bm_s2_cond_ref: typeof _codigoBitacora === 'function' ? _codigoBitacora('BLMCCVUC', 'conductimetros') : `Conductímetro lab · ${co.marca||''} ${co.clave||''}`.trim(),
     bm_s3_arribo_d: fe,
-    bm_s3_arribo_h: horaIni,
+    bm_s3_arribo_h: _lote3aHora(c.arribo),
     bm_s3_recibe_nom: c.fnNom || c.ate || '',
     bm_s3_recibe_puesto: c.fnCar || '',
     bm_s3_inicio_h: horaIni,
-    bm_s3_periodo_h: c.int || omar.intervalo || '',
+    bm_s3_periodo_h: _lote3aBandaSinH(c.int || omar.intervalo),
+    bm_s3_malla: _lote3aClave('mallas'),
     bm_s3_od: c.obs || '',
-    bm_s4_bhcar: 'BHCAR/AA/N-3/',
-    bm_s4_hcar_fol: c.hcar || '',
-    bm_s5_cciar_fol: c.cciar || '',
-    bm_s5_bcciar: 'BCCIAR/AA/N-3/',
+    bm_s4_bhcar: '',
+    bm_s4_hcar_fol: _lote3aSoloNumero(c.hcar),
+    bm_s5_cciar_fol: _lote3aSoloNumero(c.cciar),
+    bm_s5_bcciar: '',
     bm_s4_bitph: (p&&p.id)
       ? `Digital · Plan ${p.folio||p.id} (${nPh} reg. pH entre tomas, bitácora única del plan)`
       : `Digital · OMAR ${omar.folio||omar.ts} (${nPh} reg. pH entre tomas)`,
     bm_s4_bitcond: `Digital · OMAR ${omar.folio||omar.ts} (${nCd} reg. conductividad)`,
     bm_s4_flujos: lines.join('\n'),
     bm_s4_conserv: _bmTrimVal(bpm.f7_preserv),
-    bm_s4_bfcmt: typeof _codigoBitacora === 'function' ? _codigoBitacora('BFCMT', 'termometros') : '',
-    bm_s4_bfcmt_fol: _bmTrimVal(bpm.f4_fol),
-    bm_s5_obs1: obsBlanco,
+    bm_s5_obs1: _lote3aObservacion(omar, p),
   };
   // AARMS sub4-cons: snapshot de matriz de conservadores
   if(typeof _machioteInicializarConservadores === 'function') _machioteInicializarConservadores(omar);
@@ -1087,6 +1446,27 @@ function _bmAplicarSnapshot(snap, soloVacios){
   return n;
 }
 
+// AARMS bmfresco: el PDF no depende del DOM. Pisar campos calculables en omar.bmForm
+// aunque el panel Machiote no esté montado (sin «Traer datos»). Observaciones
+// ya capturadas (misma lista que _bmAplicarSnapshot) no se reescriben.
+function _bmAplicarSnapshotEnMemoria(snap){
+  if(!omar || !snap) return 0;
+  const prev = omar.bmForm || {};
+  const next = Object.assign({}, prev);
+  const manualSiLleno = new Set(['bm_s4_bfcmt_fol','bm_s3_od','bm_s5_obs1','bm_s5_bcciar']);
+  let n = 0;
+  BM_FORM_IDS.forEach(id => {
+    if(!Object.prototype.hasOwnProperty.call(snap, id)) return;
+    const v = snap[id];
+    if(v == null || _bmTrimVal(v) === '') return;
+    if(manualSiLleno.has(id) && _bmTrimVal(prev[id]) !== '') return;
+    next[id] = v;
+    n++;
+  });
+  omar.bmForm = next;
+  return n;
+}
+
 function bmPrefillCamposVacios(){
   if(!omar||!omar.ts) return 0;
   return _bmAplicarSnapshot(_bmSnapshotOrigen(), true);
@@ -1102,16 +1482,19 @@ function aplicarBmDesdeHojaCampo(){
 function abrirPagBm(){
   if(!omar||!omar.ts){ toast('Abre un OMAR primero','w'); return; }
   poblarBmForm();
-  bmPrefillCamposVacios();
+  _lote3aOmarPintado = omar.ts;
+  // AARMS lote3a: al abrir se recalcula desde las otras bitácoras
+  const snapBm = _bmSnapshotOrigen();
+  _bmAplicarSnapshotEnMemoria(snapBm);
+  _lote3aPintarCalculados(snapBm);
   // AARMS sub4-cons: inicializar matriz desde cadena al abrir
   if(typeof _machioteInicializarConservadores === 'function') _machioteInicializarConservadores(omar);
-  bmGoStep(0);
   // AARMS sub53-fino: selector multi-OMAR
   if(typeof _bmRenderOmarSelector === 'function') _bmRenderOmarSelector();
   const pl=document.getElementById('bmPill'); if(pl && !(typeof _bmRenderOmarSelector === 'function')) pl.textContent=omar.folio?'OMAR '+omar.folio:'OMAR';
   if(typeof _aplicarDocEstadoBadge==='function') _aplicarDocEstadoBadge('bm');
   goPage('pgBm');
-  if(typeof _renderMachioteConservadores === 'function') _renderMachioteConservadores();
+  if(typeof _lote5aPintar === 'function') _lote5aPintar();
 }
 
 async function guardarBmPage(){
@@ -1125,8 +1508,295 @@ function regenerarBMDesdeDatos(){
   toast('Datos BM regenerados (usa el botón «Traer datos…» en adelante).','g');
 }
 
+// AARMS lote5a: resumen de solo lectura. El valor sale de la misma función que imprime el PDF.
+function _lote5aTxt(v){
+  if(v == null) return '';
+  return String(v).trim();
+}
+function _lote5aFila(dato, valor, origen, ir){
+  const v = _lote5aTxt(valor);
+  return { dato, valor: v, origen, ir: ir || '', estado: v ? 'listo' : 'falta' };
+}
+function _lote5aLab(dato, valor){
+  const v = _lote5aTxt(valor);
+  return { dato, valor: v, origen: 'Bitácora de muestreo', ir: '', estado: v ? 'listo' : 'lab' };
+}
+function _lote5aTabla(dato, n, m, frase, origen, ir){
+  const valor = n + ' de ' + m + ' ' + frase;
+  const listo = m > 0 && n >= m;
+  return { dato, valor, origen, ir: ir || '', estado: listo ? 'listo' : 'falta', tipo: 'tabla' };
+}
+function _lote5aFaltaBit(dato, origen, ir){
+  return { dato, valor: '', origen, ir, estado: 'falta' };
+}
+function _lote5aPlan(){
+  return (typeof _planPorOmar === 'function' && _planPorOmar())
+    || (typeof _planActivo === 'function' ? _planActivo() : null);
+}
+function _lote5aCampoPh(plan){
+  return (plan && plan.ph2644 && plan.ph2644.version === 2) ? plan.ph2644.campo : null;
+}
+function _lote5aRegsPh(plan, omarRef){
+  let regs = [];
+  if(typeof _bitPhRegs === 'function') regs = (_bitPhRegs() || []).slice();
+  else if(plan && Array.isArray(plan.bitPh)) regs = plan.bitPh.slice();
+  return regs.filter(r => r && !r.calibGrupo && (
+    !r.omarId || String(r.omarId) === String(omarRef.ts) || String(r.omarTs) === String(omarRef.ts)
+  ));
+}
+function _lote5aModelo(){
+  if(!omar || !omar.ts) return [];
+  const plan = _lote5aPlan();
+  const snap = _bmSnapshotOrigen();
+  const F = Object.assign({}, omar.bmForm || {});
+  Object.keys(snap || {}).forEach(k => {
+    if(_LOTE3A_MANUAL[k]) return;
+    if(/^bm_/.test(k)) F[k] = snap[k];
+  });
+  const c = omar.campo || {};
+  const fechaRaw = F.bm_s1_fecha || (plan && plan.fecha) || omar.fecha || '';
+  const nTomas = (typeof tomas !== 'undefined' && tomas) ? tomas.length : (F.bm_s1_nsimples || '');
+  const nEsp = (typeof tomas !== 'undefined' && Array.isArray(tomas)) ? tomas.length : 0;
+  const eqPh = typeof _equipoActivo === 'function' ? _equipoActivo('potenciometros') : null;
+  const eqTermo = typeof _equipoActivo === 'function' ? _equipoActivo('termometros') : null;
+  const eqCond = typeof _equipoActivo === 'function' ? _equipoActivo('conductimetros') : null;
+  const campoPh = _lote5aCampoPh(plan);
+  const tempData = (snap && snap.tempData) || [];
+  const nTemp = tempData.filter(r => r && (r.agua_l1 || r.agua_l2 || r.agua_l3 || r.amb_l1 || r.amb_l2 || r.amb_l3)).length;
+  const regsPh = _lote5aRegsPh(plan, omar);
+  const nPh = regsPh.filter(r => r && (r.l1 || r.l2 || r.l3)).length;
+  const flujos = (plan && Array.isArray(plan.bitFlujos)) ? plan.bitFlujos.filter(r => String(r.omarTs) === String(omar.ts)) : [];
+  const nFlujo = flujos.filter(r => r && (r.l1 || r.l2 || r.l3)).length;
+  const conds = (plan && Array.isArray(plan.bitCond)) ? plan.bitCond.filter(r => String(r.omarId ?? '') === String(omar.ts)) : [];
+  const nCond = conds.filter(r => r && (r.l1 || r.l2 || r.l3 || r.lectura)).length;
+  const usados = typeof _analitosUsadosEnOmar === 'function' ? _analitosUsadosEnOmar(omar) : [];
+  const vol = typeof _lote3aVolumenRequerido === 'function' ? _lote3aVolumenRequerido(omar) : 0;
+  let nComp = 0;
+  for(let i = 0; i < nEsp; i++){
+    const q = typeof _bitFlujosPromPorToma === 'function' ? _bitFlujosPromPorToma(omar.ts, i + 1) : NaN;
+    if(!isNaN(q)) nComp++;
+  }
+  const bdal = typeof _pdfBmHuecoLimpio === 'function' ? _pdfBmHuecoLimpio(F.bm_s2_bdal) : _lote5aTxt(F.bm_s2_bdal);
+  const bfcmt = typeof _pdfBmHuecoLimpio === 'function' ? _pdfBmHuecoLimpio(F.bm_s4_bfcmt_fol) : _lote5aTxt(F.bm_s4_bfcmt_fol);
+  const c1 = [
+    _lote5aFila('Fecha', typeof _pdfBmFechaOficial === 'function' ? _pdfBmFechaOficial(fechaRaw) : fechaRaw, 'OMAR', 'omar'),
+    _lote5aFila('Nombre de la empresa', F.bm_s1_empresa || omar.empresa || '', 'OMAR', 'omar'),
+    _lote5aFila('Dirección', F.bm_s1_dir || omar.direccion || '', 'OMAR', 'omar'),
+    _lote5aFila('Lugar de muestreo', F.bm_s1_lugar || omar.sitio || '', 'OMAR', 'omar'),
+    _lote5aFila('Punto de muestreo', F.bm_s1_punto || omar.idmuestra || '', 'OMAR', 'omar'),
+    _lote5aFila('Ciudad', F.bm_s1_ciudad || omar.municipio || '', 'OMAR', 'omar'),
+    _lote5aFila('Estado', F.bm_s1_estado || omar.estado || '', 'OMAR', 'omar'),
+    _lote5aFila('Tipo de muestreo', F.bm_s1_tipo || omar.tipo || '', 'OMAR', 'omar'),
+    _lote5aFila('Muestras simples', nTomas === '' || nTomas == null ? '' : String(nTomas), 'Hoja de campo', 'hoja'),
+    _lote5aFila('Folio del plan', plan && plan.folio ? String(plan.folio) : '', 'Plan', 'plan'),
+    _lote5aFila('Folio OMAR', omar.folio || '', 'OMAR', 'omar'),
+    _lote5aFila('Folio BLVM', _lote3aFolioLvar(plan), 'LVAR', 'lvar'),
+    _lote5aFila('Id potenciómetro', eqPh ? String(eqPh.id) : '', 'Catálogo', 'catalogo'),
+    _lote5aFila('Folio BUCCVpH', _lote3aFolioPh(plan), 'pH F-AA-264-4', 'phlab'),
+    _lote5aFila('Clave del potenciómetro', _lote3aClave('potenciometros'), 'Catálogo', 'catalogo'),
+    _lote5aFila('Folio BLMP', _lote3aFolioBlmp(plan), 'BLMP', 'blmp'),
+    _lote5aLab('Folio BDAL', bdal),
+    _lote5aFila('Hora de arribo', _lote3aHora(c.arribo), 'Hoja de campo', 'hoja'),
+    _lote5aFila('Día de arribo', typeof _pdfBmFechaOficial === 'function' ? _pdfBmFechaOficial(F.bm_s3_arribo_d || fechaRaw) : (F.bm_s3_arribo_d || ''), 'Hoja de campo', 'hoja'),
+    _lote5aFila('Recibió', c.fnNom || c.ate || '', 'Hoja de campo', 'hoja'),
+    _lote5aFila('Puesto', c.fnCar || '', 'Hoja de campo', 'hoja'),
+    _lote5aFila('Clave de la malla', _lote3aClave('mallas'), 'Catálogo', 'catalogo')
+  ];
+  const c2 = [
+    _lote5aFila('Hora de inicio de recolección', _lote3aHora(c.ini), 'Hoja de campo', 'hoja'),
+    _lote5aFila('Periodo de descarga diaria', _lote3aBandaSinH(c.int || omar.intervalo || ''), 'Hoja de campo', 'hoja'),
+    _lote5aFila('Horas entre tomas', _lote3aHorasEntre(c.int || omar.intervalo || ''), 'Hoja de campo', 'hoja'),
+    _lote5aFila('Clave del termómetro', _lote3aClave('termometros'), 'Catálogo', 'catalogo'),
+    _lote5aTabla('Temperaturas', nTemp, nEsp, 'tomas con temperatura', 'Temperatura', 'temp'),
+    _lote5aFila('Id termómetro', eqTermo ? String(eqTermo.id) : '', 'Catálogo', 'catalogo'),
+    _lote5aLab('Folio BFCMT', bfcmt),
+    _lote5aFila('Folio hoja de campo', _lote3aSoloNumero(c.hcar), 'Hoja de campo', 'hoja')
+  ];
+  const tempOmar = (plan && Array.isArray(plan.bitTemp) ? plan.bitTemp : []).filter(r => String(r.omarTs) === String(omar.ts));
+  if(!tempOmar.length) c2.push(_lote5aFaltaBit('Bitácora de temperatura', 'Temperatura', 'temp'));
+  const c3 = [
+    _lote5aFila('Hora de la tira', (campoPh && campoPh.tira && campoPh.tira.hora) || '', 'pH F-AA-264-4', 'ph'),
+    _lote5aFila('Valor de la tira', (campoPh && campoPh.tira && campoPh.tira.valor) || '', 'pH F-AA-264-4', 'ph'),
+    _lote5aFila('Rango de calibración, de', (campoPh && campoPh.rango && campoPh.rango.de) || '', 'pH F-AA-264-4', 'ph'),
+    _lote5aFila('Rango de calibración, a', (campoPh && campoPh.rango && campoPh.rango.a) || '', 'pH F-AA-264-4', 'ph'),
+    _lote5aFila('Folio BUCCVpH entre tomas', _lote3aFolioPh(plan), 'pH F-AA-264-4', 'phlab'),
+    _lote5aTabla('pH entre tomas', nPh, nEsp, 'tomas con pH', 'pH F-AA-264-4', 'ph'),
+    _lote5aFila('Id conductímetro', eqCond ? String(eqCond.id) : '', 'Catálogo', 'catalogo'),
+    _lote5aFila('Folio conductímetro', _lote3aFolioCond(plan, omar.colabLab), 'Conductímetro', 'cond'),
+    _lote5aTabla('Conductividad', nCond, nEsp, 'tomas con conductividad', 'Conductímetro', 'cond'),
+    _lote5aFila('Método de aforo', (flujos[0] && flujos[0].metodo) || '', 'Flujos', 'flujos'),
+    _lote5aTabla('Flujos', nFlujo, nEsp, 'tomas con flujo', 'Flujos', 'flujos')
+  ];
+  const phOmar = (plan && Array.isArray(plan.bitPh) ? plan.bitPh : []).filter(r => String(r.omarId || r.omarTs || '') === String(omar.ts));
+  const condOmar = (plan && Array.isArray(plan.bitCond) ? plan.bitCond : []).filter(r => String(r.omarId || '') === String(omar.ts));
+  const flujoOmar = (plan && Array.isArray(plan.bitFlujos) ? plan.bitFlujos : []).filter(r => String(r.omarTs) === String(omar.ts));
+  if(!phOmar.length) c3.push(_lote5aFaltaBit('Bitácora de pH', 'pH F-AA-264-4', 'ph'));
+  if(!condOmar.length) c3.push(_lote5aFaltaBit('Bitácora de conductividad', 'Conductímetro', 'cond'));
+  if(!flujoOmar.length) c3.push(_lote5aFaltaBit('Bitácora de flujos', 'Flujos', 'flujos'));
+  const c4 = [
+    _lote5aTabla('Conservadores', usados.length, usados.length ? usados.length : nEsp, 'analitos en la tabla', 'Hoja de campo', 'hoja')
+  ];
+  if(typeof _machioteCloroFaltantes === 'function'){
+    _machioteCloroFaltantes(omar).forEach(t => c4.push(_lote5aFaltaBit(t, 'Hoja de campo', 'hoja')));
+  }
+  const c5 = [
+    _lote5aFila('Volumen total', vol > 0 ? String(vol) : '', 'Hoja de campo', 'hoja'),
+    _lote5aTabla('Muestra compuesta', nComp, nEsp, 'tomas con flujo', 'Flujos', 'flujos'),
+    _lote5aFila('Folio cadena de custodia', _lote3aSoloNumero(c.cciar), 'Hoja de campo', 'hoja'),
+    _lote5aFila('Observaciones', _lote3aObservacion(omar, plan), 'Hoja de campo', 'hoja')
+  ];
+  return [
+    { titulo: 'Generales y laboratorio', filas: c1 },
+    { titulo: 'Recolección y temperatura', filas: c2 },
+    { titulo: 'pH, conductividad y flujos', filas: c3 },
+    { titulo: 'Conservadores', filas: c4 },
+    { titulo: 'Muestra compuesta y cierre', filas: c5 }
+  ];
+}
+function _lote5aEsc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function _lote5aEstado(f){
+  if(f.estado === 'lab') return 'Pendiente de laboratorio';
+  if(f.estado === 'falta') return 'Falta: ' + f.dato;
+  return 'Listo';
+}
+let _lote5aAbiertas = null;
+let _lote5aOmar = null;
+function _lote5aPintar(){
+  const host = document.getElementById('bmResumen');
+  if(!host) return;
+  if(!omar || !omar.ts){
+    host.innerHTML = '';
+    return;
+  }
+  if(_lote5aOmar !== omar.ts){
+    _lote5aOmar = omar.ts;
+    _lote5aAbiertas = null;
+  }
+  const cards = _lote5aModelo();
+  if(!_lote5aAbiertas) _lote5aAbiertas = {};
+  cards.forEach((c, i) => {
+    if(c.filas.some(f => f.estado === 'falta')) _lote5aAbiertas[i] = true;
+    else if(_lote5aAbiertas[i] == null) _lote5aAbiertas[i] = false;
+  });
+  const F = omar.bmForm || {};
+  const a = document.getElementById('bm_s2_bdal');
+  const b = document.getElementById('bm_s4_bfcmt_fol');
+  if(a && document.activeElement !== a) a.value = F.bm_s2_bdal == null ? '' : String(F.bm_s2_bdal);
+  if(b && document.activeElement !== b) b.value = F.bm_s4_bfcmt_fol == null ? '' : String(F.bm_s4_bfcmt_fol);
+  host.innerHTML = cards.map((c, i) => {
+    const abierta = !!_lote5aAbiertas[i];
+    const filas = c.filas.map(f => {
+      const est = _lote5aEstado(f);
+      const col = f.estado === 'listo' ? 'var(--green)' : (f.estado === 'lab' ? 'var(--amber)' : '#f87171');
+      const origen = f.ir
+        ? `<button type="button" data-lote5a-ir="${_lote5aEsc(f.ir)}" style="background:none;border:none;padding:0;color:var(--acc);font-size:12px;cursor:pointer;text-align:left">${_lote5aEsc(f.origen)}</button>`
+        : `<span style="font-size:12px;color:var(--g1)">${_lote5aEsc(f.origen)}</span>`;
+      return `<div data-lote5a-fila="${_lote5aEsc(f.dato)}" style="display:grid;grid-template-columns:1.1fr 1.2fr .9fr .9fr;gap:8px;padding:8px 0;border-top:1px solid var(--ln);align-items:start">
+        <div style="font-size:12px;color:var(--w)">${_lote5aEsc(f.dato)}</div>
+        <div data-lote5a-valor style="font-size:12px;color:var(--w);word-break:break-word">${_lote5aEsc(f.valor)}</div>
+        <div>${origen}</div>
+        <div data-lote5a-estado style="font-size:12px;color:${col}">${_lote5aEsc(est)}</div>
+      </div>`;
+    }).join('');
+    return `<details data-lote5a-card="${i}" ${abierta ? 'open' : ''} style="margin-bottom:10px;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r)">
+      <summary style="cursor:pointer;padding:12px 14px;font-family:var(--syne);font-weight:700;color:var(--w)">${_lote5aEsc(c.titulo)}</summary>
+      <div style="padding:0 14px 10px">
+        <div style="display:grid;grid-template-columns:1.1fr 1.2fr .9fr .9fr;gap:8px;padding:6px 0;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)">
+          <div>Dato</div><div>Valor</div><div>Origen</div><div>Estado</div>
+        </div>
+        ${filas}
+      </div>
+    </details>`;
+  }).join('');
+  host.querySelectorAll('details[data-lote5a-card]').forEach(d => {
+    d.addEventListener('toggle', () => {
+      const i = d.getAttribute('data-lote5a-card');
+      if(!_lote5aAbiertas) _lote5aAbiertas = {};
+      _lote5aAbiertas[i] = d.open;
+    });
+  });
+  if(!host.dataset.lote5aClick){
+    host.dataset.lote5aClick = '1';
+    host.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-lote5a-ir]');
+      if(!b) return;
+      ev.preventDefault();
+      _lote5aIr(b.getAttribute('data-lote5a-ir'));
+    });
+  }
+}
+async function _lote5aIr(dest){
+  if(dest === 'hoja'){ if(typeof goPage === 'function') goPage('pg1'); return; }
+  if(dest === 'omar'){ if(typeof goPage === 'function') goPage('pg0'); return; }
+  if(dest === 'plan'){
+    const plan = _lote5aPlan();
+    if(plan && typeof abrirPlanDesdeOmar === 'function') await abrirPlanDesdeOmar(plan.id);
+    else if(typeof goPage === 'function') goPage('pgPlan');
+    return;
+  }
+  if(dest === 'lvar' && typeof abrirLVAR === 'function'){ abrirLVAR(); return; }
+  if(dest === 'catalogo' && typeof abrirCatalogo === 'function'){ await abrirCatalogo(); return; }
+  if(dest === 'phlab' && typeof _lote4aAbrir === 'function'){ await _lote4aAbrir(); return; }
+  if(dest === 'ph' && typeof abrirBitacoraPH === 'function'){ await abrirBitacoraPH(); return; }
+  if(dest === 'blmp' && typeof abrirPagBlmp === 'function'){ abrirPagBlmp(); return; }
+  if(dest === 'cond' && typeof abrirFlujoConductimetro === 'function'){ await abrirFlujoConductimetro({ paso:'auto', origen:'plan' }); return; }
+  if(dest === 'temp' && typeof abrirBitacoraTemp === 'function'){ await abrirBitacoraTemp({ origen:'plan' }); return; }
+  if(dest === 'flujos' && typeof abrirBitacoraFlujos === 'function'){ await abrirBitacoraFlujos({ origen:'plan' }); return; }
+  if(dest === 'bpm' && typeof abrirPagBpm === 'function'){ abrirPagBpm(); return; }
+}
+async function _lote5aGuardarFolios(){
+  // AARMS lote5a: solo el folio BDAL o BFCMT. No se reescribe la hoja ni las tomas.
+  if(typeof leerBmForm === 'function') leerBmForm();
+  if(!omar || !omar.ts) return;
+  const lista = (typeof _cachedMuestreos !== 'undefined' && _cachedMuestreos) ? _cachedMuestreos : [];
+  const m = lista.find(x => String(x.id) === String(omar.ts));
+  if(!m || typeof idbPut !== 'function') return;
+  let o = {};
+  try { o = JSON.parse(m.omar || '{}'); } catch(e){ o = {}; }
+  o.bmForm = omar.bmForm || {};
+  o.ts = omar.ts;
+  m.omar = JSON.stringify(o);
+  await idbPut(m);
+}
+function lote5aAlFolio(){
+  if(typeof leerBmForm === 'function') leerBmForm();
+  clearTimeout(_lote3aSaveT);
+  _lote3aSaveT = setTimeout(() => { _lote5aGuardarFolios(); }, 400);
+  _lote5aPintar();
+}
+async function lote5aGenerar(){
+  clearTimeout(_lote3aSaveT);
+  // AARMS lote21d: los cuadros solo se guardan si la bitácora en pantalla es esta OMAR.
+  const pgBm = document.getElementById('pgBm');
+  if(pgBm && pgBm.classList.contains('on') && typeof omar !== 'undefined' && omar && omar.ts){
+    await _lote5aGuardarFolios();
+  }
+  return generarPDFBm();
+}
+async function lote5aGenerarTodos(){
+  clearTimeout(_lote3aSaveT);
+  await _lote5aGuardarFolios();
+  return generarPDFBmTodos();
+}
+function _lote5cHuellaActual(){
+  const cards = _lote5aModelo();
+  const partes = [];
+  cards.forEach(c => c.filas.forEach(f => partes.push(f.dato + '\t' + f.valor)));
+  return partes.join('\n');
+}
+window._lote5aModelo = _lote5aModelo;
+window._lote5aPintar = _lote5aPintar;
+window._lote5aIr = _lote5aIr;
+window.lote5aAlFolio = lote5aAlFolio;
+window.lote5aGenerar = lote5aGenerar;
+window.lote5aGenerarTodos = lote5aGenerarTodos;
+window._lote5cHuellaActual = _lote5cHuellaActual;
+
 // AARMS sub51c-estetica: matriz conservadores F-AA-114-18 (visual premium)
 // AARMS sub52-fiel: matriz conservadores — 21 filas SIEMPRE + 6 tomas SIEMPRE
+// AARMS bmconserv: valores desde MACHIOTE_CONSERVADORES; cancelado tomas/analitos no usados
 function _pdfBmMatrizConservadores(doc, omarRef, y, opts){
   opts = opts || {};
   const M = opts.M != null ? opts.M : 28;
@@ -1164,7 +1834,10 @@ function _pdfBmMatrizConservadores(doc, omarRef, y, opts){
     { key:'CrHx', nombre:'Cr Hexavalente' }
   ];
   const TOTAL_TOMAS = 6;
-  const datos = (omarRef.machiote && omarRef.machiote.conservadores) || {};
+  // AARMS bmconserv: PDF calcula en vivo (Machiote nuevo); no depende de celdas viejas
+  const listTomas = (typeof _machioteTomasFuente === 'function')
+    ? _machioteTomasFuente(omarRef) : [];
+  const nTomasUsadas = listTomas.length;
   const nameW = 72;
   const rest = CW - nameW;
   const tomaW = rest / TOTAL_TOMAS;
@@ -1198,7 +1871,7 @@ function _pdfBmMatrizConservadores(doc, omarRef, y, opts){
     y += rh * 2;
   };
   drawHead();
-  FILAS21.forEach((a, ri) => {
+  FILAS21.forEach((a) => {
     if(y > H - 90){
       doc.addPage();
       if(typeof hdr === 'function') hdr('Conservadores (cont.)');
@@ -1210,23 +1883,36 @@ function _pdfBmMatrizConservadores(doc, omarRef, y, opts){
     doc.rect(x, y, nameW, rh, 'F');
     doc.setDrawColor(...MGRAY); doc.rect(x, y, nameW, rh, 'S');
     doc.setTextColor(30); doc.setFont(FONT, 'bold'); doc.setFontSize(5.4);
+    // AARMS bmconserv: nombre siempre visible (sin tachar)
     doc.text(String(a.nombre).substring(0, 18), x + 2, y + 7);
     x += nameW;
     for(let i = 1; i <= TOTAL_TOMAS; i++){
-      const cell = (datos[a.key] && datos[a.key]['toma' + i]) || { codigo:'', ml:'', ph:'' };
-      const enToma = typeof _analitoEnToma === 'function' ? _analitoEnToma(omarRef, i - 1, a.key) : false;
+      const tomaExiste = i <= nTomasUsadas;
+      const enToma = tomaExiste && typeof _analitoEnToma === 'function'
+        ? _analitoEnToma(omarRef, i - 1, a.key) : false;
+      const celda = (enToma && typeof _machioteConservadorCelda === 'function')
+        ? _machioteConservadorCelda(a.key, listTomas[i - 1])
+        : { codigo: '', ml: '', ph: '' };
       ['codigo', 'ml', 'ph'].forEach((field, si) => {
         doc.setFillColor(...WHITE);
         doc.rect(x + si * subW, y, subW, rh, 'F');
         doc.setDrawColor(...MGRAY); doc.rect(x + si * subW, y, subW, rh, 'S');
-        const raw = enToma ? String(cell[field] || '') : '';
-        if(raw){
-          doc.setTextColor(...ACCENT);
-          doc.setFont(FONT, 'bold');
-          doc.setFontSize(field === 'codigo' ? 5.2 : 5.6);
-          doc.text(raw.substring(0, 8), x + si * subW + subW / 2, y + 7, { align:'center' });
+        if(enToma){
+          const raw = String(celda[field] || '');
+          if(raw){
+            doc.setTextColor(...ACCENT);
+            doc.setFont(FONT, 'bold');
+            doc.setFontSize(field === 'codigo' ? 5.2 : 5.6);
+            doc.text(raw.substring(0, 8), x + si * subW + subW / 2, y + 7, { align:'center' });
+          }
         }
       });
+      // AARMS bmconserv: cancelar tomas no usadas o analito no pedido (solo celdas datos)
+      if(!tomaExiste || !enToma){
+        if(typeof _pdfTacharFila === 'function'){
+          _pdfTacharFila(doc, x, y, tomaW, rh, { lineWidth: 0.45 });
+        }
+      }
       x += tomaW;
     }
     y += rh;
@@ -1317,10 +2003,11 @@ function _pdfBmPageHeader(doc, logo, tit2, folioOmar){
   let yTop = HDR;
   if(typeof _pdfMembreteStd === 'function'){
     yTop = _pdfMembreteStd(doc, logo, {
-      docTitulo: 'BITACORA DE MUESTREO',
+      docTitulo: 'BITÁCORA DE MUESTREO', // AARMS bm5fix: tilde del título oficial
       docSubtitulo: tit2 || 'Machiote',
       codigoFormato: 'F-AA-114-18',
       folio: folio, // AARMS foliofix: integrado en el bloque
+      folioSiempre: true, // AARMS lote3bc: etiqueta FOLIO visible con valor en blanco
       margin: M
     }, FONT || 'Roboto');
   } else if(typeof addLogoProportional === 'function'){
@@ -1343,7 +2030,10 @@ function _bmPdfCtx(doc, logo, omarRef){
 
 // AARMS sub51c-estetica + sub9-firma: firma con imagen dibujada
 function _pdfBmFirma(doc, paginaLabel){
-  const plan = (typeof _planActivo === 'function' && _planActivo()) || null;
+  // AARMS lote3ba: la firma sale del plan de esta OMAR, aunque otro plan esté abierto
+  const plan = (omar && typeof getPlanDeMuestreo === 'function' && getPlanDeMuestreo(omar.ts))
+    || (typeof _planActivo === 'function' && _planActivo())
+    || null;
   return _pdfFirmaPremium(doc, paginaLabel, 'F-AA-114-18', {
     font: _BM_PDF.FONT || 'Roboto',
     plan
@@ -1360,7 +2050,8 @@ function _pdfEstamparFirma(doc, firma, cx, lineaY, fuente, opts){
 
   if(firma && firma.firmaPng){
     try {
-      doc.addImage(firma.firmaPng, 'PNG', cx - anchoFirma/2, lineaY - altoFirma - 2, anchoFirma, altoFirma);
+      // AARMS lote8bc: FAST evita el modo SLOW que jsPDF activa solo cuando hay compresión
+      doc.addImage(firma.firmaPng, 'PNG', cx - anchoFirma/2, lineaY - altoFirma - 2, anchoFirma, altoFirma, '', 'FAST');
     } catch(e){ console.warn('[firma img]', e); }
   }
 
@@ -1475,9 +2166,10 @@ function _pdfParrafoOficial(doc, segments, x, y, maxWidth, fuente, opts){
   doc.setFontSize(fs);
 
   let cx = x, cy = y;
-  const espacio = doc.getTextWidth(' ');
 
   const flush = (palabra, esValor, anchoHueco) => {
+    doc.setFont(fuente, esValor ? 'bold' : 'normal');
+    const espacio = doc.getTextWidth(' ') || (fs * 0.33);
     const w = esValor && !palabra ? (anchoHueco || 60) : doc.getTextWidth(palabra || ' ');
     if(cx + w > x + maxWidth + 0.5){ cx = x; cy += lh; }
 
@@ -1746,57 +2438,104 @@ function _pdfBmHoraDeToma(omarRef, reg){
 window._pdfBmHoraDeToma = _pdfBmHoraDeToma;
 
 // AARMS sub52-fiel: tabla temperaturas — columnas oficiales, SIEMPRE 6 filas
+// AARMS bmtempfix: T1/T2/T3 en casillas propias (como L1/L2/L3 de pH); FC sin "+"
 function _pdfBmTablaTemperaturas(doc, snapshot, y, ctx){
   const { M, CW, FONT } = ctx;
+  const MGRAY = _BM_PDF.MGRAY;
   const data = (snapshot && snapshot.tempData) || [];
   const fcGlobal = typeof _fcTermometroActual === 'function' ? _fcTermometroActual() : 0;
   const fmt = (v, d) => {
     if(v == null || v === '' || (typeof v === 'number' && isNaN(v))) return '';
     return typeof v === 'number' ? v.toFixed(d == null ? 1 : d) : String(v);
   };
-  const heads = [
-    'Toma\nNo.',
-    'Temp. agua\n(°C)\nT1  T2  T3',
-    'FC',
-    'Agua corr.\nT1  T2  T3',
-    'Prom',
-    'Report\nA',
-    'Temp. amb.\n(°C)\nT1  T2  T3',
-    'FC',
-    'Amb corr.\nT1  T2  T3',
-    'Report\nB',
-    'Diff\nA-B',
-    'Proc.'
-  ];
-  // Compact widths summing ~CW
-  const raw = [22, 70, 22, 70, 28, 28, 70, 22, 70, 28, 28, 38];
+  // AARMS bmtempfix: FC solo número (0.00 / 0.15 / -0.15) — sin "+" forzado
+  const fmtFc = (fc) => {
+    if(fc == null || fc === '') return '';
+    if(typeof fc === 'number' && !isNaN(fc)) return fc.toFixed(2);
+    const n = parseFloat(fc);
+    if(!isNaN(n)) return n.toFixed(2);
+    return String(fc).replace(/^\+/, '');
+  };
+  const raw = [20, 18, 18, 18, 22, 18, 18, 18, 26, 26, 18, 18, 18, 22, 18, 18, 18, 26, 26, 32];
   const s = raw.reduce((a,b)=>a+b,0);
   const cws = raw.map(w => w * (CW / s));
   const rh = 10;
-  y = _pdfHeaderTablaOficial(doc, heads, M, y, cws, 22, FONT);
+  const rhHead = 20;
+  const totalW = cws.reduce((a,b)=>a+b,0);
+  // Encabezado 2 filas: grupos + T1/T2/T3
+  doc.setFillColor(232, 236, 240);
+  doc.rect(M, y, totalW, rhHead, 'F');
+  doc.setDrawColor(...MGRAY);
+  doc.setLineWidth(0.35);
+  doc.rect(M, y, totalW, rhHead, 'S');
+  const groups = [
+    { label: 'Toma\nNo.', span: 1 },
+    { label: 'Temp. agua (°C)', span: 3, sub: true },
+    { label: 'FC', span: 1 },
+    { label: 'Agua corr.', span: 3, sub: true },
+    { label: 'Prom', span: 1 },
+    { label: 'Report\nA', span: 1 },
+    { label: 'Temp. amb. (°C)', span: 3, sub: true },
+    { label: 'FC', span: 1 },
+    { label: 'Amb corr.', span: 3, sub: true },
+    { label: 'Report\nB', span: 1 },
+    { label: 'Diff\nA-B', span: 1 },
+    { label: 'Proc.', span: 1 }
+  ];
+  let cx = M, ci = 0;
+  doc.setFont(FONT, 'bold'); doc.setFontSize(5.2); doc.setTextColor(20);
+  groups.forEach(g => {
+    const w = cws.slice(ci, ci + g.span).reduce((a,b)=>a+b, 0);
+    if(g.sub){
+      doc.text(g.label, cx + w / 2, y + 7, { align:'center' });
+      let sx = cx;
+      ['T1','T2','T3'].forEach((lab, si) => {
+        doc.setFontSize(4.8);
+        doc.text(lab, sx + cws[ci + si] / 2, y + 16, { align:'center' });
+        if(si < 2) doc.line(sx + cws[ci + si], y + rhHead / 2, sx + cws[ci + si], y + rhHead);
+        sx += cws[ci + si];
+      });
+      doc.line(cx, y + rhHead / 2, cx + w, y + rhHead / 2);
+    } else {
+      const lines = g.label.split('\n');
+      const startY = y + (rhHead - (lines.length - 1) * 5.5) / 2 + 2;
+      lines.forEach((ln, li) => doc.text(ln, cx + w / 2, startY + li * 5.5, { align:'center' }));
+    }
+    doc.line(cx + w, y, cx + w, y + rhHead);
+    cx += w;
+    ci += g.span;
+  });
+  y += rhHead;
   for(let i = 0; i < 6; i++){
     const r = data[i] || null;
     const fc = r && r.fc != null ? r.fc : fcGlobal;
-    const fcStr = r ? ((fc >= 0 ? '+' : '') + (typeof fc === 'number' ? fc.toFixed(2) : String(fc))) : '';
-    const agua3 = r ? [r.agua_l1, r.agua_l2, r.agua_l3].map(x => (x==null||x==='')?'':String(x)).join(' ') : '';
-    const aguaC = r ? [fmt(r.agua_c1), fmt(r.agua_c2), fmt(r.agua_c3)].filter(Boolean).join(' ') : '';
-    const amb3 = r ? [r.amb_l1, r.amb_l2, r.amb_l3].map(x => (x==null||x==='')?'':String(x)).join(' ') : '';
-    const ambC = r ? [fmt(r.amb_c1), fmt(r.amb_c2), fmt(r.amb_c3)].filter(Boolean).join(' ') : '';
+    const fcStr = r ? fmtFc(fc) : '';
+    const cell = (v) => (v == null || v === '') ? '' : String(v);
+    // AARMS bmtempent: Report A/B = entero más cercano (Math.round); Diff = |A−B| enteros.
+    // Solo render Machiote — no toca _calcBitTempRegistro (Prom, Proc y UI siguen con precisión real).
+    const reportA = (r && typeof r.agua_prom === 'number' && !isNaN(r.agua_prom)) ? Math.round(r.agua_prom) : null;
+    const reportB = (r && typeof r.amb_prom === 'number' && !isNaN(r.amb_prom)) ? Math.round(r.amb_prom) : null;
+    const diffRep = (reportA != null && reportB != null) ? Math.abs(reportA - reportB) : null;
     const vals = r ? [
       String(r.toma || i + 1),
-      agua3,
+      cell(r.agua_l1), cell(r.agua_l2), cell(r.agua_l3),
       fcStr,
-      aguaC,
+      fmt(r.agua_c1), fmt(r.agua_c2), fmt(r.agua_c3),
       fmt(r.agua_prom, 2),
-      fmt(r.agua_prom, 2),
-      amb3,
+      reportA != null ? String(reportA) : '',
+      cell(r.amb_l1), cell(r.amb_l2), cell(r.amb_l3),
       fcStr,
-      ambC,
-      fmt(r.amb_prom, 2),
-      fmt(r.diff, 2),
+      fmt(r.amb_c1), fmt(r.amb_c2), fmt(r.amb_c3),
+      reportB != null ? String(reportB) : '',
+      diffRep != null ? String(diffRep) : '',
       r.proc || ''
-    ] : ['', '', '', '', '', '', '', '', '', '', '', ''];
-    y = _pdfFilaTablaOficial(doc, vals, M, y, cws, rh, i, { fontSize:5.4, maxChars:18 });
+    ] : [String(i + 1), ...Array(19).fill('')];
+    const yRow = y;
+    y = _pdfFilaTablaOficial(doc, vals, M, y, cws, rh, i, { fontSize:5.2, maxChars:8 });
+    // AARMS bmcancelfix: filas sin dato → cancelar celdas de datos; # de toma queda visible
+    if(!r && typeof _pdfTacharFila === 'function'){
+      _pdfTacharFila(doc, M + cws[0], yRow, totalW - cws[0], rh);
+    }
   }
   return y + 8;
 }
@@ -1836,13 +2575,10 @@ function _pdfBmTablaPhEntreToma(doc, plan, omarRef, y, ctx){
     if(r){
       const prom = typeof _phPromedio === 'function' ? _phPromedio(r.l1, r.l2, r.l3) : null;
       const ph25 = r.ph25 || (typeof _phRedondeo25 === 'function' ? _phRedondeo25(prom) : '');
-      let ar = r.ar || '';
-      if(!ar && prom != null){
-        const Ls = [r.l1, r.l2, r.l3].map(x => parseFloat(x)).filter(x => !isNaN(x));
-        if(Ls.length === 3){
-          const d = Math.max(Ls[0], Ls[1], Ls[2]) - Math.min(Ls[0], Ls[1], Ls[2]);
-          ar = d <= 0.03 ? 'Acepta' : 'Rechaza';
-        }
+      let ar = '';
+      if(typeof _phAceptaRechaza === 'function'){
+        ar = _phAceptaRechaza(r.l1, r.l2, r.l3, r.buffer);
+        if(ar === 'PENDIENTE') ar = '';
       }
       vals = [
         _pdfBmHoraDeToma(omarRef, r),
@@ -1939,21 +2675,9 @@ function _pdfBmTablaCompuesta(doc, plan, omarRef, y, ctx){
   const { M, FONT } = ctx;
   const tableW = ctx.compuestaW || (ctx.CW * 0.46);
   const x0 = ctx.compuestaX != null ? ctx.compuestaX : M;
-  const COMPUESTOS = ['FQ','MP','CIAN','FOS.','DQO','DBO5','SAAM','N.TOT','NO2','NO3','Hg','HELM','TOC','CLOR','CLR','CrHx'];
-  let paramsUsados = new Set();
-  (tomas || []).forEach(t => {
-    const ps = t.params instanceof Set ? [...t.params] : (t.params || []);
-    ps.forEach(p => paramsUsados.add(p));
-  });
-  let volTotal = 0;
-  COMPUESTOS.forEach(k => {
-    if(!paramsUsados.has(k)) return;
-    const v = (typeof CADENA_DATA !== 'undefined' && CADENA_DATA[k] && CADENA_DATA[k].vol)
-      ? parseFloat(CADENA_DATA[k].vol)
-      : (typeof VOLS !== 'undefined' ? VOLS[k] : 0);
-    if(!isNaN(v)) volTotal += v;
-  });
-  if(volTotal <= 0) volTotal = 4000;
+  // AARMS lote3a: el mismo total que la tabla derecha (incluye As/Se cuando aplica)
+  const volTotal = _lote3aVolumenRequerido(omarRef);
+  // AARMS bmfresco: sin volumen calculable no se inventan ml (antes caía a 4000)
   const heads = ['#', 'Q (L/s)', '%', 'ml'];
   const cws = [tableW * 0.15, tableW * 0.3, tableW * 0.25, tableW * 0.3];
   const rh = 10;
@@ -1961,29 +2685,44 @@ function _pdfBmTablaCompuesta(doc, plan, omarRef, y, ctx){
   doc.text('Porcentaje para cada muestra simple', x0, y);
   y += 8;
   y = _pdfHeaderTablaOficial(doc, heads, x0, y, cws, 12, FONT);
-  let sumQ = 0, sumMl = 0, nData = 0;
+  let sumQ = 0, nData = 0;
+  const filasMl = [];
   for(let i = 0; i < 6; i++){
     const tomaNum = i + 1;
     const has = (typeof tomas !== 'undefined' && tomas && tomas[i]);
-    let vals = [String(tomaNum), '', '', ''];
+    let q = NaN, pct = NaN, ml = NaN;
     if(has){
-      const q = typeof _bitFlujosPromPorToma === 'function' ? _bitFlujosPromPorToma(omarRef.ts, tomaNum) : NaN;
-      const pct = typeof _flujoPctPorToma === 'function' ? _flujoPctPorToma(omarRef.ts, tomaNum) : NaN;
-      const ml = !isNaN(pct) ? (volTotal * pct / 100) : NaN;
+      q = typeof _bitFlujosPromPorToma === 'function' ? _bitFlujosPromPorToma(omarRef.ts, tomaNum) : NaN;
+      pct = typeof _flujoPctPorToma === 'function' ? _flujoPctPorToma(omarRef.ts, tomaNum) : NaN;
+      ml = (volTotal > 0 && !isNaN(pct)) ? (volTotal * pct / 100) : NaN;
       if(!isNaN(q)){ sumQ += q; nData++; }
-      if(!isNaN(ml)) sumMl += ml;
-      vals = [
-        String(tomaNum),
-        !isNaN(q) ? q.toFixed(2) : '',
-        !isNaN(pct) ? pct.toFixed(1) : '',
-        !isNaN(ml) ? ml.toFixed(0) : ''
-      ];
     }
-    y = _pdfFilaTablaOficial(doc, vals, x0, y, cws, rh, i, { fontSize:6.5, maxChars:10 });
+    filasMl.push({ has, tomaNum, q, pct, ml });
   }
-  // AARMS sub53-fino: fila totales Σ
+  // AARMS lote3a: el último ml absorbe el redondeo para que Σ ml = volumen requerido
+  const conMl = filasMl.filter(f => !isNaN(f.ml));
+  if(conMl.length && volTotal > 0){
+    conMl.forEach(f => { f.ml = Math.round(f.ml); });
+    const sumR = conMl.reduce((s, f) => s + f.ml, 0);
+    conMl[conMl.length - 1].ml += (volTotal - sumR);
+  }
+  filasMl.forEach((f, i) => {
+    const vals = f.has
+      ? [
+          String(f.tomaNum),
+          !isNaN(f.q) ? f.q.toFixed(2) : '',
+          !isNaN(f.pct) ? f.pct.toFixed(1) : '',
+          !isNaN(f.ml) ? String(f.ml) : ''
+        ]
+      : [String(f.tomaNum), '', '', ''];
+    const yRow = y;
+    y = _pdfFilaTablaOficial(doc, vals, x0, y, cws, rh, i, { fontSize:6.5, maxChars:10 });
+    if(!f.has && typeof _pdfTacharFila === 'function'){
+      _pdfTacharFila(doc, x0 + cws[0], yRow, tableW - cws[0], rh);
+    }
+  });
   const sigmaVals = nData > 0
-    ? ['Σ', sumQ.toFixed(2).replace(/\.00$/, ''), '100', String(Math.round(sumMl))]
+    ? ['Σ', sumQ.toFixed(2).replace(/\.00$/, ''), '100', volTotal > 0 ? String(volTotal) : '']
     : ['Σ', '', '', ''];
   y = _pdfFilaTablaOficial(doc, sigmaVals, x0, y, cws, rh + 1, 99, { fontSize:6.5, maxChars:10 });
   return { y: y + 4, volTotal };
@@ -2083,9 +2822,10 @@ function _pdfBmTablaVolumenesParametros(doc, plan, omarRef, y, ctx){
     y += rh;
   });
   const totalLabel = 'Volumen Total de muestra mL.';
-  const totalVal = total > 0 ? String(total) : '';
+  const totalOficial = _lote3aVolumenRequerido(omarRef);
+  const totalVal = totalOficial > 0 ? String(totalOficial) : '';
   y = _pdfFilaTablaOficial(doc, [totalLabel, '', totalVal], x0, y, cws, rh + 1, 99, { fontSize:5.5, maxChars:28 });
-  return { y: y + 4, total };
+  return { y: y + 4, total: totalOficial };
 }
 window._pdfBmTablaVolumenesParametros = _pdfBmTablaVolumenesParametros;
 
@@ -2128,7 +2868,7 @@ async function _pdfBmPag1(doc, plan, omarRef, snapshot, ctx){
   y = yCiudad + 2;
 
   const nTomas = (typeof tomas !== 'undefined' && tomas) ? tomas.length : (F.bm_s1_nsimples || '');
-  const blvm = F.bm_s1_lvar || F.bm_s1_blvm || '';
+  const blvm = _lote3aFolioLvar(plan);
 
   po([
     { t:'En base a la Bitácora de orden de muestreo BOMAR/AA/N-3 se procede a elaborar el plan de muestreo el cual queda asentado en la bitácora BPM/AA/N-3/' },
@@ -2162,7 +2902,7 @@ async function _pdfBmPag1(doc, plan, omarRef, snapshot, ctx){
 
   const eqPh = typeof _equipoActivo === 'function' ? _equipoActivo('potenciometros') : null;
   const idPh = eqPh ? String(eqPh.id) : '';
-  const folioPh = F.bm_s2_bucc_fol || (omarRef.ph2644h1 && omarRef.ph2644h1.folio) || '';
+  const folioPh = _lote3aFolioPh(plan);
   po([
     { t:'El uso, calibración, comprobación y verificación del equipo se encuentra registrada en la bitácora con código BUCCVpH' },
     { v: idPh, w: 36 },
@@ -2174,10 +2914,10 @@ async function _pdfBmPag1(doc, plan, omarRef, snapshot, ctx){
   ]);
 
   tit('Limpieza y Mantenimiento', 9);
-  const clavePh = eqPh && typeof _equipoClave === 'function' ? _equipoClave('potenciometros', eqPh) : (F.bm_s2_ph_clave || '');
+  const clavePh = _lote3aClave('potenciometros');
   const idBlmp = idPh;
   // AARMS sub53-fino: folio BLMP/BDAL texto libre (ej. 0025-0026); vacío = subrayado solo
-  const blmpFol = _pdfBmHuecoLimpio(F.bm_s2_blmp_fol);
+  const blmpFol = _lote3aFolioBlmp(plan);
   const bdalFolio = _pdfBmHuecoLimpio(F.bm_s2_bdal) || _pdfBmHuecoLimpio(plan && plan.bdalFolio);
   po([
     { t:'La limpieza y mantenimiento del equipo con clave:' },
@@ -2196,14 +2936,14 @@ async function _pdfBmPag1(doc, plan, omarRef, snapshot, ctx){
   tit('Arribo a Sitio de Muestreo', 9);
   po([
     { t:'Siendo las' },
-    { v: F.bm_s3_arribo_h, w: 40 },
+    { v: _lote3aHora((omarRef.campo && omarRef.campo.arribo) || ''), w: 40 },
     { t:'h. del día' },
     // AARMS sub53-fino: arribo en DD MM AA
     { v: _pdfBmFechaOficial(F.bm_s3_arribo_d || fechaRaw), w: 70 },
     { t:', fuimos recibidos por el Sr (a)' },
-    { v: F.bm_s3_recibe_nom, w: 90 },
+    { v: (omarRef.campo && (omarRef.campo.fnNom || omarRef.campo.ate)) || '', w: 90 },
     { t:'que ocupa el puesto' },
-    { v: F.bm_s3_recibe_puesto, w: 80 },
+    { v: (omarRef.campo && omarRef.campo.fnCar) || '', w: 80 },
     { t:'de la empresa antes mencionada y misma que nos da acceso al sitio de muestreo.' }
   ]);
 
@@ -2213,13 +2953,14 @@ async function _pdfBmPag1(doc, plan, omarRef, snapshot, ctx){
     { v: anio2, w: 28 },
     { t:'con folio No.' },
     { v: omarRef.folio, w: 70 },
-    { t:'. Cualquier modificación al plan de muestreo se registra en la hoja de campo.' }
+    // AARMS bm5fix: texto oficial de modificaciones (después de los analitos de la BOMAR)
+    { t:'. En caso de tener modificaciones en la petición de analitos en campo estos solo quedarán asentados en la hoja de campo correspondiente' }
   ]);
+  // AARMS bmfresco: texto oficial de OD (informativo; no se registran datos de OD aquí)
   po([
-    { t:'Si el cliente solicita oxígeno disuelto, se realiza la determinación siguiendo los procedimientos del Manual de Muestreo AR (MMAR/AA/N-2) y se registra el resultado en la hoja de campo.' }
+    { t:'Si el cliente solicita oxígeno disuelto esta determinación se realiza inmediatamente al llegar al laboratorio, se debe evitar que la muestra se agite o entre en contacto con el aire, de acuerdo con el procedimiento descrito en el Manual de Muestreo AR (MMAR/AA/N-2)' }
   ]);
-  const eqMalla = typeof _equipoActivo === 'function' ? _equipoActivo('mallas') : null;
-  const claveMalla = eqMalla && typeof _equipoClave === 'function' ? _equipoClave('mallas', eqMalla) : (F.bm_s3_malla || '');
+  const claveMalla = _lote3aClave('mallas');
   po([
     { t:'Para la Materia flotante se utiliza la Malla con clave' },
     { v: claveMalla, w: 70 },
@@ -2245,22 +2986,23 @@ async function _pdfBmPag2(doc, plan, omarRef, snapshot, ctx){
   const anio2 = String(new Date().getFullYear()).slice(-2);
 
   po([
-    { t:'Para determinación de pH, Conductividad Eléctrica y Temperatura, se realiza siguiendo los procedimientos citados en el manual de muestreo con clave MM/AA/N-3, se registra resultado en la hoja de campo.' }
+    // AARMS bm5fix: el manual de muestreo es MMAR/AA/N-2, igual que el resto del documento
+    { t:'Para determinación de pH, Conductividad Eléctrica y Temperatura, se realiza siguiendo los procedimientos citados en el manual de muestreo con clave MMAR/AA/N-2, se registra resultado en la hoja de campo.' }
   ]);
 
   tit('Recolección de muestras');
   po([
     { t:'Siendo las' },
-    { v: F.bm_s3_inicio_h, w: 40 },
+    { v: _lote3aHora((omarRef.campo && omarRef.campo.ini) || ''), w: 40 },
     { t:'h, se inicia la recolección de muestras. El periodo de descarga diaria es de:' },
-    { v: F.bm_s3_periodo_h, w: 40 },
+    { v: _lote3aBandaSinH((omarRef.campo && omarRef.campo.int) || omarRef.intervalo || ''), w: 40 },
     { t:'h, por lo tanto, la recolección de la(s) muestra(s) será en periodos de tiempo de' },
-    { v: omarRef.intervalo || (omarRef.campo && omarRef.campo.int) || '', w: 40 },
+    { v: _lote3aHorasEntre((omarRef.campo && omarRef.campo.int) || omarRef.intervalo || ''), w: 40 },
     { t:'h, entre tomas.' }
   ]);
 
   const eqTermo = typeof _equipoActivo === 'function' ? _equipoActivo('termometros') : null;
-  const claveTermo = eqTermo && typeof _equipoClave === 'function' ? _equipoClave('termometros', eqTermo) : (F.bm_s3_termo || '');
+  const claveTermo = _lote3aClave('termometros');
   po([
     { t:'Para la medición de temperatura, se utiliza el termómetro con clave:' },
     { v: claveTermo, w: 70 },
@@ -2298,15 +3040,20 @@ async function _pdfBmPag2(doc, plan, omarRef, snapshot, ctx){
   doc.text('Calibración, Comprobación y Verificación.', M, y); y += 10;
 
   const eqPh = typeof _equipoActivo === 'function' ? _equipoActivo('potenciometros') : null;
-  const clavePh2 = eqPh && typeof _equipoClave === 'function' ? _equipoClave('potenciometros', eqPh) : (F.bm_s2_ph_clave || '');
+  const clavePh2 = _lote3aClave('potenciometros');
   const idPh = eqPh ? String(eqPh.id) : '';
-  const rangoMin = F.bm_s4_rango_min || (omarRef.ph2644h1 && omarRef.ph2644h1.cal_l1) || '';
-  const rangoMax = F.bm_s4_rango_max || (omarRef.ph2644h1 && omarRef.ph2644h1.ver_l1) || '';
+  // AARMS lote4c: hora, valor de tira y rango salen del campo del plan. Sin campo, en blanco.
+  const _phPlanC = (omarRef && omarRef.ts && typeof getPlanDeMuestreo === 'function') ? getPlanDeMuestreo(omarRef.ts) : null;
+  const _campoC = (_phPlanC && _phPlanC.ph2644 && _phPlanC.ph2644.version === 2) ? _phPlanC.ph2644.campo : null;
+  const rangoMin = (_campoC && _campoC.rango && _campoC.rango.de) || '';
+  const rangoMax = (_campoC && _campoC.rango && _campoC.rango.a) || '';
+  const tiraHoraC = (_campoC && _campoC.tira && _campoC.tira.hora) || '';
+  const tiraValC = (_campoC && _campoC.tira && _campoC.tira.valor) || '';
   po([
     { t:'Siendo las' },
-    { v: F.bm_s4_tira_h, w: 40 },
+    { v: tiraHoraC, w: 40 },
     { t:'h se procede a determinar pH utilizando una tira reactiva dando un valor aproximado:' },
-    { v: F.bm_s4_tira_val, w: 36 },
+    { v: tiraValC, w: 36 },
     { t:'. Derivado de esta medición, se procede a calibrar el equipo con clave:' },
     { v: clavePh2, w: 70 },
     { t:'en el rango de:' },
@@ -2318,7 +3065,7 @@ async function _pdfBmPag2(doc, plan, omarRef, snapshot, ctx){
     { t:'/AA/N-3/' },
     { v: anio2, w: 28 },
     { t:'; folio:' },
-    { v: F.bm_s2_bucc_fol, w: 70 },
+    { v: _lote3aFolioPh(plan), w: 70 },
     { t:'.' }
   ]);
 
@@ -2336,7 +3083,7 @@ async function _pdfBmPag2(doc, plan, omarRef, snapshot, ctx){
     { t:'Los datos generados complementarios al muestreo quedan asentados en la Bitácora de hoja de campo BHCAR/AA/N-3/' },
     { v: anio2, w: 28 },
     { t:'con folio No.' },
-    { v: F.bm_s4_hcar_fol || F.bm_s4_bhcar, w: 70 },
+    { v: _lote3aSoloNumero(omarRef.campo && omarRef.campo.hcar), w: 70 },
     { t:'.' }
   ]);
 
@@ -2385,14 +3132,15 @@ async function _pdfBmPag3(doc, plan, omarRef, snapshot, ctx){
     { t:'/AA/N-3/' },
     { v: anio2, w: 28 },
     { t:'en el folio:' },
-    { v: F.bm_s2_bucc_fol, w: 70 },
+    { v: _lote3aFolioPh(plan), w: 70 },
     { t:'.' }
   ]);
 
   tit('Conductividad');
   const eqCond = typeof _equipoActivo === 'function' ? _equipoActivo('conductimetros') : null;
   const idCond = eqCond ? String(eqCond.id) : '';
-  const folioCond = (omarRef.colabLab && omarRef.colabLab.folio) || F.bm_s2_cond_ref || '';
+  // AARMS bm5fix: mismo mecanismo que folioPh (folio ya guardado del doc oficial). El texto fijo de arriba no cambia.
+  const folioCond = _lote3aFolioCond(plan, omarRef.colabLab);
   po([
     { t:'La evidencia de la limpieza, calibración, comprobación, verificación y uso del conductímetro se encuentra registrada en la Bitácora de Limpieza, Mantenimiento, Calibración, Comprobación, Verificación y Uso del Conductímetro BLMCCVUC' },
     { v: idCond, w: 36 },
@@ -2418,8 +3166,10 @@ async function _pdfBmPag3(doc, plan, omarRef, snapshot, ctx){
   // AARMS sub10-std: hueco de Cálculos en caja con barra (contenido en blanco oficial)
   const yCalc0 = y;
   y = _pdfBarraSeccion(doc, 'Calculos', M, y, CW, FONT);
-  y += 90; // espacio en blanco oficial
+  const yCalcCuerpo = y;
+  y += 90;
   _pdfCajaBorde(doc, M, yCalc0, CW, y - yCalc0);
+  _pdfTacharFila(doc, M, yCalcCuerpo, CW, y - yCalcCuerpo);
   y += 6;
 
   _pdfBmFirma(doc, 'Pág. 3 de 5');
@@ -2475,8 +3225,10 @@ async function _pdfBmPag5(doc, plan, omarRef, snapshot, ctx){
   // AARMS sub10-std: Ejemplo de cálculo en caja (hueco oficial)
   const yEj0 = y;
   y = _pdfBarraSeccion(doc, 'Ejemplo de calculo', M, y, CW, FONT);
+  const yEjCuerpo = y;
   y += 70;
   _pdfCajaBorde(doc, M, yEj0, CW, y - yEj0);
+  _pdfTacharFila(doc, M, yEjCuerpo, CW, y - yEjCuerpo);
   y += 6;
 
   po([
@@ -2487,29 +3239,38 @@ async function _pdfBmPag5(doc, plan, omarRef, snapshot, ctx){
     { t:'Ver Bitácora de Cadena de Custodia Interna AR, BCCIAR/AA/N-3/' },
     { v: anio2, w: 28 },
     { t:'con folio' },
-    { v: F.bm_s5_cciar_fol || F.bm_s5_bcciar, w: 70 },
+    { v: _lote3aSoloNumero(omarRef.campo && omarRef.campo.cciar), w: 70 },
     { t:'.' }
   ]);
 
   // AARMS sub10-std: Observaciones en caja con líneas (formato oficial)
+  // AARMS bm5fix: aire bajo la barra, igual que la caja de observaciones de pH/BLMP
   const yObs0 = y;
   y = _pdfBarraSeccion(doc, 'Observaciones', M, y, CW, FONT);
-  y += 4;
-  const obsTxt = [F.bm_s5_obs1, F.bm_s5_obs2, F.bm_s5_obs3].filter(Boolean).join(' ')
-    || F.bm_obs || omarRef.obs || '';
-  const obsParts = obsTxt ? doc.splitTextToSize(obsTxt, CW - 8) : [];
+  const obsFs = 8;
+  const obsPad = 6;
+  y += 4 + obsPad;
+  const obsTxt = _lote3aObservacion(omarRef, plan);
+  const obsParts = obsTxt ? doc.splitTextToSize(obsTxt, CW - obsPad * 2) : [];
+  let yLibre = null;
   for(let i = 0; i < 4; i++){
+    const yLinea = y;
+    const base = y + obsFs - 1;
     doc.setDrawColor(...ACCENT);
     doc.setLineWidth(0.5);
-    doc.line(M + 4, y + 1.5, M + CW - 4, y + 1.5);
+    doc.line(M + obsPad, base + 2.2, M + CW - obsPad, base + 2.2);
     if(obsParts[i]){
       doc.setFont(FONT, 'bold');
-      doc.setFontSize(8);
+      doc.setFontSize(obsFs);
       doc.setTextColor(...ACCENT);
-      doc.text(obsParts[i], M + 4, y);
+      doc.text(obsParts[i], M + obsPad, base);
+    } else if(yLibre == null) {
+      yLibre = yLinea;
     }
-    y += 14;
+    y += 16;
   }
+  // AARMS lote4ca: una sola diagonal sobre todo el bloque de renglones sin usar.
+  if(yLibre != null) _lote4bcTachar(doc, M, yLibre, CW, y - yLibre);
   _pdfCajaBorde(doc, M, yObs0, CW, y - yObs0);
   y += 6;
 
@@ -2518,22 +3279,62 @@ async function _pdfBmPag5(doc, plan, omarRef, snapshot, ctx){
 window._pdfBmPag5 = _pdfBmPag5;
 
 // AARMS sub51a-roboto: generar PDF Machiote con Roboto
-async function generarPDFBm(){
-  if(!omar || !omar.ts){ toast('Sin OMAR','w'); return; }
+// AARMS lote3ba: el PDF sale del registro del OMAR pedido, no de la pantalla
+function _lote3baTomarRegistro(id){
+  const mid = id || (typeof omar !== 'undefined' && omar && omar.ts);
+  if(!mid) return null;
+  // El registro guardado manda. La copia en memoria puede ser la OMAR a medias del localStorage.
+  const lista = (typeof _cachedMuestreos !== 'undefined' && _cachedMuestreos) ? _cachedMuestreos : [];
+  const m = lista.find(x => String(x.id) === String(mid));
+  if(!m){
+    if(typeof omar !== 'undefined' && omar && String(omar.ts) === String(mid)){
+      return { omar: omar, tomas: (typeof tomas !== 'undefined' && Array.isArray(tomas)) ? tomas : [] };
+    }
+    return null;
+  }
+  let copia = {};
+  try { copia = JSON.parse(m.omar || '{}'); } catch(e){ copia = {}; }
+  copia.ts = m.id;
+  if(m.empresa && !copia.empresa) copia.empresa = m.empresa;
+  if(m.folio && !copia.folio) copia.folio = m.folio;
+  let tomasCopia = [];
+  try { tomasCopia = JSON.parse(JSON.stringify(m.tomas || [])); } catch(e){ tomasCopia = []; }
+  return { omar: copia, tomas: tomasCopia };
+}
+
+async function generarPDFBm(omarId){
+  const reg = _lote3baTomarRegistro(omarId);
+  if(!reg || !reg.omar || !reg.omar.ts){ toast('Sin OMAR','w'); return; }
+  const prevOmar = (typeof omar !== 'undefined') ? omar : null;
+  const prevTomas = (typeof tomas !== 'undefined') ? tomas : null;
+  omar = reg.omar;
+  tomas = reg.tomas;
+  const prevSinGuardar = window._lote3baSinGuardar;
+  window._lote3baSinGuardar = true;
+  try {
   const plan = (typeof _planActivo === 'function' && _planActivo())
     || (typeof getPlanDeMuestreo === 'function' ? getPlanDeMuestreo(omar.ts) : null)
     || (typeof _planPorOmar === 'function' ? _planPorOmar() : null);
   if(!plan){ toast('Selecciona un OMAR y plan primero','w'); return; }
+  // AARMS bmconserv: cloro obligatorio (mismo toast faltantes que checkCamposCompletos)
+  if(typeof _machioteCloroFaltantes === 'function'){
+    const cloroFalt = _machioteCloroFaltantes(omar);
+    if(cloroFalt.length){
+      toast('Faltan: ' + cloroFalt.join(', '), 'w');
+      return;
+    }
+  }
   // AARMS sub9-firma: estampar firma del muestreador desde config
   if(typeof _firmaMuestreadorAuto === 'function') _firmaMuestreadorAuto(plan);
 
-  leerBmForm();
   if(typeof _machioteInicializarConservadores === 'function') _machioteInicializarConservadores(omar);
   const snapshot = _bmSnapshotOrigen();
+  // AARMS lote3ba: el snapshot entra en la copia en memoria. No se lee ni se guarda la pantalla.
+  _bmAplicarSnapshotEnMemoria(snapshot);
 
   const { jsPDF } = window.jspdf;
   const logo = await loadLogo(LOGO_PDF_URI);
-  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'letter' });
+  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'letter', compress:true });
 
   // AARMS sub51a-roboto: inyectar Roboto (fallback helvetica)
   let fuente = 'helvetica';
@@ -2554,10 +3355,15 @@ async function generarPDFBm(){
   doc.addPage();
   await _pdfBmPag5(doc, plan, omar, snapshot, ctx);
 
-  try{ await saveMuestreoActual(); }catch(e){ console.warn(e); }
+  // AARMS lote5c: una versión nueva solo si la huella de los datos cambió. El PDF descargado es el mismo.
+  try {
+    const blobVer = doc.output('blob');
+    if(typeof _lote5cRegistrar === 'function') await _lote5cRegistrar(plan, omar, blobVer);
+  } catch(e){ console.warn('[lote5c]', e); }
+
   // AARMS sub53-fino: nombre por folio OMAR (no del plan)
   const folio = omar.folio || omar.ts;
-  const fecha = new Date().toISOString().slice(0, 10);
+  const fecha = (typeof _lote21HoyFecha==='function'?_lote21HoyFecha():_lote4hoy().fecha);
   const fname = `Bitacora_Muestreo_${folio}_${fecha}.pdf`;
   // AARMS sub53-fino: save (captura envuelve constructor) + fallback output
   if(typeof doc.save === 'function') doc.save(fname);
@@ -2570,6 +3376,11 @@ async function generarPDFBm(){
   }
   toast('PDF Bitácora de Muestreo F-AA-114-18 (5 páginas) generado','g');
   if(typeof _maybeMarcarPlanDoc === 'function') await _maybeMarcarPlanDoc('bm');
+  } finally {
+    window._lote3baSinGuardar = prevSinGuardar;
+    omar = prevOmar;
+    tomas = prevTomas;
+  }
 }
 window.generarPDFBm = generarPDFBm;
 
@@ -2578,19 +3389,11 @@ async function generarPDFBmTodos(){
   const plan = (typeof _planActivo === 'function' && _planActivo()) || null;
   const ids = (plan && plan.omarIds) || [];
   if(!ids.length){ toast('Sin OMARs en el plan','w'); return; }
-  const prevId = omar && omar.ts;
   toast(`Generando ${ids.length} Machiote(s)…`, 'g');
+  // AARMS lote3ba: cada PDF lee su registro. No se abre ni se guarda el OMAR de la pantalla.
   for(const id of ids){
-    if(typeof cargarMuestreo === 'function') await cargarMuestreo(id);
-    if(typeof poblarBmForm === 'function') poblarBmForm();
-    if(typeof _bmRenderOmarSelector === 'function') _bmRenderOmarSelector();
-    await generarPDFBm();
-    await new Promise(r => setTimeout(r, 400));
-  }
-  if(prevId && String(prevId) !== String(omar && omar.ts) && typeof cargarMuestreo === 'function'){
-    await cargarMuestreo(prevId);
-    if(typeof poblarBmForm === 'function') poblarBmForm();
-    if(typeof _bmRenderOmarSelector === 'function') _bmRenderOmarSelector();
+    await generarPDFBm(id);
+    await new Promise(r => setTimeout(r, 200));
   }
   toast(`${ids.length} Machiotes generados`, 'g');
 }
@@ -2677,27 +3480,55 @@ window.bmCambiarOmar = bmCambiarOmar;
 // AARMS phbadge: badge ✓/✗ Acepta-Rechaza (Hoja 1 + Entre Tomas)
 // AARMS phfolio2: folio individual por hoja + caja FOLIO landscape clon + SLOPE/PENDIENTE merge CA
 // AARMS phslopefix: CA → 1 celda tabla normal (L2→ACEPTA, rowspan 2) "PENDIENTE SLOPE XX% PENDIENTE"
-window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV2(){
-  if(typeof guardarBorradorActual==='function') await guardarBorradorActual();
-  if(typeof _bitPhSyncAllTomasFromCampo==='function') _bitPhSyncAllTomasFromCampo();
-
-  // AARMS ph2644-fiel / phfix2: plan activo (todos los OMARs) — no un PDF por OMAR
-  let planPh = (typeof _planActivo === 'function') ? _planActivo() : null;
-  if(!planPh && typeof omar !== 'undefined' && omar?.ts && typeof getPlanDeMuestreo === 'function'){
-    planPh = getPlanDeMuestreo(omar.ts);
+// AARMS phslopeaccept: CA → merge L2→pH25 = SLOPE grande; ACEPTA por renglón con _phAceptaRechaza
+// AARMS phslopeaesthetic: SLOPE = ACCENT + centrado _pdfFilaTablaPremium, fs ~1.4× datos
+window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV2(planId){
+  // AARMS lote4a: el PDF sale del registro del plan pedido. No guarda la pantalla ni lee sus cuadros.
+  let planPh = null;
+  if(planId){
+    planPh = (typeof _cachedPlanes !== 'undefined' && _cachedPlanes) ? (_cachedPlanes.find(p => p.id === planId) || null) : null;
+    if(!planPh){ toast('No está el plan de esa bitácora','w'); return; }
+  } else {
+    planPh = (typeof _planActivo === 'function') ? _planActivo() : null;
+    if(!planPh && typeof omar !== 'undefined' && omar?.ts && typeof getPlanDeMuestreo === 'function'){
+      planPh = getPlanDeMuestreo(omar.ts);
+    }
   }
   if(!planPh && !(typeof omar !== 'undefined' && omar?.ts)){
     toast('Abre un plan u OMAR para generar la bitácora pH','w');
     return;
   }
 
-  let regs = (typeof _bitPhRegs === 'function') ? (_bitPhRegs() || []) : ((planPh && planPh.bitPh) || (omar && omar.bitPh) || []);
-  if(planPh && Array.isArray(planPh.bitPh) && planPh.bitPh.length){
-    regs = planPh.bitPh.slice();
-  }
-  if(!regs.length && !(omar && omar.ph2644h1)){
-    toast('Agrega registros en la bitácora pH.','w');
-    return;
+  let regs = [];
+  if(planPh && Array.isArray(planPh.bitPh)) regs = planPh.bitPh.slice();
+  else if(!planId && typeof omar !== 'undefined' && omar && Array.isArray(omar.bitPh)) regs = omar.bitPh.slice();
+
+  const phN = (planPh && typeof _lote4Ph === 'function') ? _lote4Ph(planPh) : null;
+  if(phN){
+    const ir = (donde) => {
+      if(donde === 'campo' && typeof abrirBitacoraPH === 'function') abrirBitacoraPH();
+      else if(typeof _lote4aAbrir === 'function') _lote4aAbrir();
+    };
+    if(typeof _lote4Rechazos === 'function'){
+      const rech = _lote4Rechazos(planPh);
+      if(rech.length){
+        toast('Rechaza: ' + rech.map(r => r.texto).join('; '), 'w', {
+          ms: 9000,
+          onClick: () => ir(rech[0] && rech[0].donde)
+        });
+        return;
+      }
+    }
+    if(typeof _lote4Faltantes === 'function'){
+      const faltan = _lote4Faltantes(planPh);
+      if(faltan.length){
+        toast('Faltan: ' + faltan.map(f => f.texto).join('; '), 'w', {
+          ms: 9000,
+          onClick: () => ir(faltan[0] && faltan[0].donde)
+        });
+        return;
+      }
+    }
   }
 
   const folioMap = {};
@@ -2713,36 +3544,28 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       folioMap[String(mid)] = fol;
     }
   }
-  if(typeof omar !== 'undefined' && omar?.ts){
+  if(!planId && typeof omar !== 'undefined' && omar?.ts){
     folioMap[String(omar.ts)] = folioMap[String(omar.ts)] || (omar.folio || String(omar.ts));
   }
 
-  let h = {};
-  if(typeof omar !== 'undefined' && omar){
-    if(typeof leerPh1 === 'function'){ try{ leerPh1(); }catch(_){} }
-    h = Object.assign({}, omar.ph2644h1 || {});
+  let h = (planPh && typeof _lote4LegacyH === 'function') ? _lote4LegacyH(planPh) : {};
+  const tieneHoja = !!(phN && (phN.lab || phN.campo)) || !!(h && (h.cal_l1 || h.comp_l1 || h.ver_l1 || h.folio || h.campo_c1 || h.campo_v1 || h.campo_ver_l1));
+  if(!regs.length && !tieneHoja){
+    toast('Agrega registros en la bitácora pH.','w');
+    return;
   }
-  if((!h.cal_l1 && !h.folio) && planPh && (planPh.omarIds || []).length && typeof _cachedMuestreos !== 'undefined'){
-    for(const mid of planPh.omarIds){
-      const m = _cachedMuestreos.find(x => x.id === mid);
-      if(!m || !m.omar) continue;
-      try{
-        const o = JSON.parse(m.omar);
-        if(o.ph2644h1 && (o.ph2644h1.cal_l1 || o.ph2644h1.folio || o.ph2644h1.comp_l1)){
-          h = Object.assign({}, o.ph2644h1);
-          break;
-        }
-      }catch(_){}
-    }
-  }
-  if(typeof _catalogoCargar === 'function') await _catalogoCargar();
-  if(typeof _catalogoFusionPh2644h1 === 'function' && h){
+  if(!phN && typeof _catalogoCargar === 'function') await _catalogoCargar();
+  if(!phN && typeof _catalogoFusionPh2644h1 === 'function' && h){
     try{ _catalogoFusionPh2644h1(h); }catch(_){}
   }
 
-  const folioDocPh = (typeof _bitPhFolioDocGet === 'function')
-    ? (_bitPhFolioDocGet() || '')
-    : ((planPh && planPh.bitPhFolioDoc) || (omar && omar.bitPhFolioDoc) || h.folio || '');
+  if(planPh && typeof window._lote2aAsegurarPh === 'function'){
+    try{ await window._lote2aAsegurarPh(planPh); }catch(e){ console.warn('[lote2a ph]', e); }
+  }
+  let folioDocPh = (planPh && planPh.bitPhFolioDoc) || '';
+  if(!folioDocPh && !planId && typeof _bitPhFolioDocGet === 'function') folioDocPh = _bitPhFolioDocGet() || '';
+  if(!folioDocPh && !planId) folioDocPh = (omar && omar.bitPhFolioDoc) || '';
+  if(!folioDocPh) folioDocPh = h.folio || '';
 
   // AARMS phfolio2: un folio individual por hoja física (rango → folio1 / folio2)
   const _phFoliosPorHoja = (rango) => {
@@ -2796,7 +3619,20 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   const subPlan = planPh && planPh.id
     ? ('Plan ' + asci(planPh.folio || planPh.id).substring(0, 24) + ' · ' + String((planPh.omarIds || []).length) + ' OMAR(s)')
     : ('OMAR ' + asci((omar && omar.folio) || '-'));
-  let subTxt = subPlan + '  |  ' + asci((planPh && planPh.empresa) || (omar && omar.empresa) || '').substring(0, 40);
+  // AARMS lote4a: la empresa sale del plan pedido, no de la OMAR abierta en pantalla.
+  let empresaPdf = (planPh && planPh.empresa) || '';
+  if(!empresaPdf && planPh && (planPh.omarIds || []).length && typeof _cachedMuestreos !== 'undefined'){
+    const midEmp = planPh.omarIds[0];
+    const mEmp = _cachedMuestreos.find(x => String(x.id) === String(midEmp));
+    if(mEmp){
+      empresaPdf = mEmp.empresa || '';
+      if(!empresaPdf && mEmp.omar){
+        try{ empresaPdf = JSON.parse(mEmp.omar).empresa || ''; }catch(_){}
+      }
+    }
+  }
+  if(!empresaPdf && !planId && omar) empresaPdf = omar.empresa || '';
+  let subTxt = subPlan + '  |  ' + asci(empresaPdf).substring(0, 40);
   if(folioDocPh) subTxt += '  |  Folio: ' + asci(folioDocPh).substring(0, 28);
 
   const folioOmarOf = (r) => {
@@ -2915,7 +3751,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   };
 
   // ═══════════════ PÁGINA 1 — portrait, 6 bloques ═══════════════
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' });
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
   let W = 612, H = 792, M = 28, CW = W - M * 2, HDR = 86;
 
   let yTop1 = HDR;
@@ -3013,36 +3849,69 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   const H_CAL = ['FECHA','HORA','LOTE','MARCA','BUFFER','LECTURA','ACTIVIDAD'];
   const H_COMP = ['FECHA','HORA','LOTE','MARCA','BUFFER','LECTURA 1','LECTURA 2','LECTURA 3','PROMEDIO','ACTIVIDAD'];
 
+  const labN = phN && phN.lab ? phN.lab : null;
+  const campoN = phN && phN.campo ? phN.campo : null;
+  const num2 = (v) => {
+    const n = parseFloat(String(v == null ? '' : v).replace(',', '.'));
+    return isNaN(n) ? (v == null ? '' : String(v)) : n.toFixed(2);
+  };
+  const filaCalPdf = (f) => {
+    if(!f || (String(f.lectura || '').trim() === '' && !f.buffer && !f.lote)) return ['', '', '', '', '', '', ''];
+    const lect = String(f.lectura || '').trim();
+    return [fmtFecha(f.fecha) || '', f.hora || '', f.lote || '', f.marca || '', num2(f.buffer), lect ? num2(lect) : '', lect ? 'CA' : ''];
+  };
+  const filaLectPdf = (f, act) => {
+    if(!f) return Array(10).fill('');
+    const has = [f.l1, f.l2, f.l3].some(x => x != null && String(x).trim() !== '');
+    if(!has && !f.buffer && !f.lote) return Array(10).fill('');
+    const p = prom3(f.l1, f.l2, f.l3);
+    return [fmtFecha(f.fecha) || '', f.hora || '', f.lote || '', f.marca || '', num2(f.buffer), f.l1 || '', f.l2 || '', f.l3 || '', p != null ? Number(p).toFixed(2) : '', has ? act : ''];
+  };
   const fechaLab = fmtFecha(h.fecha) || '';
   const horaLab = h.hora || '';
   const lote = h.lote || '';
   const marca = h.marca || '';
   const buffer = h.buffer || '';
-  const slope = h.slope || '';
-  const temp = h.temp || '';
-  // AARMS phfix2: Acepta/Rechaza de Hoja 1 calculado con criterio real
-  const acepComp = aceCalc(h.comp_l1, h.comp_l2, h.comp_l3, buffer);
-  const acepVer = aceCalc(h.ver_l1, h.ver_l2, h.ver_l3, buffer);
-  const acepCampoComp = aceCalc(h.campo_c1, h.campo_c2, h.campo_c3, buffer);
-  const acepCampoVer = aceCalc(h.campo_v1 || h.campo_ver_l1, h.campo_v2 || h.campo_ver_l2, h.campo_v3 || h.campo_ver_l3, buffer);
-  // AARMS cartacontrol: Verificación Campo ACEPTA → punto en carta pH-metro
+  const slope = labN ? (labN.b1.slope || '') : (h.slope || '');
+  const temp = labN ? (labN.b1.temp || '') : (h.temp || '');
+  // AARMS lote4a: estructura nueva, badge por fila. El plan viejo conserva la regla anterior (slope o texto).
+  const acepManual = h.campo_acep || '';
+  const acepCalViejo = (/acepta/i.test(String(acepManual)) ? 'Acepta' : (/rechaz/i.test(String(acepManual)) ? 'Rechaza' : (h.slope ? 'Acepta' : '')));
+  const acepCompViejo = aceCalc(h.comp_l1, h.comp_l2, h.comp_l3, buffer);
+  const acepComp = labN ? _lote4PdfEstado(_lote4EstadoComp(labN.b2.filas).a) : acepCompViejo;
+  const acepComp2 = labN ? _lote4PdfEstado(_lote4EstadoComp(labN.b2.filas).b) : acepCompViejo;
+  const acepVer = labN ? _lote4PdfEstado(_lote4EstadoVer(labN.b3.filas)) : aceCalc(h.ver_l1, h.ver_l2, h.ver_l3, buffer);
+  const acepCalLab = labN ? _lote4PdfEstado(_lote4EstadoCal(labN.b1.filas)) : acepCalViejo;
+
+  const feedSrc = (campoN && campoN.b6 && campoN.b6.filas && campoN.b6.filas[0]) ? {
+    campo_v1: campoN.b6.filas[0].l1, campo_v2: campoN.b6.filas[0].l2, campo_v3: campoN.b6.filas[0].l3,
+    buffer: campoN.b6.filas[0].buffer, campo_fecha: campoN.b6.filas[0].fecha, campo_hora: campoN.b6.filas[0].hora
+  } : h;
   if(typeof _cartasFeedDesdePhCampo === 'function'){
     try{
-      const folioOmarCtx = (omar && (omar.folio || omar.id)) || '';
+      const mid0 = planPh && planPh.omarIds && planPh.omarIds[0];
+      const folioOmarCtx = (mid0 && folioMap[String(mid0)] && folioMap[String(mid0)] !== '—') ? folioMap[String(mid0)] : ((!planId && omar && (omar.folio || omar.id)) || '');
       const planIdCtx = (planPh && planPh.id) || '';
-      void _cartasFeedDesdePhCampo(h, { folioOMAR: folioOmarCtx, planId: planIdCtx });
+      await _cartasFeedDesdePhCampo(feedSrc, { folioOMAR: folioOmarCtx, planId: planIdCtx });
     }catch(_eCc){}
   }
-  const acepManual = h.campo_acep || '';
-  const acepCalLab = (/acepta/i.test(String(acepManual)) ? 'Acepta' : (/rechaz/i.test(String(acepManual)) ? 'Rechaza' : (slope ? 'Acepta' : '')));
+  const acepCampoViejo = aceCalc(h.campo_c1, h.campo_c2, h.campo_c3, buffer);
+  const acepCampoComp = campoN ? _lote4PdfEstado(_lote4EstadoComp(campoN.b5.filas).a) : acepCampoViejo;
+  const acepCampoComp2 = campoN ? _lote4PdfEstado(_lote4EstadoComp(campoN.b5.filas).b) : acepCampoViejo;
+  const acepCampoVer = campoN ? _lote4PdfEstado(_lote4EstadoVer(campoN.b6.filas)) : aceCalc(h.campo_v1 || h.campo_ver_l1, h.campo_v2 || h.campo_ver_l2, h.campo_v3 || h.campo_ver_l3, buffer);
+  const acepCalCampo = campoN ? _lote4PdfEstado(_lote4EstadoCal(campoN.b4.filas)) : acepManual;
 
-  // Bloque 1 — Calibración Lab: 3 filas; LECTURA única (cal_l1/l2/l3 → 1 por fila)
+  // AARMS lote4a: cada fila con su fecha, hora y buffer. El molde de la hoja no cambia.
   const calLabRows = [];
-  [h.cal_l1, h.cal_l2, h.cal_l3].forEach((lect) => {
-    if(lect != null && String(lect).trim() !== ''){
-      calLabRows.push([fechaLab, horaLab, lote, marca, buffer, String(lect).trim(), 'CA']);
-    }
-  });
+  if(labN){
+    labN.b1.filas.forEach(f => calLabRows.push(filaCalPdf(f)));
+  } else {
+    [h.cal_l1, h.cal_l2, h.cal_l3].forEach((lect) => {
+      if(lect != null && String(lect).trim() !== ''){
+        calLabRows.push([fechaLab, horaLab, lote, marca, buffer, String(lect).trim(), 'CA']);
+      }
+    });
+  }
   y = drawBloque('1. Calibracion en el Laboratorio', H_CAL,
     padRows(calLabRows, 3, 7),
     [{
@@ -3051,25 +3920,25 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       aceptaVal: acepCalLab
     }], y);
 
-  // Bloque 2 — Comprobación Lab: 3 filas; L1/L2/L3/PROMEDIO
-  const compProm = prom3(h.comp_l1, h.comp_l2, h.comp_l3);
-  const compLabFilled = (h.comp_l1 || h.comp_l2 || h.comp_l3)
-    ? [[fechaLab, horaLab, lote, marca, buffer, h.comp_l1||'', h.comp_l2||'', h.comp_l3||'',
-        compProm != null ? compProm.toFixed(2) : '', 'CO']]
-    : [];
+  const compLabFilled = labN
+    ? labN.b2.filas.map(f => filaLectPdf(f, 'CO'))
+    : ((h.comp_l1 || h.comp_l2 || h.comp_l3)
+      ? [[fechaLab, horaLab, lote, marca, buffer, h.comp_l1||'', h.comp_l2||'', h.comp_l3||'',
+          (prom3(h.comp_l1, h.comp_l2, h.comp_l3) != null ? prom3(h.comp_l1, h.comp_l2, h.comp_l3).toFixed(2) : ''), 'CO']]
+      : []);
   y = drawBloque('2. Comprobacion de Calibracion en Laboratorio', H_COMP,
     padRows(compLabFilled, 3, 10),
     [
       { text: 'La medicion no debe desviarse por mas de ± 0,05 UpH del valor nominal del patron de referencia', acepta: true, aceptaVal: acepComp },
-      { text: 'No debera haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas', acepta: true, aceptaVal: acepComp }
+      { text: 'No debera haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas', acepta: true, aceptaVal: acepComp2 }
     ], y);
 
-  // Bloque 3 — Verificación Lab: 1 fila (AARMS phverif1)
-  const verProm = prom3(h.ver_l1, h.ver_l2, h.ver_l3);
-  const verLabFilled = (h.ver_l1 || h.ver_l2 || h.ver_l3)
-    ? [[fechaLab, horaLab, lote, marca, buffer, h.ver_l1||'', h.ver_l2||'', h.ver_l3||'',
-        verProm != null ? verProm.toFixed(2) : '', 'V']]
-    : [];
+  const verLabFilled = labN
+    ? labN.b3.filas.map(f => filaLectPdf(f, 'V'))
+    : ((h.ver_l1 || h.ver_l2 || h.ver_l3)
+      ? [[fechaLab, horaLab, lote, marca, buffer, h.ver_l1||'', h.ver_l2||'', h.ver_l3||'',
+          (prom3(h.ver_l1, h.ver_l2, h.ver_l3) != null ? prom3(h.ver_l1, h.ver_l2, h.ver_l3).toFixed(2) : ''), 'V']]
+      : []);
   y = drawBloque('3. Verificacion en Laboratorio', H_COMP,
     padRows(verLabFilled, 1, 10),
     [
@@ -3077,46 +3946,50 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       { text: 'El promedio no debe desviarse mas de 0.05 UpH del Valor Nominal, graficarlo.' }
     ], y);
 
-  // Bloques 4–6 Campo
   const fechaCampo = fmtFecha(h.campo_fecha || h.fecha) || fechaLab;
   const horaCampo = h.campo_hora || horaLab;
-  const slopeCampo = h.campo_slope || slope || '';
-  const tempCampo = h.campo_temp || temp || '';
+  const slopeCampo = campoN ? (campoN.b4.slope || '') : (h.campo_slope || '');
+  const tempCampo = campoN ? (campoN.b4.temp || '') : (h.campo_temp || '');
   const calCampoRows = [];
-  [h.campo_cal_l1 || h.campo_cal, h.campo_cal_l2, h.campo_cal_l3].forEach((lect) => {
-    if(lect != null && String(lect).trim() !== ''){
-      calCampoRows.push([fechaCampo, horaCampo, lote, marca, buffer, String(lect).trim(), 'CA']);
-    }
-  });
+  if(campoN){
+    campoN.b4.filas.forEach(f => calCampoRows.push(filaCalPdf(f)));
+  } else {
+    [h.campo_cal_l1 || h.campo_cal, h.campo_cal_l2, h.campo_cal_l3].forEach((lect) => {
+      if(lect != null && String(lect).trim() !== ''){
+        calCampoRows.push([fechaCampo, horaCampo, lote, marca, buffer, String(lect).trim(), 'CA']);
+      }
+    });
+  }
   y = drawBloque('4. Calibracion en el Campo', H_CAL,
     padRows(calCampoRows, 3, 7),
     [{
       text: 'Criterio de aceptacion: ____   Slope: ' + (slopeCampo || '____') + '   Temperatura: ' + (tempCampo || '____'),
       acepta: true,
-      aceptaVal: acepManual
+      aceptaVal: acepCalCampo
     }], y);
 
-  const campProm = prom3(h.campo_c1, h.campo_c2, h.campo_c3);
-  const campCompFilled = (h.campo_c1 || h.campo_c2 || h.campo_c3)
-    ? [[fechaCampo, horaCampo, lote, marca, buffer, h.campo_c1||'', h.campo_c2||'', h.campo_c3||'',
-        campProm != null ? campProm.toFixed(2) : '', 'CO']]
-    : [];
+  const campCompFilled = campoN
+    ? campoN.b5.filas.map(f => filaLectPdf(f, 'CO'))
+    : ((h.campo_c1 || h.campo_c2 || h.campo_c3)
+      ? [[fechaCampo, horaCampo, lote, marca, buffer, h.campo_c1||'', h.campo_c2||'', h.campo_c3||'',
+          (prom3(h.campo_c1, h.campo_c2, h.campo_c3) != null ? prom3(h.campo_c1, h.campo_c2, h.campo_c3).toFixed(2) : ''), 'CO']]
+      : []);
   y = drawBloque('5. Comprobacion de Calibracion en Campo', H_COMP,
     padRows(campCompFilled, 3, 10),
     [
       { text: 'La medicion no debe desviarse por mas de ± 0,05 UpH del valor nominal del patron de referencia', acepta: true, aceptaVal: acepCampoComp },
-      { text: 'No debera haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas', acepta: true, aceptaVal: acepCampoComp }
+      { text: 'No debera haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas', acepta: true, aceptaVal: acepCampoComp2 }
     ], y);
 
   const campV1 = h.campo_v1 || h.campo_ver_l1 || '';
   const campV2 = h.campo_v2 || h.campo_ver_l2 || '';
   const campV3 = h.campo_v3 || h.campo_ver_l3 || '';
-  const campVProm = prom3(campV1, campV2, campV3);
-  const campVerFilled = (campV1 || campV2 || campV3)
-    ? [[fechaCampo, horaCampo, lote, marca, buffer, campV1, campV2, campV3,
-        campVProm != null ? campVProm.toFixed(2) : '', 'V']]
-    : [];
-  // AARMS phverif1: Verificación Campo = 1 fila
+  const campVerFilled = campoN
+    ? campoN.b6.filas.map(f => filaLectPdf(f, 'V'))
+    : ((campV1 || campV2 || campV3)
+      ? [[fechaCampo, horaCampo, lote, marca, buffer, campV1, campV2, campV3,
+          (prom3(campV1, campV2, campV3) != null ? prom3(campV1, campV2, campV3).toFixed(2) : ''), 'V']]
+      : []);
   y = drawBloque('6. Verificacion en Campo', H_COMP,
     padRows(campVerFilled, 1, 10),
     [
@@ -3124,7 +3997,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       { text: 'El promedio no debe desviarse mas de 0.05 UpH del Valor Nominal, graficarlo.' }
     ], y);
 
-  y = _pdfCajaLeyenda(doc, 'OBSERVACIONES: ' + (h.obs || '_______________________________________________'), M, y, CW, FONT, { fontSize: 7 });
+  y = _lote4bcCuerpoObs(doc, M, y, CW, (phN && phN.obs) || h.obs || '', FONT);
   // AARMS phnum: pie "Pág. X de N" se estampa al final (total real)
 
   // ═══════════════ PÁGINA 2+ — landscape, tabla 14 cols ═══════════════
@@ -3194,10 +4067,12 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   const LGRAY = (window.STD && STD.LGRAY) || [248,250,252];
   const MGRAY = (window.STD && STD.MGRAY) || [208,216,228];
   const leftW14 = cw14.slice(0, 9).reduce((s, w) => s + w, 0);
-  const mergeW14 = cw14.slice(9).reduce((s, w) => s + w, 0);
-  const totalW14 = leftW14 + mergeW14;
+  // AARMS phslopeaccept: merge solo L2+L3+PROMEDIO+pH25 (4 cols); ACEPTA queda fuera
+  const mergeW14 = cw14.slice(9, 13).reduce((s, w) => s + w, 0);
+  const aceW14 = cw14[13];
+  const totalW14 = leftW14 + mergeW14 + aceW14;
 
-  // AARMS phslopefix: CA con misma estética que _pdfFilaTablaPremium (sin barritas verticales)
+  // AARMS phslopeaccept: CA — L1 + celdas vacías L2→ACEPTA (slope/badge se dibujan encima)
   const _phCaLeftVals = (row, actLbl) => {
     const esEntre = !!(row.calibGrupo || row.sinTomaFolio || row._entreDias);
     const l1v = (row.l1 != null && row.l1 !== '') ? String(row.l1) : 'PENDIENTE';
@@ -3211,28 +4086,49 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       row.marca || '',
       row.buffer || '',
       l1v,
-      '', '', '', '', '' // L2→ACEPTA vacías (se dibuja el merge encima)
+      '', '', '', '', '' // L2→ACEPTA vacías (merge slope + badge encima)
     ].map(v => asci(cell(v)));
   };
 
-  // AARMS phslopefix: L2→ACEPTA rowspan — tipografía contenida dentro de las 2 filas (padding óptico)
-  const _phDrawCaSlopePendiente = (yTop, nRows, slopePctVal) => {
+  // AARMS phslopeaccept: ACEPTA CA = misma fn que Hoja 1 (±0.05 vs buffer vía _phAceptaRechaza 2-arg)
+  const _phCaAceKind = (row) => {
+    if(!row || row.l1 == null || String(row.l1).trim() === '') return null;
+    const raw = (typeof _phAceptaRechaza === 'function')
+      ? _phAceptaRechaza(row.l1, row.buffer)
+      : null;
+    if(raw == null || raw === '') return null;
+    if(/^acepta$/i.test(String(raw))) return 'acepta';
+    if(/^rechaza$/i.test(String(raw))) return 'rechaza';
+    return null;
+  };
+
+  // AARMS phslopeaesthetic: solo letras ACCENT sobre el formato (sin borrar líneas ni cajas)
+  const _phDrawCaSlopeGrande = (yTop, nRows, slopePctVal) => {
     const hMerge = rh * nRows;
-    const slopePart = slopePctVal ? ('SLOPE ' + slopePctVal + '%') : 'SLOPE ____';
-    const txt = asci('PENDIENTE   ' + slopePart + '   PENDIENTE');
-    // Borrar solo la línea horizontal entre los 2 CA en la zona merge
-    if(nRows >= 2){
-      doc.setDrawColor(255, 255, 255);
-      doc.setLineWidth(1.35);
-      doc.line(M + leftW14 + 0.2, yTop + rh, M + totalW14 - 0.2, yTop + rh);
+    const txt = asci(slopePctVal ? ('SLOPE ' + slopePctVal + '%') : 'SLOPE ____');
+    const x0 = M + leftW14;
+    const x1 = x0 + mergeW14;
+    const padX = 5;
+    let fs = Math.min(14, hMerge - 6);
+    doc.setFont(FONT, 'bold');
+    doc.setFontSize(fs);
+    while(doc.getTextWidth(txt) > mergeW14 - padX * 2 && fs > 10){
+      fs -= 0.35;
+      doc.setFontSize(fs);
     }
-    // fs con aire arriba/abajo (~22pt de alto → ~10pt deja margen dentro de las filas)
-    const fs = nRows >= 2 ? 10.2 : 7.2;
-    const padY = nRows >= 2 ? 2.2 : 1.0;
-    doc.setFont(FONT, 'bold'); doc.setFontSize(fs); doc.setTextColor(...ACCENT);
-    // Baseline centrada ópticamente dentro del bloque (no pegada a bordes)
-    const baseline = yTop + padY + (hMerge - padY * 2) / 2 + fs * 0.32;
-    doc.text(txt.substring(0, 48), M + leftW14 + mergeW14 / 2, baseline, { align: 'center' });
+    const tw = doc.getTextWidth(txt);
+    const avail = mergeW14 - padX * 2;
+    const charSpace = Math.min(1.4, Math.max(0, (avail - tw) / Math.max(1, txt.length - 1)));
+    doc.setTextColor(...ACCENT);
+    // Encima del grid intacto — mismas celdas del formato, sin tocar bordes
+    doc.text(txt, (x0 + x1) / 2, yTop + hMerge / 2 + fs * 0.32, { align: 'center', charSpace });
+  };
+
+  const _phDrawCaAceBadge = (yRow, kind) => {
+    if(!kind || typeof _pdfBadgeAceptaRechaza !== 'function') return;
+    const bx = M + leftW14 + mergeW14 + Math.max(1, (aceW14 - 50) / 2);
+    const by = yRow + Math.max(0.5, (rh - 9) / 2);
+    _pdfBadgeAceptaRechaza(doc, bx, by, kind, { compact: true, font: FONT });
   };
 
   for(let fi = 0; fi < filas.length; fi++){
@@ -3268,7 +4164,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
     let ace = '';
 
     if(esCA){
-      // AARMS phslopefix: misma fila premium (sin barritas); merge L2→ACEPTA tipografía grande
+      // AARMS phslopeaccept: merge L2→pH25 = SLOPE grande; ACEPTA badge real por renglón
       const r2 = filas[fi + 1];
       const act2 = r2 ? (actOficial(r2.act) || (r2._forcedV ? 'V' : '')) : '';
       const esPar = act2 === 'CA';
@@ -3277,15 +4173,19 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       y = _pdfFilaTablaPremium(doc, _phCaLeftVals(r, act), M, y, cw14, rh, rowIdx, {
         fontSize: 5.8, maxChars: 12, font: FONT, blankEmpty: true
       });
+      _phDrawCaAceBadge(yTop, _phCaAceKind(r));
       if(esPar){
+        const y2 = y;
         y = _pdfFilaTablaPremium(doc, _phCaLeftVals(r2, 'CA'), M, y, cw14, rh, rowIdx + 1, {
           fontSize: 5.8, maxChars: 12, font: FONT, blankEmpty: true
         });
-        _phDrawCaSlopePendiente(yTop, 2, slopeVal);
+        _phDrawCaAceBadge(y2, _phCaAceKind(r2));
+        // AARMS phslopeaesthetic: sin cellBorders en CA → celda merge limpia (sin rayas L2|L3|…)
+        _phDrawCaSlopeGrande(yTop, 2, slopeVal);
         rowIdx += 2;
         fi++;
       } else {
-        _phDrawCaSlopePendiente(yTop, 1, slopeVal);
+        _phDrawCaSlopeGrande(yTop, 1, slopeVal);
         rowIdx++;
       }
       continue;
@@ -3358,7 +4258,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   y = _pdfCajaLeyenda(doc, notaBlmp, M, y, CW, FONT, { fontSize: 6.5 });
   y = _pdfCajaLeyenda(doc, codAct, M, y, CW, FONT, { fontSize: 6.5 });
   y = _pdfCajaLeyenda(doc, crit, M, y, CW, FONT, { fontSize: 6.5 });
-  y = _pdfCajaLeyenda(doc, 'OBSERVACIONES: _______________________________________________', M, y, CW, FONT, { fontSize: 7 });
+  y = _lote4bcCuerpoObs(doc, M, y, CW, '', FONT);
 
   // Firmas en la última página; pie de página se reescribe abajo con total real
   _pdfFirmaPremium(doc, '', '', {
@@ -3386,139 +4286,8 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   if(typeof _maybeMarcarPlanDoc === 'function') await _maybeMarcarPlanDoc('phcam');
 };
 
-// AARMS sub21-bittemp: PDF bitácora temperatura (espejo estética bitácora pH)
-// AARMS sub8-pdfs: tablas/firma premium (helpers Machiote, Helvetica)
-// AARMS sub10-std: Bit Temp — membrete STD + tabla en caja + leyenda en caja (sin letra-spaciada)
-window.generarPDFBitTemp = async function generarPDFBitTemp(){
-  if(!omar.ts){ toast('Sin OMAR activa','w'); return; }
-  if(typeof guardarBorradorActual==='function') await guardarBorradorActual();
-  if(typeof _bitTempSyncAllTomasFromCampo==='function') _bitTempSyncAllTomasFromCampo();
-  const planT=typeof getPlanDeMuestreo==='function'?getPlanDeMuestreo(omar.ts):null;
-  const regs=(planT&&Array.isArray(planT.bitTemp)?planT.bitTemp:[]).filter(r=>String(r.omarTs)===String(omar.ts));
-  if(!regs.length){ toast('Agrega registros en la bitácora de temperatura.','w'); return; }
-  const folioDoc=(typeof _bitTempFolioDocGet==='function')?(_bitTempFolioDocGet()||''):'';
-  const termoEq=typeof _equipoActivo==='function'?_equipoActivo('termometros'):null;
-  const termoLbl=termoEq&&typeof _equipoClave==='function'?_equipoClave('termometros',termoEq):'';
-  const fcVal=typeof _fcTermometroActual==='function'?_fcTermometroActual():0;
-  const {jsPDF}=window.jspdf;
-  const logo=await loadLogo(LOGO_PDF_URI);
-  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'letter'});
-  const W=792,H=612,M=20,CW=W-M*2,HDR=76;
-  const FONT='helvetica';
-  let subTxt=(planT&&planT.id?('Plan '+jsPdfAscii(String(planT.folio||planT.id||'')).substring(0,24)):('OMAR '+jsPdfAscii(omar.folio||'-')));
-  subTxt+='  |  '+jsPdfAscii(termoLbl)+'  FC '+(fcVal>=0?'+':'')+fcVal.toFixed(2);
-  if(folioDoc) subTxt+='  |  Folio: '+jsPdfAscii(String(folioDoc)).substring(0,40);
-  const hdrPg=()=>{
-    _pdfMembreteStd(doc, logo, {
-      docTitulo: 'Termometro',
-      docSubtitulo: 'Bitacora entre tomas',
-      codigoFormato: 'TEMP',
-      extraIzq: subTxt,
-      margin: M,
-      contentY: HDR
-    }, FONT);
-  };
-  hdrPg();
-  let y = HDR + 4;
-  const heads=['#','Hora','T1a','T2a','T3a','PromA','T1b','T2b','T3b','PromB','dT','Proc'];
-  const raw=[18,40,36,36,36,42,36,36,36,42,36,58];
-  const s=raw.reduce((a,b)=>a+b,0);
-  const cws=raw.map(w=>w*(CW/s));
-  const rh=13;
-  const sorted=[...regs].sort((a,b)=>Number(a.toma)-Number(b.toma));
-  y = _pdfSeccionStd(doc, 'Registros de temperatura', M, y, CW, (yy) => {
-    yy = _pdfHeaderTablaPremium(doc, heads, M, yy, cws, 13, FONT);
-    sorted.forEach((reg,ri)=>{
-      const c=typeof _calcBitTempRegistro==='function'?_calcBitTempRegistro(reg):{};
-      const vals=[
-        String(ri+1), jsPdfAscii(reg.hora||''),
-        jsPdfAscii(reg.agua_l1||''), jsPdfAscii(reg.agua_l2||''), jsPdfAscii(reg.agua_l3||''),
-        !isNaN(c.agua_prom)?c.agua_prom.toFixed(2):'',
-        jsPdfAscii(reg.amb_l1||''), jsPdfAscii(reg.amb_l2||''), jsPdfAscii(reg.amb_l3||''),
-        !isNaN(c.amb_prom)?c.amb_prom.toFixed(2):'',
-        !isNaN(c.diff)?c.diff.toFixed(2):'',
-        jsPdfAscii(String(c.procedimiento||''))
-      ];
-      yy=_pdfFilaTablaPremium(doc, vals, M, yy, cws, rh, ri, {
-        firstAccent:true, fontSize:6.4, maxChars:12, font:FONT
-      });
-    });
-    return yy;
-  }, FONT);
-  const pie='Criterio: dT <= 5C -> Procedimiento 2 (polietileno). dT > 5C -> Procedimiento 3 (Dewar). Valores corregidos con FC del termometro asignado.';
-  if(y > H - 100){ doc.addPage(); hdrPg(); y = HDR + 4; }
-  y = _pdfCajaLeyenda(doc, pie, M, y, CW, FONT, { fontSize:7.2 });
-  _pdfFirmaPremium(doc, 'Pag. 1', 'TEMP', { font:FONT, W, H, yOffset:70 });
-  const pdfSlug=planT&&planT.id?`Plan-${String(planT.folio||planT.id||'').replace(/[^\w\-]+/g,'_')}`:`OMAR-${omar.folio||omar.ts}`;
-  doc.save(`Bitacora_Temperatura_${pdfSlug}.pdf`);
-  toast('PDF bitácora temperatura generado','g');
-  if(typeof _maybeMarcarPlanDoc==='function') await _maybeMarcarPlanDoc('bittemp');
-};
 
-// AARMS sub10-std: Bit Flujos — membrete STD + tabla en caja + leyenda en caja
-window.generarPDFBitFlujos = async function generarPDFBitFlujos(){
-  if(!omar.ts){ toast('Sin OMAR activa','w'); return; }
-  if(typeof guardarBorradorActual==='function') await guardarBorradorActual();
-  if(typeof _bitFlujosSyncAllTomasFromCampo==='function') _bitFlujosSyncAllTomasFromCampo();
-  const planT=typeof getPlanDeMuestreo==='function'?getPlanDeMuestreo(omar.ts):null;
-  const regs=(planT&&Array.isArray(planT.bitFlujos)?planT.bitFlujos:[]).filter(r=>String(r.omarTs)===String(omar.ts));
-  if(!regs.length){ toast('Agrega registros en la bitácora de flujos.','w'); return; }
-  const folioDoc=(typeof _bitFlujosFolioDocGet==='function')?(_bitFlujosFolioDocGet()||''):'';
-  const sumaTotal=typeof _flujoSumaOmar==='function'?_flujoSumaOmar(omar.ts):0;
-  const {jsPDF}=window.jspdf;
-  const logo=await loadLogo(LOGO_PDF_URI);
-  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'letter'});
-  const W=792,H=612,M=20,CW=W-M*2,HDR=76;
-  const FONT='helvetica';
-  let subTxt=(planT&&planT.id?('Plan '+jsPdfAscii(String(planT.folio||planT.id||'')).substring(0,24)):('OMAR '+jsPdfAscii(omar.folio||'-')));
-  subTxt+='  |  Suma OMAR: '+(sumaTotal>0?sumaTotal.toFixed(2)+' L/s':'-');
-  if(folioDoc) subTxt+='  |  Folio: '+jsPdfAscii(String(folioDoc)).substring(0,40);
-  const hdrPg=()=>{
-    _pdfMembreteStd(doc, logo, {
-      docTitulo: 'Flujos',
-      docSubtitulo: 'Bitacora entre tomas',
-      codigoFormato: 'FLUJO',
-      extraIzq: subTxt,
-      margin: M,
-      contentY: HDR
-    }, FONT);
-  };
-  hdrPg();
-  let y = HDR + 4;
-  const heads=['#','Hora','Metodo','L1','L2','L3','Prom','%'];
-  const raw=[18,40,160,40,40,40,48,42];
-  const s=raw.reduce((a,b)=>a+b,0);
-  const cws=raw.map(w=>w*(CW/s));
-  const rh=14;
-  const sorted=[...regs].sort((a,b)=>Number(a.toma)-Number(b.toma));
-  y = _pdfSeccionStd(doc, 'Registros de flujo', M, y, CW, (yy) => {
-    yy = _pdfHeaderTablaPremium(doc, heads, M, yy, cws, 13, FONT);
-    sorted.forEach((reg,ri)=>{
-      const c=typeof _calcBitFlujosRegistro==='function'?_calcBitFlujosRegistro(reg):{};
-      const pct=(!isNaN(c.promedio)&&sumaTotal>0)?(c.promedio/sumaTotal)*100:NaN;
-      const vals=[
-        String(ri+1), jsPdfAscii(reg.hora||''),
-        jsPdfAscii(reg.metodo||''),
-        jsPdfAscii(reg.l1||''), jsPdfAscii(reg.l2||''), jsPdfAscii(reg.l3||''),
-        !isNaN(c.promedio)?c.promedio.toFixed(2):'',
-        !isNaN(pct)?pct.toFixed(2):''
-      ];
-      yy=_pdfFilaTablaPremium(doc, vals, M, yy, cws, rh, ri, {
-        firstAccent:true, fontSize:6.6, maxChars:28, font:FONT, wrapCol:2, maxCharsArr:[4,8,40,8,8,8,10,8]
-      });
-    });
-    return yy;
-  }, FONT);
-  const pie='Criterio: % ponderado = (promedio toma / suma promedios del OMAR) x 100. Promedio L1/L2/L3: simple, ignora vacios.';
-  if(y > H - 100){ doc.addPage(); hdrPg(); y = HDR + 4; }
-  y = _pdfCajaLeyenda(doc, pie, M, y, CW, FONT, { fontSize:7.2 });
-  _pdfFirmaPremium(doc, 'Pag. 1', 'FLUJO', { font:FONT, W, H, yOffset:70 });
-  const pdfSlug=planT&&planT.id?`Plan-${String(planT.folio||planT.id||'').replace(/[^\w\-]+/g,'_')}`:`OMAR-${omar.folio||omar.ts}`;
-  doc.save(`Bitacora_Flujos_${pdfSlug}.pdf`);
-  toast('PDF bitácora flujos generado','g');
-  if(typeof _maybeMarcarPlanDoc==='function') await _maybeMarcarPlanDoc('bitflujos');
-};
-
+// AARMS lote8e: Temperatura y Flujos no tienen PDF propio. Las lecturas se imprimen en el Machiote.
 // Exponer para onclick en HTML y app.js (drawer / FAB)
 window.abrirPagBpm=abrirPagBpm;
 window.validarBpmParaPdf=validarBpmParaPdf;
@@ -3666,16 +4435,259 @@ async function _pdfODPag4(doc, plan, logo){
   _pdfODFirma(doc, 'Pag. 4 de 4');
 }
 
+async function _lote17GenerarPDFOD(plan){
+  if(!plan){ toast('Selecciona un plan','w'); return; }
+  if(typeof _lote17OdAsegurar === 'function') _lote17OdAsegurar(plan);
+  if(typeof _lote17OdSyncLecturas === 'function') _lote17OdSyncLecturas(plan);
+  let b = plan.bitOD || {};
+  if((typeof _lote17OdVerifRechazada === 'function') && (_lote17OdVerifRechazada(plan, 'lab') || _lote17OdVerifRechazada(plan, 'campo'))){
+    toast('La verificación se rechazó. Repítela para generar el PDF.','w');
+    return;
+  }
+  if(typeof _lote17OdTieneDatos === 'function' && _lote17OdTieneDatos(b) && typeof _lote17OdAsegurarFolios === 'function'){
+    await _lote17OdAsegurarFolios(plan);
+  }else if(!(b.folios || []).length && typeof _lote17OdAsegurarFolios === 'function'){
+    await _lote17OdAsegurarFolios(plan);
+  }
+  // AARMS lote18: el folio queda en el objeto que acaba de reservarlo.
+  b = plan.bitOD || b;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'letter', compress:true });
+  const fuente = typeof _pdfBmAplicarRoboto === 'function' ? await _pdfBmAplicarRoboto(doc) : 'helvetica';
+  const W = 612, H = 792, M = 36, CW = W - M * 2;
+  const anio = typeof _lote17Anio2 === 'function' ? _lote17Anio2(plan) : '';
+  const lects = b.lecturas || [];
+  const paginas = 4 + Math.max(0, Math.ceil(lects.length / 14) - 1);
+  const folios = (b.folios || []).slice();
+  while(folios.length < paginas) folios.push('');
+  const eq = typeof _equipoActivo === 'function' ? _equipoActivo('oximetros') : null;
+  const clave = (eq && typeof _equipoClave === 'function') ? _equipoClave('oximetros', eq) : '';
+  const dis = (typeof _lote17OdDisoluciones === 'function') ? _lote17OdDisoluciones() : [{}, {}];
+  const mu = typeof _muestreadorActual === 'function' ? _muestreadorActual() : {};
+  const su = (plan.firmas && plan.firmas.supervisor) || {};
+  const omarFolios = [];
+  lects.forEach(r => { if(r.folioOmar && omarFolios.indexOf(r.folioOmar) < 0) omarFolios.push(r.folioOmar); });
+  const txt = (t, x, y, w, size, lead) => _lote16Texto(doc, fuente, t, x, y, w, size, lead);
+  const logo = (typeof loadLogo === 'function') ? await loadLogo('logo.png') : null;
+  const cuerpo = 11, lead = 15.5;
+  // AARMS lote18: el membrete sube y el pie queda en las firmas.
+  const pie = (n, folio) => {
+    _lote18Firmas(doc, fuente, { suFirma: su.firmaPng || '', suNombre: su.nombre || '', muFirma: mu.firmaPng || '', muNombre: mu.nombre || '' }, W, H, M);
+    _lote18Codigo(doc, fuente, '', 'ODC-1/' + n + ' DE ' + paginas, W, H, M, false);
+  };
+  const abre = async (folio) => _lote18Encabezado(doc, fuente, folio, { logo, m: M, regla: true });
+  const tablaCal = (y, filas) => {
+    // AARMS lote19b: el texto del encabezado queda como en el formato oficial.
+    const heads = ['Fecha','Hora','Operación Realizada','Lectura Inicial','Ajuste','Lectura Final','Unidades'];
+    const ws = [64, 42, 184, 68, 56, 74, 52];
+    doc.setFont(fuente, 'bold'); doc.setFontSize(8); doc.setTextColor(20, 24, 32);
+    doc.setFillColor(226, 232, 240); doc.setDrawColor(40, 48, 64); doc.setLineWidth(0.4);
+    let x = M;
+    heads.forEach((h, i) => {
+      doc.setFillColor(226, 232, 240); doc.setTextColor(20, 24, 32);
+      doc.rect(x, y, ws[i], 28, 'FD');
+      doc.text(h, x + 2, y + 12, { maxWidth: ws[i] - 4 });
+      x += ws[i];
+    });
+    y += 28;
+    filas.forEach(f => {
+      const vals = [f.fecha||'', f.hora||'', f.op, f.ini||'', f.ajuste||'', f.fin||'', '%'];
+      x = M;
+      doc.setFont(fuente, 'normal'); doc.setFontSize(9);
+      const alto = 36;
+      vals.forEach((v, i) => {
+        doc.rect(x, y, ws[i], alto);
+        const lines = doc.splitTextToSize(String(v), ws[i] - 4);
+        doc.text(lines.slice(0, 2), x + 2, y + 14);
+        x += ws[i];
+      });
+      y += alto;
+    });
+    return y;
+  };
+  const tablaVer = (y, v, rotulo) => {
+    const prom = (typeof _lote17OdProm === 'function') ? _lote17OdProm(v.l1, v.l2) : NaN;
+    const dic = (String(v.l1||'').trim() && String(v.l2||'').trim() && typeof _lote17OdDictamen === 'function') ? _lote17OdDictamen(prom) : '';
+    // AARMS lote19b: el rótulo del encabezado sigue al oficial. La columna Resultado se queda, con el dictamen calculado.
+    const heads = ['Fecha','Hora',rotulo,'Lectura 1','Lectura 2','Lectura promedio','Criterio','Unidades','Resultado'];
+    const ws = [64, 42, 52, 48, 48, 64, 52, 46, 124];
+    const headH = 40;
+    doc.setFont(fuente, 'bold'); doc.setFontSize(7); doc.setTextColor(20, 24, 32);
+    doc.setFillColor(226, 232, 240); doc.setDrawColor(40, 48, 64);
+    let x = M;
+    heads.forEach((h, i) => {
+      doc.setFillColor(226, 232, 240); doc.setTextColor(20, 24, 32);
+      doc.rect(x, y, ws[i], headH, 'FD');
+      const lines = doc.splitTextToSize(h, ws[i] - 4);
+      doc.text(lines.slice(0, 3), x + 2, y + 10);
+      x += ws[i];
+    });
+    y += headH;
+    const vals = [v.fecha||'', v.hora||'', 'Control', v.l1||'', v.l2||'', Number.isFinite(prom) ? prom.toFixed(2) : '', '0 – 1.6', '%', dic];
+    x = M;
+    doc.setFont(fuente, 'normal'); doc.setFontSize(9);
+    vals.forEach((val, i) => { doc.rect(x, y, ws[i], 26); doc.text(String(val), x + 2, y + 16, { maxWidth: ws[i] - 3 }); x += ws[i]; });
+    return y + 26;
+  };
+  const d0 = dis[0] || {}, d1 = dis[1] || {};
+  const zL = (b.calibLab && b.calibLab.zero) || {};
+  const sL = (b.calibLab && b.calibLab.sat) || {};
+  const zC = (b.calibCampo && b.calibCampo.zero) || {};
+  const sC = (b.calibCampo && b.calibCampo.sat) || {};
+
+  const aspectos = () => {
+    y = txt('En caso de tener problemas durante la estandarización, revisar los siguientes aspectos:', M, y, CW, cuerpo, lead) + 2;
+    y = _lote18Num(doc, fuente, 1, 'La membrana se encuentra perforada lo cual genera suciedad en la superficie del cátodo siendo esto una interferencia. En este caso reemplazar la membrana vieja por una nueva, véase el manual MMA/AA/N-3.', M + 8, y, CW - 8, cuerpo, lead) + 2;
+    y = _lote18Num(doc, fuente, 2, 'El electrodo está sucio. De ser así, lavar el electrodo con agua tridestilada hasta que toda la suciedad haya desaparecido.', M + 8, y, CW - 8, cuerpo, lead) + 2;
+    y = _lote18Num(doc, fuente, 3, 'La presencia de sal en las muestras puede afectar la estandarización del oxímetro.', M + 8, y, CW - 8, cuerpo, lead) + 2;
+    y = txt('Si la falla o error no es atribuible a las causas antes mencionadas, comunicarlo al supervisor.', M, y, CW, cuerpo, lead) + 8;
+  };
+  const calibTxt = (tabla) => {
+    y = txt('La calibración se realiza en los siguientes 2 puntos:', M, y, CW, cuerpo, lead) + 2;
+    y = _lote18Num(doc, fuente, 1, 'Utilizando la disolución estándar de calibración de concentración 0 mg/l ó nula.', M + 8, y, CW - 8, cuerpo, lead) + 1;
+    y = _lote18Num(doc, fuente, 2, 'Exponiendo al ambiente sin restricción la celda hasta obtener aproximadamente el 100% de saturación.', M + 8, y, CW - 8, cuerpo, lead) + 2;
+    y = txt(tabla, M, y, CW, cuerpo, lead) + 8;
+  };
+
+  let y = await abre(folios[0]);
+  y += 8;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(13); doc.setTextColor(20,24,32);
+  doc.text('BITÁCORA DE OXÍGENO DISUELTO EN CAMPO', W / 2, y, { align:'center' });
+  y += 16;
+  doc.setFontSize(11);
+  doc.text('NMX-AA-012-SCFI-2001', W / 2, y, { align:'center' });
+  y += 28;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(11);
+  doc.text('FECHA: ' + (plan.fecha || ''), W - M, y, { align:'right' });
+  y += 24;
+  y = txt('FOLIOS OMAR: ' + omarFolios.join(', '), M, y, CW, cuerpo, lead) + 18;
+  y = txt('Código del procedimiento utilizado: ' + (b.proc || '') + ', el Procedimiento para este analito se encuentra en la bitácora BPA/AA/N-3/' + anio + ' en los folios ' + (b.bpaDesde || '') + ' al ' + (b.bpaHasta || '') + '.', M, y, CW, cuerpo, lead) + 18;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.text('EQUIPO UTILIZADO', M, y); y += 20;
+  y = txt('AA/OX/' + (clave ? String(clave).replace(/^AA\/OX\//, '') : '') + '.', M, y, CW, cuerpo, lead) + 18;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.text('REACTIVOS', M, y); y += 20;
+  y = txt('Disolución concentración nula estándar de calibración (0 mgO₂/L) No. lote ' + (d0.lote || '') + ' Trasvase a recipiente No. ' + (d0.recipiente || '') + ' la preparación de esta disolución se encuentra registrada en la bitácora BDBO5D/AA/N-3/' + anio + ' en el folio: ' + (d0.folioBdbo || ''), M, y, CW, cuerpo, lead) + 14;
+  y = txt('Disolución concentración nula estándar de trabajo (0 mgO₂/L) No. lote ' + (d1.lote || '') + ' Trasvase a recipiente No. ' + (d1.recipiente || '') + ' la preparación de esta disolución se encuentra registrada en la bitácora BDBO5D/AA/N-3/' + anio + ' en el folio: ' + (d1.folioBdbo || ''), M, y, CW, cuerpo, lead) + 18;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.text('CONTROL DE VERIFICACIÓN', M, y); y += 20;
+  y = txt('Se utiliza como control de verificación la disolución de concentración nula, (estándar de trabajo 0 mgO₂/L).', M, y, CW, cuerpo, lead) + 12;
+  y = txt('El criterio de aceptación para este control se encuentra en el manual MCA/AA/N-3, apartado CAOD/AA/M-8.', M, y, CW, cuerpo, lead) + 18;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.text('ATEMPERAR LOS ESTÁNDARES EN LABORATORIO', M, y); y += 20;
+  txt('Siendo las ' + (b.horaAtemp || '') + ' hrs., se procede a atemperar los estándares de calibración y trabajo, a la temperatura ambiental de laboratorio.', M, y, CW, cuerpo, lead);
+  pie(1, folios[0]);
+
+  doc.addPage();
+  y = await abre(folios[1]);
+  y += 10;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.text('CALIBRACIÓN DEL EQUIPO EN LABORATORIO', M, y); y += 16;
+  calibTxt('Los datos se registran en la tabla #1');
+  doc.setFont(fuente, 'bold'); doc.setFontSize(11); doc.text('Tabla # 1  datos de calibración de Oxímetro en laboratorio', W / 2, y, { align:'center' }); y += 8;
+  y = tablaCal(y, [
+    Object.assign({ op:'Calibración a 0 mg/L ó concentración nula' }, zL),
+    Object.assign({ op:'Calibración / Concentración al 100%' }, sL)
+  ]) + 8;
+  aspectos();
+  doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.text('VERIFICACIÓN DEL EQUIPO EN LABORATORIO', M, y); y += 16;
+  y = txt('En la verificación se utiliza la disolución estándar de trabajo de concentración 0 mgO₂/L ó nula, como control analítico y los datos obtenidos se registran en la tabla # 2', M, y, CW, cuerpo, lead) + 8;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(11); doc.text('Tabla # 2  datos de verificación de Oxímetro en laboratorio', W / 2, y, { align:'center' }); y += 8;
+  tablaVer(y, b.verifLab || {}, 'Verificación en Laboratorio');
+  pie(2, folios[1]);
+
+  doc.addPage();
+  y = await abre(folios[2]);
+  y += 10;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.text('CALIBRACIÓN DEL EQUIPO EN CAMPO', M, y); y += 16;
+  calibTxt('Los datos se registran en la tabla # 3');
+  doc.setFont(fuente, 'bold'); doc.setFontSize(11); doc.text('Tabla # 3  datos de calibración de Oxímetro en campo', W / 2, y, { align:'center' }); y += 8;
+  y = tablaCal(y, [
+    Object.assign({ op:'Calibración a 0 mg/L ó concentración nula' }, zC),
+    Object.assign({ op:'Calibración / Concentración al 100%' }, sC)
+  ]) + 8;
+  aspectos();
+  doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.text('VERIFICACIÓN DEL EQUIPO EN CAMPO', M, y); y += 16;
+  y = txt('En la verificación se utiliza la disolución estándar de trabajo de concentración 0 mgO₂/L ó nula, como control analítico y los datos obtenidos se registran en la tabla # 4', M, y, CW, cuerpo, lead) + 8;
+  doc.setFont(fuente, 'bold'); doc.setFontSize(11); doc.text('Tabla # 4  datos de verificación de Oxímetro en campo', W / 2, y, { align:'center' }); y += 8;
+  tablaVer(y, b.verifCampo || {}, 'Verificación en campo');
+  pie(3, folios[2]);
+
+  const dibujaT5 = async (inicio, folio, n) => {
+    doc.addPage();
+    y = await abre(folio);
+    y += 8;
+    doc.setFont(fuente, 'bold'); doc.setFontSize(12); doc.setTextColor(20,24,32);
+    if(inicio === 0){
+      doc.text('PROCEDIMIENTO', M, y); y += 16;
+      y = txt('La lectura de oxígeno disuelto se realiza como a continuación se describe:', M, y, CW, cuerpo, lead) + 2;
+      y = _lote18Num(doc, fuente, 1, 'Tomar una porción de muestra, evitando en medida de lo posible agitar la para evitar formación de burbujas e intercambio gaseoso con el ambiente.', M + 8, y, CW - 8, cuerpo, lead) + 1;
+      y = _lote18Num(doc, fuente, 2, 'Sumergir el electrodo en la muestra y esperar a que la lectura se estabilice.', M + 8, y, CW - 8, cuerpo, lead) + 1;
+      y = _lote18Num(doc, fuente, 3, 'Registrar los datos en la tabla # 5.', M + 8, y, CW - 8, cuerpo, lead) + 1;
+      y = _lote18Num(doc, fuente, 4, 'Tomar lecturas por duplicado, repitiendo el procedimiento aquí descrito a partir del punto 2.', M + 8, y, CW - 8, cuerpo, lead) + 6;
+      const primero = omarFolios[0] || '';
+      const ultimo = omarFolios[omarFolios.length - 1] || '';
+      y = txt('La temperatura de las muestras se encuentra registrada en la bitácora de hoja de campo BHCAR/AA/N-3/' + anio + ' en el folio OMAR ' + primero + ' al folio OMAR ' + ultimo + '.', M, y, CW, cuerpo, lead) + 10;
+    }
+    doc.setFont(fuente, 'bold'); doc.setFontSize(11);
+    doc.text(inicio === 0 ? 'Tabla # 5 datos obtenidos en campo' : 'Tabla # 5 datos obtenidos en campo (continuación)', W / 2, y, { align:'center' });
+    y += 8;
+    // AARMS lote19b: encabezados de la Tabla 5 como en el formato oficial. Mismas columnas.
+    const heads = ['Fecha','Hora','Folio OMAR','Identificación de la muestra','Tiempo','Lectura 1','Lectura 2','Promedio OD (mgO₂/L)'];
+    const ws = [58, 40, 62, 130, 48, 62, 62, 78];
+    const reserva = inicio === 0 ? 48 : 8;
+    const cabe = Math.max(16, Math.min(26, Math.floor((H - 130 - y - reserva) / 14)));
+    const headH = 36;
+    let x = M;
+    doc.setFont(fuente, 'bold'); doc.setFontSize(8); doc.setTextColor(20, 24, 32);
+    doc.setFillColor(226, 232, 240); doc.setDrawColor(40, 48, 64);
+    heads.forEach((h, i) => {
+      doc.setFillColor(226, 232, 240); doc.setTextColor(20, 24, 32);
+      doc.rect(x, y, ws[i], headH, 'FD');
+      doc.text(h, x + 2, y + 12, { maxWidth: ws[i] - 4 });
+      x += ws[i];
+    });
+    y += headH;
+    for(let i = 0; i < 14; i++){
+      const r = lects[inicio + i];
+      if(!r){
+        doc.rect(M, y, CW, cabe);
+        if(typeof _pdfTacharFila === 'function') _pdfTacharFila(doc, M, y, CW, cabe);
+      }else{
+        const prom = (typeof _lote17OdProm === 'function') ? _lote17OdProm(r.l1, r.l2) : NaN;
+        const vals = [r.fecha||'', r.hora||'', r.folioOmar||'', r.idMuestra||'', r.tiempo||'', r.l1||'', r.l2||'', Number.isFinite(prom) ? prom.toFixed(2) : ''];
+        x = M;
+        doc.setFont(fuente, 'normal'); doc.setFontSize(8);
+        vals.forEach((val, k) => { doc.rect(x, y, ws[k], cabe); doc.text(String(val), x + 2, y + cabe / 2 + 3, { maxWidth: ws[k] - 3 }); x += ws[k]; });
+      }
+      y += cabe;
+    }
+    if(inicio === 0){
+      y += 12;
+      doc.setFont(fuente, 'bold'); doc.setFontSize(11);
+      doc.text('HORA  ' + (b.horaFin || ''), M, y); y += 14;
+      txt('Una vez terminada las lecturas lavar el electrodo con agua tridestilada, secar y apagar el equipo.', M, y, CW, cuerpo, lead);
+    }
+    pie(n, folio);
+  };
+  const bloques = Math.max(1, Math.ceil(lects.length / 14) || 1);
+  for(let p = 0; p < bloques; p++) await dibujaT5(p * 14, folios[3 + p], 4 + p);
+
+  doc.save('OD_' + (folios[0] || plan.folio || 'plan') + '.pdf');
+  toast('PDF de oxígeno disuelto generado','g');
+  if(typeof _maybeMarcarPlanDoc === 'function') await _maybeMarcarPlanDoc('bitod');
+  // AARMS lote21d: generar el OD viejo no vuelve a escribir el plan.
+}
+
 async function generarPDFBitOD(){
-  const plan = (typeof _planActivo === 'function' && _planActivo())
+  const plan0 = (typeof _planActivo === 'function' && _planActivo())
     || (typeof getPlanDeMuestreo === 'function' && omar?.ts ? getPlanDeMuestreo(omar.ts) : null);
+  if(plan0 && typeof _lote17OdEsViejo === 'function' && !_lote17OdEsViejo(plan0)){
+    return _lote17GenerarPDFOD(plan0);
+  }
+  const plan = plan0;
   if(!plan){ toast('Selecciona un plan','w'); return; }
   if(typeof _bitODInicializar === 'function') _bitODInicializar(plan);
   if(!plan.bitOD){ toast('No hay datos de OD','w'); return; }
   // AARMS sub8-pdfs: 4 páginas con helpers premium (Helvetica)
   const { jsPDF } = window.jspdf;
   const logo = await loadLogo(LOGO_PDF_URI);
-  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'letter' });
+  const doc = new jsPDF({ orientation:'portrait', unit:'pt', format:'letter', compress:true });
   await _pdfODPag1(doc, plan, logo);
   doc.addPage();
   await _pdfODPag2(doc, plan, logo);
@@ -3684,7 +4696,7 @@ async function generarPDFBitOD(){
   doc.addPage();
   await _pdfODPag4(doc, plan, logo);
   const folio = plan.bitOD.folio || plan.folio || 'sin-folio';
-  const fecha = new Date().toISOString().slice(0,10);
+  const fecha = (typeof _lote21HoyFecha==='function'?_lote21HoyFecha():_lote4hoy().fecha);
   doc.save(`Bitacora_OD_${folio}_${fecha}.pdf`);
   toast('PDF Bitacora OD (4 paginas) generado','g');
   if(typeof _maybeMarcarPlanDoc === 'function') await _maybeMarcarPlanDoc('bitod');
@@ -3716,16 +4728,6 @@ async function generarPDFBitacoraPHOficialBlob(){
   if(typeof cap !== 'function') return null;
   return cap(() => generarPDFBitacoraPHOficial());
 }
-async function generarPDFBitTempBlob(){
-  const cap = window._pdfCaptureOutput;
-  if(typeof cap !== 'function') return null;
-  return cap(() => generarPDFBitTemp());
-}
-async function generarPDFBitFlujosBlob(){
-  const cap = window._pdfCaptureOutput;
-  if(typeof cap !== 'function') return null;
-  return cap(() => generarPDFBitFlujos());
-}
 async function generarPDFBitODBlob(){
   const cap = window._pdfCaptureOutput;
   if(typeof cap !== 'function') return null;
@@ -3735,8 +4737,979 @@ window.generarPDFBpmBlob = generarPDFBpmBlob;
 window.generarPDFPh2644H1Blob = generarPDFPh2644H1Blob;
 window.generarPDFBmBlob = generarPDFBmBlob;
 window.generarPDFBitacoraPHOficialBlob = generarPDFBitacoraPHOficialBlob;
-window.generarPDFBitTempBlob = generarPDFBitTempBlob;
-window.generarPDFBitFlujosBlob = generarPDFBitFlujosBlob;
 window.generarPDFBitODBlob = generarPDFBitODBlob;
+
+// ═══════════════════════════════════════════════════════════════
+// AARMS blmpfiel + blmppulido + blmppulido2: PDF BLMP fiel LMP-1 (2 páginas)
+// Tildes: sub51b (_pdfBmAplicarRoboto + Roboto) — conectado al render BLMP
+// ═══════════════════════════════════════════════════════════════
+window._blmpGenerarPdfFiel = async function _blmpGenerarPdfFiel(rec){
+  if(!rec || !rec.aapt){
+    if(typeof toast === 'function') toast('Sin registro BLMP para PDF','w');
+    return;
+  }
+  const { jsPDF } = window.jspdf || {};
+  if(!jsPDF){ if(typeof toast === 'function') toast('jsPDF no disponible','w'); return; }
+  const logo = (typeof loadLogo === 'function') ? await loadLogo(typeof LOGO_PDF_URI !== 'undefined' ? LOGO_PDF_URI : 'logo_pdf.png') : null;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
+  // AARMS blmppulido2 / sub51b-tildes: Roboto obligatorio para acentos y ñ
+  let FONT = 'helvetica';
+  if(typeof _pdfBmAplicarRoboto === 'function'){
+    FONT = await _pdfBmAplicarRoboto(doc) || 'helvetica';
+  }
+  if(FONT !== 'Roboto'){
+    console.warn('[blmppulido2] Roboto no cargó — tildes pueden fallar. FONT=', FONT);
+  }
+  const W = 612, H = 792, M = 28, CW = W - M * 2;
+  const NAVY = STD.NAVY, ACCENT = STD.ACCENT, LGRAY = STD.LGRAY, MGRAY = STD.MGRAY, TEXT = STD.TEXT, WHITE = STD.WHITE, DARK = STD.DARK;
+  // AARMS blmpfolio2: cada página física = folio propio consecutivo (como pH)
+  const disp = (f) => (typeof window._blmpFolioDisplay === 'function')
+    ? window._blmpFolioDisplay(f)
+    : String(f || '').replace(/^LMP-/i, '') || '----';
+  let folioP1 = disp(rec.folio);
+  let folioP2 = disp(rec.folioP2);
+  if(!folioP2 || folioP2 === folioP1 || folioP2 === '----'){
+    // Seguridad: si el registro llegó sin folioP2, reservar el siguiente
+    if(typeof window._blmpAsignarFolios === 'function'){
+      const next = await window._blmpAsignarFolios(1);
+      folioP2 = disp(next[0]);
+      rec.folioP2 = folioP2;
+      if(typeof idbBlmpPut === 'function'){
+        try{ await idbBlmpPut(rec); }catch(_){}
+      }
+      if(typeof _blmpVincularPlanRef === 'function'){
+        try{ await _blmpVincularPlanRef(rec); }catch(_){}
+      }
+    }
+  }
+  const aapt = String(rec.aapt || '').trim();
+  // AARMS blmppulido2: jsPdfAscii limpia símbolos raros pero conserva tildes/ñ
+  const T = (t) => (typeof jsPdfAscii === 'function') ? jsPdfAscii(String(t == null ? '' : t)) : String(t == null ? '' : t);
+
+  const verifKeys = (typeof window._BLMP_VERIF_KEYS !== 'undefined' && window._BLMP_VERIF_KEYS.length)
+    ? window._BLMP_VERIF_KEYS
+    : [
+      { key: 'v_panel', label: 'El panel del equipo se encuentra dañado' },
+      { key: 'v_cables', label: 'Los cables no se encuentran con daños visibles en sus uniones o cuerpo' },
+      { key: 'v_cuerpo', label: 'El cuerpo del equipo se encuentra sucio' },
+      { key: 'v_error', label: 'El equipo manda algún código de error en la pantalla principal' },
+      { key: 'v_vida', label: 'La batería cuenta con vida útil suficiente para realizar el muestreo' },
+      { key: 'v_eEnv', label: 'El electrodo presenta señales de envejecimiento' },
+      { key: 'v_eSuc', label: 'El electrodo presenta suciedad en su cuerpo' },
+      { key: 'v_eComp', label: 'El cuerpo del electrodo no presenta señales de daño y no le faltan partes' },
+      { key: 'v_calib', label: 'El pHmetro permite ser calibrado' }
+    ];
+
+  // AARMS blmppulido2: caja OBSERVACIONES auto-alto (Pág 1 y Sección 3)
+  const drawObsBox = (yy, texto, maxBottom) => {
+    yy = _pdfBarraSeccion(doc, 'OBSERVACIONES', M, yy, CW, FONT) + 4;
+    const fs = 8, pad = 6, lh = fs + 2.2;
+    const obsRaw = T(texto || '');
+    doc.setFont(FONT, obsRaw ? 'bold' : 'normal');
+    doc.setFontSize(fs);
+    const maxBoxH = Math.max(36, (maxBottom != null ? maxBottom : (H - 100)) - yy);
+    const maxLines = Math.max(2, Math.floor((maxBoxH - pad * 2) / lh));
+    if(!obsRaw){
+      const altoVacio = 36;
+      doc.setFillColor(...LGRAY); doc.setDrawColor(...MGRAY); doc.setLineWidth(0.5);
+      if(typeof doc.roundedRect === 'function') doc.roundedRect(M, yy, CW, altoVacio, 2, 2, 'FD');
+      else doc.rect(M, yy, CW, altoVacio, 'FD');
+      // AARMS lote4bc: cuerpo vacío, una diagonal. La barra de arriba se queda.
+      _lote4bcTachar(doc, M, yy, CW, altoVacio);
+      return yy + altoVacio + 8;
+    }
+    let ol = doc.splitTextToSize(obsRaw, Math.max(40, CW - pad * 2));
+    if(ol.length > maxLines){
+      ol = ol.slice(0, maxLines);
+      const last = ol[ol.length - 1] || '';
+      ol[ol.length - 1] = last.length > 3 ? (last.slice(0, -3) + '...') : (last + '...');
+    }
+    const alto = Math.max(36, ol.length * lh + pad * 2);
+    doc.setFillColor(...LGRAY); doc.setDrawColor(...MGRAY); doc.setLineWidth(0.5);
+    if(typeof doc.roundedRect === 'function') doc.roundedRect(M, yy, CW, alto, 2, 2, 'FD');
+    else doc.rect(M, yy, CW, alto, 'FD');
+    doc.setTextColor(...ACCENT); doc.setFont(FONT, 'bold');
+    doc.setFontSize(fs);
+    doc.text(ol, M + pad, yy + pad + fs - 1);
+    return yy + alto + 8;
+  };
+
+  const drawMixedLine = (parts, x, yy, maxW, fs) => {
+    doc.setFontSize(fs || 8);
+    let cx = x, cy = yy;
+    const lineH = (fs || 8) + 2.5;
+    parts.forEach(p => {
+      const raw = T(p.t || '');
+      if(!raw) return;
+      doc.setFont(FONT, p.accent ? 'bold' : 'normal');
+      doc.setTextColor(...(p.accent ? ACCENT : TEXT));
+      const words = raw.split(/(\s+)/);
+      words.forEach(w => {
+        if(!w) return;
+        const ww = doc.getTextWidth(w);
+        if(cx + ww > x + maxW && cx > x){ cx = x; cy += lineH; }
+        doc.text(w, cx, cy);
+        cx += ww;
+      });
+    });
+    return cy + lineH;
+  };
+
+  const hdr = (folioPag) => {
+    // AARMS blmpfolio2: FOLIO distinto por página; subtítulo = equipo real; LMP-1 una vez
+    let yTop = _pdfMembreteStd(doc, logo, {
+      docTitulo: 'BITÁCORA LIMPIEZA',
+      docSubtitulo: 'pH-metro — ' + (aapt || 'AA/PT/____'),
+      codigoFormato: 'LMP-1',
+      folio: folioPag,
+      margin: M
+    }, FONT);
+    doc.setFont(FONT, 'bold'); doc.setFontSize(10); doc.setTextColor(...NAVY);
+    const tit = 'BITÁCORA DE LIMPIEZA Y MANTENIMIENTO DE pHmetro: ' + (aapt || 'AA/PT/____');
+    const titLines = doc.splitTextToSize(T(tit), CW);
+    doc.text(titLines, M, yTop + 4);
+    yTop += 4 + titLines.length * 12 + 4;
+    return yTop;
+  };
+
+  // ── Página 1: Verificación visual ──
+  let y = hdr(folioP1);
+  y = _pdfBarraSeccion(doc, '1. VERIFICACIÓN VISUAL DEL EQUIPO', M, y, CW, FONT);
+  // AARMS blmppulido2: aire entre barra e intro; hora/fecha en azul
+  y += 12;
+  y = drawMixedLine([
+    { t: 'Siendo las ' },
+    { t: (rec.hora || '____'), accent: true },
+    { t: ' hrs del día ' },
+    { t: (rec.fecha || '________'), accent: true },
+    { t: ' se procede a realizar la verificación visual del cuerpo del pHmetro y su electrodo.' }
+  ], M, y, CW, 8);
+  y += 10;
+
+  const colAct = CW - 90, colSi = 45, colNo = 45;
+  const rowH = 22;
+  const drawTableHead = (yy) => {
+    doc.setFillColor(...DARK);
+    doc.rect(M, yy, CW, 16, 'F');
+    doc.setFont(FONT, 'bold'); doc.setFontSize(7.5); doc.setTextColor(...WHITE);
+    doc.text('ACTIVIDAD', M + 6, yy + 11);
+    doc.text('SI', M + colAct + colSi / 2, yy + 11, { align: 'center' });
+    doc.text('NO', M + colAct + colSi + colNo / 2, yy + 11, { align: 'center' });
+    return yy + 16;
+  };
+  y = drawTableHead(y);
+
+  const v = rec.verificacion || {};
+  verifKeys.forEach((item, i) => {
+    const val = String(v[item.key] || '').toUpperCase();
+    const isSi = val === 'SI';
+    const isNo = val === 'NO';
+    if(i % 2 === 0){ doc.setFillColor(...LGRAY); doc.rect(M, y, CW, rowH, 'F'); }
+    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.4);
+    doc.rect(M, y, colAct, rowH, 'S');
+    doc.rect(M + colAct, y, colSi, rowH, 'S');
+    doc.rect(M + colAct + colSi, y, colNo, rowH, 'S');
+    doc.setFont(FONT, 'normal'); doc.setFontSize(7); doc.setTextColor(...TEXT);
+    const numLabel = (i + 1) + '. ' + item.label;
+    const lines = doc.splitTextToSize(T(numLabel), colAct - 10);
+    doc.text(lines.slice(0, 2), M + 5, y + 9);
+    if(isSi) _pdfBadgeSiNo(doc, M + colAct + colSi / 2, y + rowH / 2, true, { kind: 'si', size: 11 });
+    if(isNo) _pdfBadgeSiNo(doc, M + colAct + colSi + colNo / 2, y + rowH / 2, true, { kind: 'no', size: 11 });
+    y += rowH;
+  });
+
+  y += 10;
+  y = drawObsBox(y, rec.obs_v, H - 100);
+
+  if(typeof _pdfFirmaPremium === 'function'){
+    // AARMS blmppulido2: pie "Pág. X de N" + código LMP-1 separado
+    _pdfFirmaPremium(doc, 'Pág. 1 de 2', 'LMP-1', { font: FONT, W, H, yOffset: 88 });
+  } else {
+    doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
+    doc.text('Pág. 1 de 2', W - M, H - 22, { align: 'right' });
+    doc.setFont(FONT, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...STD.MUTED);
+    doc.text('LMP-1', W - M, H - 12, { align: 'right' });
+  }
+
+  // ── Página 2 ──
+  doc.addPage();
+  if(typeof _pdfBmAplicarRoboto === 'function'){
+    await _pdfBmAplicarRoboto(doc);
+  }
+  y = hdr(folioP2);
+  y = _pdfBarraSeccion(doc, '2. ACTIVIDADES DE LIMPIEZA', M, y, CW, FONT) + 8;
+  doc.setFont(FONT, 'normal'); doc.setFontSize(8); doc.setTextColor(...TEXT);
+  const ctx2 = 'De acuerdo a las observaciones realizadas anteriormente se enuncian las actividades de limpieza generadas por la verificación del equipo.';
+  const ctx2Lines = doc.splitTextToSize(T(ctx2), CW);
+  doc.text(ctx2Lines, M, y);
+  y += ctx2Lines.length * 10 + 6;
+  doc.setFont(FONT, 'bold'); doc.setFontSize(9); doc.setTextColor(...NAVY);
+  doc.text('ACTIVIDAD REALIZADA.', W / 2, y, { align: 'center' });
+  y += 12;
+
+  const cH = 36, cF = 70, cC = 70, cJ = CW - cH - cF - cC;
+  const actRowH = 18;
+  doc.setFillColor(...DARK);
+  doc.rect(M, y, CW, 15, 'F');
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...WHITE);
+  let cx = M;
+  [['HORA', cH], ['FECHA', cF], ['CÓDIGO DE ACTIVIDAD', cC], ['JUSTIFICACIÓN', cJ]].forEach(([t, w]) => {
+    doc.text(T(t), cx + w / 2, y + 10, { align: 'center' });
+    cx += w;
+  });
+  y += 15;
+
+  const acts = Array.isArray(rec.actividades) ? rec.actividades.filter(a => a && (a.hora || a.fecha || a.codigo || a.justificacion)) : [];
+  const minRows = Math.max(6, acts.length);
+  for(let i = 0; i < minRows; i++){
+    const a = acts[i] || {};
+    if(i % 2 === 0){ doc.setFillColor(...LGRAY); doc.rect(M, y, CW, actRowH, 'F'); }
+    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.4);
+    let x0 = M;
+    [cH, cF, cC, cJ].forEach(w => { doc.rect(x0, y, w, actRowH, 'S'); x0 += w; });
+    doc.setFont(FONT, acts[i] ? 'bold' : 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...(acts[i] ? ACCENT : STD.MUTED));
+    const vals = [a.hora || '', a.fecha || '', a.codigo || '', a.justificacion || ''];
+    x0 = M;
+    [cH, cF, cC, cJ].forEach((w, vi) => {
+      const t = T(vals[vi]).substring(0, vi === 3 ? 42 : 12);
+      doc.text(t, x0 + 4, y + 12);
+      x0 += w;
+    });
+    y += actRowH;
+  }
+
+  y += 10;
+  y = _pdfBarraSeccion(doc, 'CODIFICACIÓN DE ACTIVIDADES', M, y, CW, FONT) + 4;
+  const codRows = [
+    { c: '1', t: 'Enjuagar con agua tridestilada o desionizada el electrodo.' },
+    { c: '2', t: 'Limpiar el electrodo con alcohol tallando suavemente.' },
+    { c: '', t: 'En caso de que el cuerpo del equipo presente impurezas, grasas y aceites que se adhieren en el momento de la toma, lavar con las siguientes disoluciones:' },
+    { c: '3', t: 'Lavar el electrodo con detergente suave.' },
+    { c: '4', t: 'Lavar con disolución de HCl 1:1, tallar suavemente con un algodón hasta eliminar todo el residuo.' }
+  ];
+  const cCod = 36, cAct = CW - cCod;
+  doc.setFillColor(...DARK);
+  doc.rect(M, y, CW, 14, 'F');
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...WHITE);
+  doc.text(T('CÓDIGO'), M + cCod / 2, y + 10, { align: 'center' });
+  doc.text('ACTIVIDAD', M + cCod + 6, y + 10);
+  y += 14;
+  codRows.forEach((r, i) => {
+    const lines = doc.splitTextToSize(T(r.t), cAct - 10);
+    const rh = Math.max(16, lines.length * 9 + 6);
+    if(i % 2 === 0){ doc.setFillColor(...LGRAY); doc.rect(M, y, CW, rh, 'F'); }
+    doc.setDrawColor(...MGRAY); doc.rect(M, y, cCod, rh, 'S'); doc.rect(M + cCod, y, cAct, rh, 'S');
+    doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
+    if(r.c) doc.text(r.c, M + cCod / 2, y + 11, { align: 'center' });
+    doc.setFont(FONT, r.c ? 'normal' : 'bold'); doc.setFontSize(r.c ? 7 : 6.5); doc.setTextColor(...TEXT);
+    doc.text(lines, M + cCod + 5, y + 10);
+    y += rh;
+  });
+  y += 6;
+  doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
+  doc.text(T('Nota: Realizar la limpieza del equipo antes y después de su uso'), M, y);
+  y += 14;
+
+  y = _pdfBarraSeccion(doc, '3. ACTIVIDADES DE MANTENIMIENTO', M, y, CW, FONT) + 8;
+  // AARMS blmppulido2: texto fijo en gris; solo datos capturados en azul
+  const m = rec.mantenimiento || {};
+  const folioCee = m.folioCee || '______';
+  const folioApt = m.folioApartado || (aapt.replace(/^AA\/PT\//i, '') || '______');
+  const folioFaa = m.folioFaa22 || '______';
+  y = drawMixedLine([
+    { t: 'Las actividades de mantenimiento se encuentran registradas en la carpeta de expediente de equipo CEE/AA/N-3/' },
+    { t: String(folioCee), accent: true },
+    { t: ', en el apartado AA/PT/' },
+    { t: String(folioApt), accent: true },
+    { t: '. En el formato F-AA-22(vigente) en el folio ' },
+    { t: String(folioFaa), accent: true },
+    { t: '.' }
+  ], M, y, CW, 8.5);
+  y += 10;
+  y = drawObsBox(y, rec.obs, H - 100);
+
+  if(typeof _pdfFirmaPremium === 'function'){
+    _pdfFirmaPremium(doc, 'Pág. 2 de 2', 'LMP-1', { font: FONT, W, H, yOffset: 88 });
+  } else {
+    doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
+    doc.text('Pág. 2 de 2', W - M, H - 22, { align: 'right' });
+    doc.setFont(FONT, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...STD.MUTED);
+    doc.text('LMP-1', W - M, H - 12, { align: 'right' });
+  }
+
+  const safeName = String(folioP1).replace(/[^\w\-]+/g, '_');
+  doc.save('BLMP_' + safeName + '_' + String(aapt).replace(/[^\w\-]+/g, '_') + '.pdf');
+  // AARMS blmpfolio2: toast con ambos folios; archivo usa folio pág. 1
+  if(typeof toast === 'function') toast('PDF BLMP · folios ' + folioP1 + ' / ' + folioP2, 'g');
+};
+
+
+// ═══════════════════════════════════════════════════════════════
+// AARMS condfiel + condpulido + condcancelado + condcanceladofix: Bitácora Conductímetro F-AA-289-2 FIEL (3 págs, 1 PDF/plan)
+// Reutiliza: _pdfMembreteStd, _pdfBarraSeccion, _pdfBadgeSiNo,
+// _pdfBadgeAceptaRechaza, _pdfFirmaPremium, _pdfBmAplicarRoboto, tablas premium
+// ═══════════════════════════════════════════════════════════════
+window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
+  opts = opts || {};
+  const plan = opts.plan || null;
+  const c = Object.assign({}, opts.colab || {});
+  let folios = opts.folios || [c.folio, c.folioP2, c.folioP3];
+  if(!folios || folios.length < 3){
+    if(typeof window._condAsignarFolios === 'function'){
+      folios = await window._condAsignarFolios(3);
+    } else {
+      folios = ['0001','0002','0003'];
+    }
+  }
+  const folioP1 = String(folios[0] || '----');
+  const folioP2 = String(folios[1] || '----');
+  const folioP3 = String(folios[2] || '----');
+
+  const { jsPDF } = window.jspdf || {};
+  if(!jsPDF){ if(typeof toast === 'function') toast('jsPDF no disponible','w'); return; }
+  const logo = (typeof loadLogo === 'function')
+    ? await loadLogo(typeof LOGO_PDF_URI !== 'undefined' ? LOGO_PDF_URI : 'logo_pdf.png')
+    : null;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
+  let FONT = 'helvetica';
+  if(typeof _pdfBmAplicarRoboto === 'function'){
+    FONT = await _pdfBmAplicarRoboto(doc) || 'helvetica';
+  }
+  const W = 612, H = 792, M = 28, CW = W - M * 2;
+  const NAVY = STD.NAVY, ACCENT = STD.ACCENT, LGRAY = STD.LGRAY, MGRAY = STD.MGRAY;
+  const TEXT = STD.TEXT, WHITE = STD.WHITE, DARK = STD.DARK;
+  const T = (t) => (typeof jsPdfAscii === 'function') ? jsPdfAscii(String(t == null ? '' : t)) : String(t == null ? '' : t);
+  const cell = (v) => (v == null || v === '') ? '' : String(v);
+  const fmtFecha = (s) => {
+    if(!s) return '';
+    const p = String(s).split('-');
+    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0].slice(-2)}` : String(s).substring(0, 10);
+  };
+  const clave = String(c.clave || '').trim() || 'AA/CO/____';
+  const vnPm = (vn, inc) => {
+    if(typeof window._condVnPm === 'function') return window._condVnPm(vn, inc);
+    const a = parseFloat(String(vn||'').replace(',','.')); const b = Math.abs(parseFloat(String(inc||'').replace(',','.')));
+    if(isNaN(a)||isNaN(b)) return { plus:'', minus:'' };
+    return { plus: String(Math.round((a+b)*100)/100), minus: String(Math.round((a-b)*100)/100) };
+  };
+  // AARMS condfiel: ±5% — lecturas vs VN; si no hay VN, dispersión (max-min)/avg
+  const acePct5 = (l1, l2, l3, vn) => {
+    const Ls = [l1,l2,l3].map(x => parseFloat(String(x||'').replace(',','.'))).filter(n => !isNaN(n));
+    if(Ls.length < 2) return null;
+    const nom = parseFloat(String(vn||'').replace(',','.'));
+    if(!isNaN(nom) && nom !== 0){
+      const ok = Ls.every(v => Math.abs(v - nom) / Math.abs(nom) <= 0.05);
+      return ok ? 'acepta' : 'rechaza';
+    }
+    const avg = Ls.reduce((a,b)=>a+b,0) / Ls.length;
+    if(!avg) return null;
+    const pct = ((Math.max(...Ls) - Math.min(...Ls)) / Math.abs(avg)) * 100;
+    return pct <= 5 ? 'acepta' : 'rechaza';
+  };
+  const prom3 = (a,b,c) => {
+    const Ls = [a,b,c].map(x => parseFloat(String(x||'').replace(',','.'))).filter(n => !isNaN(n));
+    return Ls.length === 3 ? (Math.round((Ls.reduce((s,n)=>s+n,0)/3)*100)/100) : null;
+  };
+  const siNo = (v) => {
+    const u = String(v||'').trim().toUpperCase();
+    if(u === 'SI' || u === 'SÍ' || v === true) return 'SI';
+    if(u === 'NO' || v === false) return 'NO';
+    return '';
+  };
+  const chk = (v) => !!v && v !== 'NO' && v !== false && v !== 'false';
+
+  const drawObsBox = (yy, texto, maxBottom) => {
+    yy = _pdfBarraSeccion(doc, 'OBSERVACIONES', M, yy, CW, FONT) + 4;
+    const fs = 8, pad = 6, lh = fs + 2.2;
+    const obsRaw = T(texto || '');
+    doc.setFont(FONT, obsRaw ? 'bold' : 'normal');
+    doc.setFontSize(fs);
+    const maxBoxH = Math.max(32, (maxBottom != null ? maxBottom : (H - 100)) - yy);
+    const maxLines = Math.max(2, Math.floor((maxBoxH - pad * 2) / lh));
+    if(!obsRaw){
+      const altoVacio = 32;
+      doc.setFillColor(...LGRAY); doc.setDrawColor(...MGRAY); doc.setLineWidth(0.5);
+      if(typeof doc.roundedRect === 'function') doc.roundedRect(M, yy, CW, altoVacio, 2, 2, 'FD');
+      else doc.rect(M, yy, CW, altoVacio, 'FD');
+      // AARMS lote4bc: cuerpo vacío, una diagonal. La barra de arriba se queda.
+      _lote4bcTachar(doc, M, yy, CW, altoVacio);
+      return yy + altoVacio + 6;
+    }
+    let ol = doc.splitTextToSize(obsRaw, Math.max(40, CW - pad * 2));
+    if(ol.length > maxLines){
+      ol = ol.slice(0, maxLines);
+      const last = ol[ol.length - 1] || '';
+      ol[ol.length - 1] = last.length > 3 ? (last.slice(0, -3) + '...') : (last + '...');
+    }
+    const alto = Math.max(32, ol.length * lh + pad * 2);
+    doc.setFillColor(...LGRAY); doc.setDrawColor(...MGRAY); doc.setLineWidth(0.5);
+    if(typeof doc.roundedRect === 'function') doc.roundedRect(M, yy, CW, alto, 2, 2, 'FD');
+    else doc.rect(M, yy, CW, alto, 'FD');
+    doc.setTextColor(...ACCENT); doc.setFont(FONT, 'bold');
+    doc.setFontSize(fs);
+    doc.text(ol, M + pad, yy + pad + fs - 1);
+    return yy + alto + 6;
+  };
+
+  const hdr = (folioPag, subExtra) => {
+    // AARMS condpulido: subtítulo = equipo; F-AA-289-2 una sola vez (codigoFormato)
+    let yTop = _pdfMembreteStd(doc, logo, {
+      docTitulo: 'CONDUCTÍMETRO',
+      docSubtitulo: clave || 'AA/CO/____',
+      codigoFormato: 'F-AA-289-2',
+      folio: folioPag,
+      margin: M
+    }, FONT);
+    doc.setFont(FONT, 'bold'); doc.setFontSize(8.5); doc.setTextColor(...NAVY);
+    const tit = 'Bitácora de Limpieza, Mantenimiento, Calibración, Comprobación, Verificación y Uso del Conductivimetro';
+    const titLines = doc.splitTextToSize(T(tit), CW);
+    doc.text(titLines, M + CW / 2, yTop + 2, { align: 'center' });
+    yTop += 2 + titLines.length * 10 + 2;
+    doc.setFont(FONT, 'normal'); doc.setFontSize(7.5); doc.setTextColor(...TEXT);
+    doc.text(T('IDENTIFICACIÓN DE EQUIPO: '), M, yTop + 8);
+    doc.setFont(FONT, 'bold'); doc.setTextColor(...ACCENT);
+    doc.text(T(clave), M + doc.getTextWidth(T('IDENTIFICACIÓN DE EQUIPO: ')), yTop + 8);
+    if(subExtra){
+      doc.setFont(FONT, 'normal'); doc.setFontSize(7); doc.setTextColor(...TEXT);
+      doc.text(T(subExtra), W - M, yTop + 8, { align: 'right' });
+    }
+    return yTop + 14;
+  };
+
+  const pieFirma = (pagLabel) => {
+    if(typeof _pdfFirmaPremium === 'function'){
+      _pdfFirmaPremium(doc, pagLabel, 'F-AA-289-2', {
+        font: FONT, W, H, yOffset: 88, plan: plan || undefined
+      });
+    } else {
+      doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
+      doc.text(pagLabel, W - M, H - 22, { align: 'right' });
+      doc.setFont(FONT, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...STD.MUTED);
+      doc.text('F-AA-289-2', W - M, H - 12, { align: 'right' });
+    }
+  };
+
+  // AARMS condpulido + condcanceladofix: SI→tachar celda NO; NO→tachar celda SI; sin respuesta→ambas
+  const drawSiNoTable = (yy, rows, opts) => {
+    opts = opts || {};
+    const neutral = !!opts.neutral;
+    const colAct = CW - 90, colSi = 45, colNo = 45, rowH = 18;
+    const xSi = M + colAct, xNo = M + colAct + colSi;
+    doc.setFillColor(...DARK);
+    doc.rect(M, yy, CW, 14, 'F');
+    doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...WHITE);
+    doc.text('ACTIVIDAD', M + 5, yy + 10);
+    doc.text('SI', xSi + colSi / 2, yy + 10, { align: 'center' });
+    doc.text('NO', xNo + colNo / 2, yy + 10, { align: 'center' });
+    yy += 14;
+    rows.forEach((r, i) => {
+      if(i % 2 === 0){ doc.setFillColor(...LGRAY); doc.rect(M, yy, CW, rowH, 'F'); }
+      doc.setDrawColor(...MGRAY); doc.setLineWidth(0.4);
+      doc.rect(M, yy, colAct, rowH, 'S');
+      doc.rect(xSi, yy, colSi, rowH, 'S');
+      doc.rect(xNo, yy, colNo, rowH, 'S');
+      doc.setFont(FONT, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...TEXT);
+      const lines = doc.splitTextToSize(T(r.label), colAct - 8);
+      doc.text(lines.slice(0, 2), M + 4, yy + 8);
+      const sn = siNo(r.val);
+      if(sn === 'SI'){
+        _pdfBadgeSiNo(doc, xSi + colSi / 2, yy + rowH / 2, true, { kind: 'si', size: 10, neutral });
+        // AARMS condcanceladofix: celda NO no usada → tachar solo esa celda
+        if(typeof _pdfTacharFila === 'function') _pdfTacharFila(doc, xNo, yy, colNo, rowH);
+      } else if(sn === 'NO'){
+        _pdfBadgeSiNo(doc, xNo + colNo / 2, yy + rowH / 2, true, { kind: 'no', size: 10, neutral });
+        if(typeof _pdfTacharFila === 'function') _pdfTacharFila(doc, xSi, yy, colSi, rowH);
+      } else if(typeof _pdfTacharFila === 'function'){
+        _pdfTacharFila(doc, xSi, yy, colSi, rowH);
+        _pdfTacharFila(doc, xNo, yy, colNo, rowH);
+      }
+      yy += rowH;
+    });
+    return yy;
+  };
+
+  const drawMiniTable = (yy, heads, rowVals, cws, opts) => {
+    opts = opts || {};
+    const rhH = opts.headH || 18;
+    const rh = opts.rowH || 14;
+    const fsH = opts.fsH || 5.4;
+    const fs = opts.fs || 6.2;
+    const total = cws.reduce((a,b)=>a+b,0);
+    doc.setFillColor(...DARK);
+    doc.rect(M, yy, total, rhH, 'F');
+    doc.setFont(FONT, 'bold'); doc.setFontSize(fsH); doc.setTextColor(...WHITE);
+    let cx = M;
+    heads.forEach((hh, i) => {
+      const lines = doc.splitTextToSize(T(hh), Math.max(16, cws[i] - 2)).slice(0, 3);
+      const startY = yy + (rhH - lines.length * 6) / 2 + 5;
+      lines.forEach((ln, li) => doc.text(ln, cx + cws[i] / 2, startY + li * 6, { align: 'center' }));
+      cx += cws[i];
+    });
+    yy += rhH;
+    (rowVals || []).forEach((vals, ri) => {
+      const mapped = (vals || []).map(v => T(cell(v)));
+      while(mapped.length < heads.length) mapped.push('');
+      if(typeof _pdfFilaTablaPremium === 'function'){
+        yy = _pdfFilaTablaPremium(doc, mapped, M, yy, cws, rh, ri, {
+          fontSize: fs, maxChars: 18, font: FONT, blankEmpty: true, cellBorders: true
+        });
+      } else {
+        let x = M;
+        mapped.forEach((v, i) => {
+          doc.setFillColor(...(ri % 2 ? WHITE : LGRAY));
+          doc.rect(x, yy, cws[i], rh, 'F');
+          doc.setDrawColor(...MGRAY); doc.rect(x, yy, cws[i], rh, 'S');
+          doc.setFont(FONT, 'bold'); doc.setFontSize(fs); doc.setTextColor(...ACCENT);
+          doc.text(String(v).substring(0, 14), x + cws[i] / 2, yy + rh / 2 + 2, { align: 'center' });
+          x += cws[i];
+        });
+        yy += rh;
+      }
+    });
+    return yy;
+  };
+
+  const drawCriterioBadge = (yy, texto, estado) => {
+    const badgeW = estado ? 66 : 0;
+    const textMax = Math.max(40, CW - 6 - badgeW);
+    doc.setFont(FONT, 'normal'); doc.setFontSize(5.8); doc.setTextColor(...TEXT);
+    const lines = doc.splitTextToSize(T(texto), textMax);
+    doc.text(lines, M + 2, yy + 6);
+    const textH = lines.length * 7 + 2;
+    if(estado && typeof _pdfBadgeAceptaRechaza === 'function'){
+      const bx = M + CW - badgeW;
+      const by = yy + Math.max(1, (textH - 11) / 2);
+      _pdfBadgeAceptaRechaza(doc, bx, by, estado, { font: FONT });
+    }
+    return yy + Math.max(textH, estado ? 14 : textH) + 2;
+  };
+
+  // ── Página 1 ──
+  let y = hdr(folioP1);
+  y = _pdfBarraSeccion(doc, 'ACTIVIDAD DE VERIFICACIÓN, LIMPIEZA Y MANTENIMIENTO', M, y, CW, FONT);
+  y += 8;
+  doc.setFont(FONT, 'normal'); doc.setFontSize(8); doc.setTextColor(...TEXT);
+  doc.text(T('Fecha: '), M, y);
+  doc.setFont(FONT, 'bold'); doc.setTextColor(...ACCENT);
+  doc.text(T(fmtFecha(c.fecha) || '________'), M + 36, y);
+  doc.setFont(FONT, 'normal'); doc.setTextColor(...TEXT);
+  doc.text(T('Hora: '), M + 130, y);
+  doc.setFont(FONT, 'bold'); doc.setTextColor(...ACCENT);
+  doc.text(T(c.hora || '____'), M + 160, y);
+  y += 10;
+
+  // Orden oficial: 1 panel, 2 cables, 3 cuerpo, 4 error, 5 envejec, 6 suciedad, 7 partes
+  const verifRows = [
+    { label: '1. El panel del equipo se encuentra dañado', val: c.v1 },
+    { label: '2. Los cables se encuentran dañados', val: c.v2 },
+    { label: '3. El cuerpo del equipo se encuentra sucio', val: c.v3 },
+    { label: '4. El equipo manda código de error', val: c.v7 },
+    { label: '5. La celda presenta señales de envejecimiento', val: c.v4 },
+    { label: '6. La celda presenta suciedad', val: c.v5 },
+    { label: '7. El equipo y/o la celda no le faltan partes', val: c.v6 }
+  ];
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7.5); doc.setTextColor(...NAVY);
+  doc.text(T('VERIFICACIÓN'), M, y + 8); y += 12;
+  // AARMS condpulido: Verificación = marcas neutras (no rojo/verde de aceptación)
+  y = drawSiNoTable(y, verifRows, { neutral: true });
+  y += 6;
+
+  // Limpieza — AARMS condpulido + condcancelado: Cuerpo/Celda aparte; sin marca → tachar
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7.5); doc.setTextColor(...NAVY);
+  doc.text(T('LIMPIEZA'), M, y + 8); y += 10;
+  const limpItems = [
+    { label: 'Enjuagar con agua', done: chk(c.l_enj) },
+    { label: 'Limpiar con alcohol', done: chk(c.l_alc) },
+    { label: 'Quitar grasa | HCl', done: !!(chk(c.l_grasa) || chk(c.l_hcl)) },
+    { label: 'Detergente', done: chk(c.l_det) }
+  ];
+  {
+    const colActL = CW * 0.72, colSiL = CW * 0.28, rowHL = 16;
+    doc.setFillColor(...DARK);
+    doc.rect(M, y, CW, 14, 'F');
+    doc.setFont(FONT, 'bold'); doc.setFontSize(6); doc.setTextColor(...WHITE);
+    doc.text('ACTIVIDAD', M + 5, y + 10);
+    doc.text('SI/NO', M + colActL + colSiL / 2, y + 10, { align: 'center' });
+    y += 14;
+    limpItems.forEach((it, i) => {
+      if(i % 2 === 0){ doc.setFillColor(...LGRAY); doc.rect(M, y, CW, rowHL, 'F'); }
+      doc.setDrawColor(...MGRAY); doc.setLineWidth(0.4);
+      doc.rect(M, y, colActL, rowHL, 'S');
+      doc.rect(M + colActL, y, colSiL, rowHL, 'S');
+      doc.setFont(FONT, 'normal'); doc.setFontSize(7); doc.setTextColor(...TEXT);
+      doc.text(T(it.label), M + 5, y + 11);
+      if(it.done){
+        doc.setFont(FONT, 'bold'); doc.setTextColor(...ACCENT);
+        doc.text('SI', M + colActL + colSiL / 2, y + 11, { align: 'center' });
+      } else if(typeof _pdfTacharFila === 'function'){
+        // AARMS condcanceladofix: línea solo en columna SI/NO
+        _pdfTacharFila(doc, M + colActL, y, colSiL, rowHL);
+      }
+      y += rowHL;
+    });
+  }
+  y += 4;
+  doc.setFont(FONT, 'normal'); doc.setFontSize(7.5); doc.setTextColor(...TEXT);
+  doc.text(T('Cuerpo / Celda: '), M, y + 8);
+  const donde = String(c.limp_donde || '').trim();
+  if(donde){
+    doc.setFont(FONT, 'bold'); doc.setTextColor(...ACCENT);
+    doc.text(T(donde), M + 78, y + 8);
+  } else {
+    doc.setFont(FONT, 'bold'); doc.setTextColor(...ACCENT);
+    doc.text(T('________'), M + 78, y + 8);
+  }
+  doc.setFont(FONT, 'normal'); doc.setTextColor(...TEXT);
+  doc.text(T('Actividad Efectiva: '), M + 200, y + 8);
+  const ef = siNo(c.l_efectiva);
+  if(ef === 'SI') _pdfBadgeSiNo(doc, M + 310, y + 5, true, { kind: 'si', size: 11 });
+  else if(ef === 'NO') _pdfBadgeSiNo(doc, M + 310, y + 5, true, { kind: 'no', size: 11 });
+  else { doc.setFont(FONT, 'bold'); doc.setTextColor(...ACCENT); doc.text(T('____'), M + 300, y + 8); }
+  y += 16;
+
+  // Mantenimiento — AARMS condcancelado: sin capturar = tachar (no forzar NO)
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7.5); doc.setTextColor(...NAVY);
+  doc.text(T('MANTENIMIENTO'), M, y + 8); y += 10;
+  const mantVal = (campo, key) => {
+    if(c.mant_na && c.mant_na[campo]) return 'NO'; // N.A. explicito = respondido NO
+    if(chk(c[key])) return 'SI';
+    if(c[key] === 'NO' || c[key] === 'SI') return String(c[key]).toUpperCase();
+    // AARMS condcancelado: checkbox sin marcar = sin respuesta → cancelar
+    return '';
+  };
+  const mantRows = [
+    { label: 'Remplazo de Baterías', val: mantVal('baterias','m_bat') },
+    { label: 'Remplazo de Celdas', val: mantVal('celdas','m_cel') },
+    { label: 'Replatinización', val: mantVal('replatinizacion','m_rep') },
+    { label: 'Envío técnico externo', val: mantVal('envio_tecnico','m_ext') }
+  ];
+  y = drawSiNoTable(y, mantRows);
+  y += 6;
+  y = drawObsBox(y, c.obs, H - 100);
+  pieFirma('Pág. 1 de 3');
+
+  // ── Página 2 — Lab + arranca Campo Cal ──
+  doc.addPage();
+  if(typeof _pdfBmAplicarRoboto === 'function'){ try{ await _pdfBmAplicarRoboto(doc); }catch(_){} }
+  y = hdr(folioP2);
+  y = _pdfBarraSeccion(doc, 'ACTIVIDAD EN LABORATORIO', M, y, CW, FONT);
+  y += 6;
+
+  const calVn = c.cal_vn || c.mrc_nom || '';
+  const calInc = c.cal_inc || '';
+  const calPm = vnPm(calVn, calInc);
+  const calHeads = ['FECHA','HORA','LOTE','MARCA','V. NOMINAL','INCERT.','VN+I','VN−I','LECTURA µS/cm','ACEPTA / RECHAZA'];
+  const calCwRaw = [48,36,48,40,48,42,44,44,56,90];
+  const calSum = calCwRaw.reduce((a,b)=>a+b,0);
+  const calCw = calCwRaw.map(w => w * (CW / calSum));
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...NAVY);
+  doc.text(T('Calibración (Material de Referencia)'), M, y + 7); y += 10;
+  const calAcep = String(c.cal_acep || '').trim();
+  const calRow = [[
+    fmtFecha(c.cal_fecha || c.fecha), c.cal_hora || '', c.cal_lote || c.mrc_lote || '',
+    c.cal_marca || 'N/A', calVn, calInc ? ('±' + String(calInc).replace(/^±/,'')) : '',
+    calPm.plus, calPm.minus, c.cal_lect || '',
+    (/^acepta|^rechaz/i.test(calAcep) ? '' : calAcep)
+  ]];
+  const yCalRow = y;
+  y = drawMiniTable(y, calHeads, calRow, calCw, { headH: 20, rowH: 15, fs: 6, fsH: 5.2 });
+  if(/^acepta/i.test(calAcep) || /^rechaz/i.test(calAcep)){
+    const kind = /^acepta/i.test(calAcep) ? 'acepta' : 'rechaza';
+    let cx = M; for(let i=0;i<9;i++) cx += calCw[i];
+    _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(calCw[9]-54)/2), yCalRow + 20 + 2, kind, { compact:true, font:FONT });
+  }
+  y = _pdfCajaLeyenda(doc,
+    '1. Para disoluciones patrón comerciales se debe cumplir con el valor de incertidumbre indicado en el certificado.  2. Para disoluciones preparadas en el laboratorio se debe estimar la incertidumbre y cumplir con el valor.',
+    M, y, CW, FONT, { fontSize: 5.8 });
+
+  // Comprobación Lab
+  const compVn = c.comp_vn || calVn || c.mrc_nom || '';
+  const compL1 = c.comp_l1 || c.mrc_l1 || '';
+  const compL2 = c.comp_l2 || c.mrc_l2 || '';
+  const compL3 = c.comp_l3 || c.mrc_l3 || '';
+  const compEstado = acePct5(compL1, compL2, compL3, compVn);
+  const compHeads = ['FECHA','HORA','LOTE','MARCA','V. NOMINAL','L1','L2','L3','PROMEDIO','ACEPTA / RECHAZA'];
+  const compCwR = [48,36,48,44,52,40,40,40,52,90];
+  const compSum = compCwR.reduce((a,b)=>a+b,0);
+  const compCw = compCwR.map(w => w * (CW / compSum));
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...NAVY);
+  doc.text(T('Comprobación (Material de Referencia)'), M, y + 7); y += 10;
+  const compProm = prom3(compL1, compL2, compL3);
+  const yComp = y;
+  y = drawMiniTable(y, compHeads, [[
+    fmtFecha(c.comp_fecha || c.fecha), c.comp_hora || '', c.comp_lote || c.cal_lote || c.mrc_lote || '',
+    c.comp_marca || c.cal_marca || '', compVn, compL1, compL2, compL3,
+    compProm != null ? String(compProm) : '', ''
+  ]], compCw, { headH: 18, rowH: 14, fs: 6.2, fsH: 5.2 });
+  if(compEstado){
+    let cx = M; for(let i=0;i<9;i++) cx += compCw[i];
+    _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(compCw[9]-54)/2), yComp + 18 + 2, compEstado, { compact:true, font:FONT });
+  }
+  y = drawCriterioBadge(y,
+    'No debe de haber una diferencia no mayor a ±5% entre lecturas independientes del valor nominal del MRC utilizado',
+    compEstado);
+
+  // Verificación Lab
+  const verVn = c.ver_vn || c.ctrl_nom || '';
+  const verL1 = c.ver_l1 || c.ctrl_l1 || '';
+  const verL2 = c.ver_l2 || c.ctrl_l2 || '';
+  const verL3 = c.ver_l3 || c.ctrl_l3 || '';
+  const verEstado = acePct5(verL1, verL2, verL3, verVn);
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...NAVY);
+  doc.text(T('Verificación (muestra control)'), M, y + 7); y += 10;
+  const verProm = prom3(verL1, verL2, verL3);
+  const yVer = y;
+  y = drawMiniTable(y, compHeads, [[
+    fmtFecha(c.ver_fecha || c.fecha), c.ver_hora || '', c.ver_lote || c.ctrl_lote || '',
+    c.ver_marca || '', verVn, verL1, verL2, verL3,
+    verProm != null ? String(verProm) : '', ''
+  ]], compCw, { headH: 18, rowH: 14, fs: 6.2, fsH: 5.2 });
+  if(verEstado){
+    let cx = M; for(let i=0;i<9;i++) cx += compCw[i];
+    _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(compCw[9]-54)/2), yVer + 18 + 2, verEstado, { compact:true, font:FONT });
+  }
+  y = drawCriterioBadge(y,
+    'No debe de haber una diferencia no mayor a ±5% entre lecturas independientes del valor nominal del control utilizado',
+    verEstado);
+
+  // Campo — Calibración
+  y += 2;
+  y = _pdfBarraSeccion(doc, 'ACTIVIDAD EN CAMPO', M, y, CW, FONT);
+  y += 6;
+  const ccVn = c.campo_cal_vn || '';
+  const ccInc = c.campo_cal_inc || '';
+  const ccPm = vnPm(ccVn, ccInc);
+  const ccAcep = String(c.campo_cal_acep || '').trim();
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...NAVY);
+  doc.text(T('Calibración (Material de Referencia)'), M, y + 7); y += 10;
+  const yCc = y;
+  y = drawMiniTable(y, calHeads, [[
+    fmtFecha(c.campo_cal_fecha), c.campo_cal_hora || '', c.campo_cal_lote || '',
+    c.campo_cal_marca || '', ccVn, ccInc ? ('±' + String(ccInc).replace(/^±/,'')) : '',
+    ccPm.plus, ccPm.minus, c.campo_cal_lect || '',
+    (/^acepta|^rechaz/i.test(ccAcep) ? '' : ccAcep)
+  ]], calCw, { headH: 20, rowH: 15, fs: 6, fsH: 5.2 });
+  if(/^acepta/i.test(ccAcep) || /^rechaz/i.test(ccAcep)){
+    const kind = /^acepta/i.test(ccAcep) ? 'acepta' : 'rechaza';
+    let cx = M; for(let i=0;i<9;i++) cx += calCw[i];
+    _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(calCw[9]-54)/2), yCc + 20 + 2, kind, { compact:true, font:FONT });
+  }
+  y = _pdfCajaLeyenda(doc,
+    '1. Para disoluciones patrón comerciales se debe cumplir con el valor de incertidumbre indicado en el certificado.  2. Para disoluciones preparadas en el laboratorio se debe estimar la incertidumbre y cumplir con el valor.',
+    M, y, CW, FONT, { fontSize: 5.8 });
+  pieFirma('Pág. 2 de 3');
+
+  // ── Página 3 — Campo Comp/Ver + Entre Tomas ──
+  doc.addPage();
+  if(typeof _pdfBmAplicarRoboto === 'function'){ try{ await _pdfBmAplicarRoboto(doc); }catch(_){} }
+  y = hdr(folioP3);
+
+  const fccVn = c.campo_comp_vn || '';
+  const fccL1 = c.campo_comp_l1 || '', fccL2 = c.campo_comp_l2 || '', fccL3 = c.campo_comp_l3 || '';
+  const fccEst = acePct5(fccL1, fccL2, fccL3, fccVn);
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...NAVY);
+  doc.text(T('Comprobación (Material de Referencia) — Campo'), M, y + 7); y += 10;
+  const fccProm = prom3(fccL1, fccL2, fccL3);
+  const yFcc = y;
+  y = drawMiniTable(y, compHeads, [[
+    fmtFecha(c.campo_comp_fecha), c.campo_comp_hora || '', c.campo_comp_lote || '',
+    c.campo_comp_marca || '', fccVn, fccL1, fccL2, fccL3,
+    fccProm != null ? String(fccProm) : '', ''
+  ]], compCw, { headH: 18, rowH: 14, fs: 6.2, fsH: 5.2 });
+  if(fccEst){
+    let cx = M; for(let i=0;i<9;i++) cx += compCw[i];
+    _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(compCw[9]-54)/2), yFcc + 18 + 2, fccEst, { compact:true, font:FONT });
+  }
+  y = drawCriterioBadge(y,
+    'No debe de haber una diferencia no mayor a ±5% entre lecturas independientes del valor nominal del MRC utilizado',
+    fccEst);
+
+  const fcvVn = c.campo_ver_vn || '';
+  const fcvL1 = c.campo_ver_l1 || '', fcvL2 = c.campo_ver_l2 || '', fcvL3 = c.campo_ver_l3 || '';
+  const fcvEst = acePct5(fcvL1, fcvL2, fcvL3, fcvVn);
+  doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...NAVY);
+  doc.text(T('Verificación (Muestra Control) — Campo'), M, y + 7); y += 10;
+  const fcvProm = prom3(fcvL1, fcvL2, fcvL3);
+  const yFcv = y;
+  y = drawMiniTable(y, compHeads, [[
+    fmtFecha(c.campo_ver_fecha), c.campo_ver_hora || '', c.campo_ver_lote || '',
+    c.campo_ver_marca || '', fcvVn, fcvL1, fcvL2, fcvL3,
+    fcvProm != null ? String(fcvProm) : '', ''
+  ]], compCw, { headH: 18, rowH: 14, fs: 6.2, fsH: 5.2 });
+  if(fcvEst){
+    let cx = M; for(let i=0;i<9;i++) cx += compCw[i];
+    _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(compCw[9]-54)/2), yFcv + 18 + 2, fcvEst, { compact:true, font:FONT });
+  }
+  y = drawCriterioBadge(y,
+    'No debe de haber una diferencia no mayor a ±5% entre lecturas independientes del valor nominal del control utilizado',
+    fcvEst);
+
+  y += 2;
+  doc.setFont(FONT, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...TEXT);
+  const intro1 = 'El registro de las actividades que se realizan entre cada toma de muestra, referentes a la determinación de conductividad se encuentra en la siguiente tabla:';
+  // AARMS bm5fix: mismo código de manual que el resto (MMAR/AA/N-2)
+  const intro2 = 'El Procedimiento de recolección utilizado está descrito en el Manual de Muestreo con clave MMAR/AA/N-2';
+  let il = doc.splitTextToSize(T(intro1), CW);
+  doc.text(il, M, y + 6); y += il.length * 8 + 2;
+  il = doc.splitTextToSize(T(intro2), CW);
+  doc.text(il, M, y + 6); y += il.length * 8 + 4;
+
+  // Entre Tomas — todos los OMARs del plan
+  let regs = [];
+  if(plan && Array.isArray(plan.bitCond) && plan.bitCond.length){
+    regs = plan.bitCond.slice();
+  } else if(typeof _bitCondRegs === 'function'){
+    regs = (_bitCondRegs() || []).slice();
+  } else if(typeof omar !== 'undefined' && Array.isArray(omar.bitCond)){
+    regs = omar.bitCond.slice();
+  }
+
+  const folioMap = {};
+  if(plan && (plan.omarIds || []).length && typeof _cachedMuestreos !== 'undefined'){
+    for(const mid of plan.omarIds){
+      const m = _cachedMuestreos.find(x => x.id === mid);
+      let fol = '—';
+      if(m){
+        try{ const o = m.omar ? JSON.parse(m.omar) : {}; fol = o.folio ? String(o.folio) : String(mid); }
+        catch(e){ fol = String(mid); }
+      }
+      folioMap[String(mid)] = fol;
+    }
+  }
+  if(typeof omar !== 'undefined' && omar?.ts){
+    folioMap[String(omar.ts)] = folioMap[String(omar.ts)] || (omar.folio || String(omar.ts));
+  }
+  const folioOmarOf = (r) => {
+    if(r && r.folioOmar) return String(r.folioOmar);
+    const oid = r && r.omarId != null && r.omarId !== '' ? String(r.omarId) : (r && r.omarTs != null ? String(r.omarTs) : '');
+    return folioMap[oid] || (omar && omar.folio) || '—';
+  };
+
+  // Ordenar por fecha / omar / toma (numeración reinicia conceptualmente por día+OMAR vía columnas)
+  regs.sort((a, b) => {
+    const fa = String(a.fecha || ''), fb = String(b.fecha || '');
+    if(fa !== fb) return fa.localeCompare(fb);
+    const oa = folioOmarOf(a), ob = folioOmarOf(b);
+    if(oa !== ob) return oa.localeCompare(ob);
+    return (Number(a.toma) || 0) - (Number(b.toma) || 0);
+  });
+
+  // AARMS condpulido: encabezados oficiales completos (sin ACT/CÓD abreviados)
+  const etHeads = ['HORA','FOLIO OMAR','NO. DE TOMA','ACTIVIDAD DE CONTROL','CÓDIGO','L1','L2','L3','ACEPTA O RECHAZA','PROMEDIO','DATO A REPORTAR'];
+  const etRaw = [36, 52, 42, 62, 36, 32, 32, 32, 68, 48, 52];
+  const etSum = etRaw.reduce((a,b)=>a+b,0);
+  const etCw = etRaw.map(w => w * (CW / etSum));
+
+  // AARMS condpulido: sin texto inventado "(TODOS LOS OMARS…)"
+  y = _pdfBarraSeccion(doc, 'ENTRE TOMAS', M, y, CW, FONT);
+  y += 2;
+  // header
+  const rhH = 22;
+  doc.setFillColor(...DARK);
+  doc.rect(M, y, CW, rhH, 'F');
+  doc.setFont(FONT, 'bold'); doc.setFontSize(4.8); doc.setTextColor(...WHITE);
+  let hx = M;
+  etHeads.forEach((hh, i) => {
+    const lines = doc.splitTextToSize(T(hh), Math.max(14, etCw[i] - 2)).slice(0, 3);
+    const startY = y + (rhH - lines.length * 5.4) / 2 + 4.2;
+    lines.forEach((ln, li) => doc.text(ln, hx + etCw[i] / 2, startY + li * 5.4, { align: 'center' }));
+    hx += etCw[i];
+  });
+  y += rhH;
+
+  const rh = 12;
+  let rowIdx = 0;
+  regs.forEach((r) => {
+    if(y + rh > H - 130){
+      // AARMS condfiel: portrait fijo — si no cabe, continuar en misma orientación (aviso en toast)
+      pieFirma('Pág. 3 de 3 (cont.)');
+      doc.addPage();
+      if(typeof _pdfBmAplicarRoboto === 'function'){ /* already in doc */ }
+      y = hdr(folioP3, 'Entre tomas (cont.)');
+      doc.setFillColor(...DARK);
+      doc.rect(M, y, CW, rhH, 'F');
+      doc.setFont(FONT, 'bold'); doc.setFontSize(4.8); doc.setTextColor(...WHITE);
+      hx = M;
+      etHeads.forEach((hh, i) => {
+        const lines = doc.splitTextToSize(T(hh), Math.max(14, etCw[i] - 2)).slice(0, 3);
+        const startY = y + (rhH - lines.length * 5.4) / 2 + 4.2;
+        lines.forEach((ln, li) => doc.text(ln, hx + etCw[i] / 2, startY + li * 5.4, { align: 'center' }));
+        hx += etCw[i];
+      });
+      y += rhH;
+    }
+    const actU = String(r.act || '').trim();
+    let horaPdf = r.hora || '';
+    const actUp = actU.toUpperCase();
+    if(actUp !== 'CA' && actUp !== 'CO' && actUp !== 'CA' && !r.calibGrupo){
+      const omarRef = { ts: r.omarId || r.omarTs || (omar && omar.ts), id: r.omarId || r.omarTs };
+      if(typeof _pdfBmHoraDeToma === 'function'){
+        horaPdf = _pdfBmHoraDeToma(omarRef, r) || r.hora || '';
+      }
+    }
+    const p = prom3(r.l1, r.l2, r.l3);
+    const est = acePct5(r.l1, r.l2, r.l3, null); // entre tomas: dispersión ±5%
+    const promStr = p != null ? String(p) : '';
+    const vals = [
+      horaPdf, folioOmarOf(r), String(r.toma || ''), actU, r.limp || '',
+      r.l1 || '', r.l2 || '', r.l3 || '', '',
+      promStr, promStr
+    ].map(v => T(cell(v)));
+    const yRow = y;
+    if(typeof _pdfFilaTablaPremium === 'function'){
+      y = _pdfFilaTablaPremium(doc, vals, M, y, etCw, rh, rowIdx, {
+        fontSize: 5.8, maxChars: 12, font: FONT, blankEmpty: true, cellBorders: true
+      });
+    } else {
+      y += rh;
+    }
+    if(est && typeof _pdfBadgeAceptaRechaza === 'function'){
+      let cx = M; for(let i=0;i<8;i++) cx += etCw[i];
+      _pdfBadgeAceptaRechaza(doc, cx + Math.max(0.5,(etCw[8]-50)/2), yRow + Math.max(0.5,(rh-9)/2), est, { compact:true, font:FONT });
+    }
+    rowIdx++;
+  });
+  if(!regs.length){
+    doc.setFont(FONT, 'italic'); doc.setFontSize(8); doc.setTextColor(120);
+    doc.text(T('Sin registros entre tomas en el plan.'), M + 6, y + 12);
+    y += 22;
+  }
+  y += 6;
+  y = drawCriterioBadge(y, 'No debe haber una diferencia mayor a ±5% entre lecturas independientes.', null);
+  const Ley = window.AARMS_DOC_LEYENDAS || {};
+  y = _pdfCajaLeyenda(doc, Ley.actControlCond || 'Código de actividad de control: Ca= Calibración. Co= Comprobación. V= Verificación.', M, y, CW, FONT, { fontSize: 6.2 });
+  y = _pdfCajaLeyenda(doc, Ley.limpiezaCodCond || 'Código de Limpieza: 1.- Agua Tridestilada 2.- Detergente Suave 3.- Disolución de HCl 1:1', M, y, CW, FONT, { fontSize: 6.2 });
+
+  // Firmas en última página
+  const totalPag = doc.getNumberOfPages();
+  doc.setPage(totalPag);
+  pieFirma('Pág. ' + totalPag + ' de ' + totalPag);
+  // Reescribir pies de pág. 1–2 si total>3 (cont. entre tomas)
+  if(totalPag === 3){
+    // already set
+  } else if(totalPag > 3){
+    for(let i = 1; i <= totalPag; i++){
+      doc.setPage(i);
+      doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
+      doc.text('Pág. ' + i + ' de ' + totalPag, W - M, H - 22, { align: 'right' });
+      doc.setFont(FONT, 'normal'); doc.setFontSize(6.5); doc.setTextColor(...STD.MUTED);
+      doc.text('F-AA-289-2', W - M, H - 12, { align: 'right' });
+    }
+  }
+
+  const pdfSlug = plan && plan.id
+    ? `Plan-${String(plan.folio || plan.id || '').replace(/[^\w\-]+/g, '_')}`
+    : `OMAR-${(omar && (omar.folio || omar.ts)) || 'cond'}`;
+  doc.save(`Bitacora_Conductimetro_${pdfSlug}_${folioP1}.pdf`);
+  if(typeof toast === 'function'){
+    toast('PDF Conductímetro F-AA-289-2 · folios ' + folioP1 + ' / ' + folioP2 + ' / ' + folioP3, 'g');
+    if(totalPag > 3){
+      toast('Entre tomas requirió página extra (sigue en portrait). Si prefieres landscape, indícalo.', 'w');
+    }
+  }
+};
+
 
 })();

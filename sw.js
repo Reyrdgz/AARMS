@@ -1,7 +1,8 @@
 // AARMS Service Worker — offline-first (app local / PWA)
 // AARMS nobranding:
 // AARMS ghpages:
-const CACHE = 'aarms-offline-v66-ghpages';
+// AARMS phslopeaccept:
+const CACHE = 'aarms-offline-v66-lote21';
 
 function offlineHtml(){
   return `<!DOCTYPE html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AARMS</title></head><body style="font-family:system-ui,sans-serif;background:#07080f;color:#f0f8ff;padding:24px;text-align:center"><h1>AARMS</h1><p>Sin conexión. Abre la app desde el icono instalado o vuelve a cargar cuando tengas red una vez para actualizar el caché.</p></body></html>`;
@@ -11,12 +12,17 @@ self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE);
     try {
+      // AARMS blmppulido2: incluir Roboto para tildes/ñ en PDF offline
       await cache.addAll([
         './',
         './index.html',
         './js/app.js',
         './js/documents-suite.js',
-        './manifest.json'
+        './manifest.json',
+        './assets/fonts/Roboto-Regular.ttf',
+        './assets/fonts/Roboto-Bold.ttf',
+        './assets/fonts/Roboto-Regular.subset.ttf',
+        './assets/fonts/Roboto-Bold.subset.ttf'
       ]);
     } catch(_){}
     self.skipWaiting();
@@ -38,7 +44,7 @@ self.addEventListener('fetch', e => {
   if(url.origin !== self.location.origin) return;
 
   const isNav = req.mode === 'navigate';
-  const isAppAsset = /\.(js|html|json|png|webp|ico)$/i.test(url.pathname) || url.pathname.endsWith('/');
+  const isAppAsset = /\.(js|html|json|png|webp|ico|ttf|woff2?)$/i.test(url.pathname) || url.pathname.endsWith('/');
 
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);

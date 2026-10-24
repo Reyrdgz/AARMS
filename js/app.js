@@ -72,42 +72,43 @@ window._themeApply = _themeApply;
 
 
 // AARMS v65-cat: precarga datos laboratorio
+// AARMS lote10a: instalación nueva conserva el renglón y el valor nominal, sin lote, marca ni caducidad.
 const _CATALOGO_DEFAULT = {
   id: '_catalogo_aarms',
   buffers: {
-    // Buffers de Calibración (FERMONT) — usados en CA y CO
-    // Uso a partir del 17 marzo al 17 junio (típico de este lote)
     calibracion: [
-      { ph: 4.00, lote: '531146', marca: 'Fermont', caducidad: '2027-08-31', usoDesde: '2026-03-17', usoHasta: '2026-06-17' },
-      { ph: 6.86, lote: '519145', marca: 'Fermont', caducidad: '2027-05-31', usoDesde: '2026-03-17', usoHasta: '2026-06-17' },
-      { ph: 9.18, lote: '602544', marca: 'Fermont', caducidad: '2028-02-29', usoDesde: '2026-03-17', usoHasta: '2026-06-17' }
+      { ph: 4.00, lote: '', marca: '', caducidad: '', usoDesde: '', usoHasta: '' },
+      { ph: 6.86, lote: '', marca: '', caducidad: '', usoDesde: '', usoHasta: '' },
+      { ph: 9.18, lote: '', marca: '', caducidad: '', usoDesde: '', usoHasta: '' }
     ],
-    // Buffers de Verificación (MERCK) — usados en V
     verificacion: [
-      { ph: 4.00,  lote: 'HC56730835', marca: 'Merck', caducidad: '2028-02-29', usoDesde: '' },
-      { ph: 7.00,  lote: 'HC46341939', marca: 'Merck', caducidad: '2027-12-31', usoDesde: '' },
-      { ph: 10.00, lote: 'HC45176738', marca: 'Merck', caducidad: '2027-07-31', usoDesde: '' }
+      { ph: 4.00,  lote: '', marca: '', caducidad: '', usoDesde: '' },
+      { ph: 7.00,  lote: '', marca: '', caducidad: '', usoDesde: '' },
+      { ph: 10.00, lote: '', marca: '', caducidad: '', usoDesde: '' }
     ]
   },
   disoluciones: [
-    { nombre: 'H₂SO₄ 1:1',                       lote: 'L-003',      caducidad: '2026-07-03', usoDesde: '2026-04-03' },
-    { nombre: 'H₂SO₄ 25%',                       lote: 'L-002',      caducidad: '2026-05-02', usoDesde: '2026-03-02' },
-    // AARMS v66-p2: lote alterno disponible para rotación cuando se acabe el principal.
-    // El LVAR solo muestra el principal (key h2so4_25 → 'H₂SO₄ 25%').
-    { nombre: 'H₂SO₄ 25% (lote alterno)',        lote: 'L-003',      caducidad: '2026-07-02', usoDesde: '2026-05-02' },
-    { nombre: 'NaOH 1N',                         lote: '26-008',     caducidad: '2026-07-09', usoDesde: '2026-04-09' },
-    { nombre: 'K₂Cr₂O₇ 25%',                     lote: '26-002',     caducidad: '2026-07-06', usoDesde: '2026-04-06' },
-    { nombre: 'HCl 1:1 (lavado electrodo)',      lote: '26-002',     caducidad: '2026-07-04', usoDesde: '2026-04-04' },
-    { nombre: 'HNO₃ ACS (Fermont)',              lote: '413243',     caducidad: 'N/A',        usoDesde: '' },
-    { nombre: 'HNO₃ Suprapuro (JT Baker)',       lote: '24K1862001', caducidad: '2029-10-31', usoDesde: '' }
+    { nombre: 'H₂SO₄ 1:1', lote: '', caducidad: '', usoDesde: '' },
+    { nombre: 'HCl 1:1 (uso general)', lote: '', caducidad: '', usoDesde: '' },
+    { nombre: 'H₂SO₄ 25%', lote: '', caducidad: '', usoDesde: '' },
+    { nombre: 'H₂SO₄ 25% (lote alterno)', lote: '', caducidad: '', usoDesde: '' },
+    { nombre: 'NaOH 1N', lote: '', caducidad: '', usoDesde: '' },
+    { nombre: 'K₂Cr₂O₇ 25%', lote: '', caducidad: '', usoDesde: '' },
+    { nombre: 'HCl 1:1 (lavado electrodo)', lote: '', caducidad: '', usoDesde: '' },
+    { nombre: 'HNO₃ ACS', lote: '', marca: '', caducidad: '', usoDesde: '' },
+    { nombre: 'HNO₃ Suprapuro', lote: '', marca: '', caducidad: '', usoDesde: '' }
   ],
   conductividad: [
-    { nombre: 'KCl Patrón',           lote: '26-002E', marca: '',      valor: 1412, caducidad: '2026-07-04', usoDesde: '2026-04-04' },
-    { nombre: 'KCl Comercial Hanna',  lote: '8876',    marca: 'Hanna', valor: 1413, caducidad: '2028-04-30', usoDesde: '2026-01-04' }
+    { nombre: 'KCl Patrón', lote: '', marca: '', valor: 1412, caducidad: '', usoDesde: '' },
+    { nombre: 'KCl Comercial', lote: '', marca: '', valor: 1413, caducidad: '', usoDesde: '' }
   ],
-  // AARMS v65-cat2: Agua reactivo / otros patrones de uso general
   otros: [
-    { nombre: 'Agua Reactivo', marca: 'QUIMEX', lote: 'N/A', caducidad: 'N/A' }
+    { nombre: 'Agua Reactivo', marca: '', lote: '', caducidad: '' }
+  ],
+  // AARMS lote17: dos disoluciones de OD, vacías al instalar.
+  odDisoluciones: [
+    { nombre: 'Disolución concentración nula estándar de calibración (0 mgO₂/L)', lote: '', caducidad: '', recipiente: '', folioBdbo: '' },
+    { nombre: 'Disolución concentración nula estándar de trabajo (0 mgO₂/L)', lote: '', caducidad: '', recipiente: '', folioBdbo: '' }
   ],
   // AARMS sub1-equipos: Catálogo de equipos del laboratorio.
   // Centraliza claves AA/PT/, AA/CO/, AA/TM/ + FC termómetro + auto-generación de códigos de bitácora.
@@ -230,23 +231,6 @@ function _catalogoMigrarGranular(cat){
     dirty = true;
   }
 
-  if(cat.disoluciones){
-    cat.disoluciones.forEach(d => {
-      if(d.nombre === 'HNO3 ACS (Fermont)' && d.caducidad === ''){
-        d.caducidad = 'N/A';
-        dirty = true;
-      }
-    });
-  }
-  if(cat.otros){
-    cat.otros.forEach(o => {
-      if(o.nombre === 'Agua Reactivo' && o.caducidad === ''){
-        o.caducidad = 'N/A';
-        dirty = true;
-      }
-    });
-  }
-
   // AARMS sub1-equipos: migrar catálogo viejo para añadir sección equipos si no existe
   if(!cat.equipos){
     cat.equipos = {
@@ -261,6 +245,14 @@ function _catalogoMigrarGranular(cat){
     };
     dirty = true;
   }
+  // AARMS lote17: renglones de OD vacíos; no pisa lote ni folio ya capturados.
+  if(!Array.isArray(cat.odDisoluciones) || cat.odDisoluciones.length < 2){
+    const defOd = JSON.parse(JSON.stringify(def.odDisoluciones || []));
+    const prev = Array.isArray(cat.odDisoluciones) ? cat.odDisoluciones : [];
+    cat.odDisoluciones = defOd.map((row, i) => Object.assign({}, row, prev[i] || {}));
+    dirty = true;
+  }
+
   if(cat.equipos){
     // AARMS sub7-od: migración catálogo con oximetros
     const subs = ['potenciometros','conductimetros','termometros','mallas','kitsCloro','oximetros','cronometros','gps'];
@@ -274,13 +266,12 @@ function _catalogoMigrarGranular(cat){
 
 async function _catalogoCargar(){
   if(_catalogoCache) return _catalogoCache;
+  // AARMS lote12: el catálogo sale de la base que ya usa la app.
   try{
     const todos = await idbGetAll();
     const cat = (todos||[]).find(x => x.id === '_catalogo_aarms');
     if(cat){
-      // AARMS v66-p0p1: migración granular por sección (buffers, disoluciones, conductividad, otros)
       const migrado = _catalogoMigrarGranular(cat);
-      // AARMS humofix: ASCII → Unicode en nombres de disoluciones
       const migradoU = _catalogoMigrarUnicodeNombres(cat);
       if(migrado || migradoU){
         cat.id = '_catalogo_aarms';
@@ -300,6 +291,7 @@ async function _catalogoCargar(){
 
 async function _catalogoGuardar(){
   if(!_catalogoCache) return;
+  // AARMS lote12: el inventario se escribe siempre en la base existente.
   try{ await idbPut(_catalogoCache); }catch(e){ console.warn('[catalogo guardar]',e); }
 }
 
@@ -331,18 +323,68 @@ function _catalogoSnapshot(){
   }));
 }
 
-function _catalogoLoteVencido(item){
-  if(!item || !item.caducidad) return false;
-  try{
-    const cad = new Date(item.caducidad);
-    return cad < new Date();
-  }catch(e){ return false; }
+function _lote10FechaRef(fecha){
+  const s = String(fecha || '').trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+function _lote10SumarDias(iso, n){
+  const p = iso.split('-').map(Number);
+  const d = new Date(p[0], p[1] - 1, p[2]);
+  d.setDate(d.getDate() + n);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+function _lote10CadIso(item){
+  const c = String(item && item.caducidad || '').trim();
+  return /^\d{4}-\d{2}-\d{2}/.test(c) ? c.slice(0, 10) : '';
+}
+// AARMS lote10b: compara por día. N/A y el hueco vacío no están vencidos.
+function _catalogoLoteVencido(item, fecha){
+  const cad = _lote10CadIso(item);
+  if(!cad) return false;
+  return cad < _lote10FechaRef(fecha);
+}
+function _lote10InsigniaCad(item){
+  if(_catalogoLoteVencido(item)){
+    return '<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:#f87171;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">VENCIDO</span>';
+  }
+  if(_lote10PorVencer(item)){
+    return '<span data-lote10-pronto="1" style="background:rgba(245,158,11,.18);border:1px solid rgba(245,158,11,.55);color:#fbbf24;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">CADUCA PRONTO</span>';
+  }
+  return '';
+}
+function _lote10PorVencer(item, fecha){
+  const cad = _lote10CadIso(item);
+  if(!cad) return false;
+  const ref = _lote10FechaRef(fecha);
+  if(cad < ref) return false;
+  return cad <= _lote10SumarDias(ref, 30);
+}
+function _lote10BaseNombre(nombre){
+  return String(nombre || '').replace(/\s*\(lote alterno\)\s*/ig, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+function _lote10Elegir(principal, alternos, fecha){
+  if(!principal) return { item: null, vencido: false, usoAlterno: false };
+  if(!_catalogoLoteVencido(principal, fecha)) return { item: principal, vencido: false, usoAlterno: false };
+  const alt = (alternos || []).find(a => a && String(a.lote || '').trim() && !_catalogoLoteVencido(a, fecha));
+  if(alt) return { item: alt, vencido: false, usoAlterno: true };
+  return { item: principal, vencido: true, usoAlterno: false };
+}
+function _lote10AlternosDisol(nombre){
+  const base = _lote10BaseNombre(nombre);
+  const lista = (_catalogoCache && _catalogoCache.disoluciones) || [];
+  return lista.filter(d => /\(lote alterno\)/i.test(d.nombre || '') && _lote10BaseNombre(d.nombre) === base);
 }
 
-// AARMS v65-fix2 / v66-p2: UN solo HCl físico en catálogo; hcl_11 = uso general, hcl_lav = lavado electrodo.
+// AARMS lote10a: uso general y lavado de electrodo son renglones distintos.
 const _LVAR_DISOL_TO_CATALOGO = {
   'h2so4_11':  'H₂SO₄ 1:1',
-  'hcl_11':    'HCl 1:1 (lavado electrodo)',
+  'hcl_11':    'HCl 1:1 (uso general)',
   'h2so4_25':  'H₂SO₄ 25%',
   'naoh_1n':   'NaOH 1N',
   'k2cr2o7':   'K₂Cr₂O₇ 25%',
@@ -355,7 +397,6 @@ const _MIGRA_UNICODE_DISOL = {
   'H2SO4 25%': 'H₂SO₄ 25%',
   'H2SO4 25% (lote alterno)': 'H₂SO₄ 25% (lote alterno)',
   'K2Cr2O7 25%': 'K₂Cr₂O₇ 25%',
-  'HNO3 ACS (Fermont)': 'HNO₃ ACS (Fermont)',
   'HNO3 ACS': 'HNO₃ ACS',
   'HNO3 Supra puro': 'HNO₃ Suprapuro',
   'HNO3 Suprapuro': 'HNO₃ Suprapuro',
@@ -377,15 +418,16 @@ function _catalogoMigrarUnicodeNombres(cat){
   return dirty;
 }
 
-function _catalogoDisolMatch(it){
-  if(!_catalogoCache || !_catalogoCache.disoluciones) return null;
+function _catalogoDisolResolucion(it, fecha){
+  if(!_catalogoCache || !_catalogoCache.disoluciones) return { item: null, vencido: false, usoAlterno: false };
   const nombreObjetivo = _LVAR_DISOL_TO_CATALOGO[it.key];
-  if(!nombreObjetivo) return null;
-  // Match exacto por nombre (case-insensitive)
+  if(!nombreObjetivo) return { item: null, vencido: false, usoAlterno: false };
   const target = nombreObjetivo.toLowerCase();
-  return _catalogoCache.disoluciones.find(d =>
-    (d.nombre || '').toLowerCase() === target
-  ) || null;
+  const principal = _catalogoCache.disoluciones.find(d => (d.nombre || '').toLowerCase() === target) || null;
+  return _lote10Elegir(principal, _lote10AlternosDisol(nombreObjetivo), fecha);
+}
+function _catalogoDisolMatch(it, fecha){
+  return _catalogoDisolResolucion(it, fecha).item;
 }
 
 // AARMS sub1-equipos: helpers de claves y códigos de bitácora
@@ -562,6 +604,18 @@ function _fmtBoxHoja(val, dec){
   if(val === null || val === undefined || isNaN(val)) return '—';
   return Number(val).toFixed(dec);
 }
+// AARMS lote11b: el entero que el Machiote imprime como Report A / Report B. Sin lecturas, hueco vacío.
+function _lote11TempEntero(prom){
+  if(typeof prom !== 'number' || isNaN(prom)) return '';
+  return String(Math.round(prom));
+}
+function _lote11TempHoja(tomaNum){
+  const ts = (typeof omar !== 'undefined' && omar && omar.ts) ? omar.ts : '';
+  return {
+    amb: _lote11TempEntero(_bitTempPromAmbPorToma(ts, tomaNum)),
+    agua: _lote11TempEntero(_bitTempPromAguaPorToma(ts, tomaNum))
+  };
+}
 
 // AARMS sub22-hoja: boxes auto-llenados (patrón .f + input readonly de la card)
 function _htmlTomaBoxesAuto(omarTs, tomaNum){
@@ -574,8 +628,8 @@ function _htmlTomaBoxesAuto(omarTs, tomaNum){
   const flujoPct = _flujoPctPorToma(omarTs, tomaNum);
   return `
     <div class="g3" style="margin-bottom:8px">
-      <div class="f" style="margin-bottom:0"><label>T. amb (°C)</label><input type="text" readonly tabindex="-1" value="${esc(_fmtBoxHoja(tempAmb, 1))}" placeholder="—"></div>
-      <div class="f" style="margin-bottom:0"><label>T. agua (°C)</label><input type="text" readonly tabindex="-1" value="${esc(_fmtBoxHoja(tempAgua, 1))}" placeholder="—"></div>
+      <div class="f" style="margin-bottom:0"><label>T. amb (°C)</label><input type="text" readonly tabindex="-1" data-lote11="tamb" value="${esc(_lote11TempEntero(tempAmb))}" placeholder="—"></div>
+      <div class="f" style="margin-bottom:0"><label>T. agua (°C)</label><input type="text" readonly tabindex="-1" data-lote11="tagua" value="${esc(_lote11TempEntero(tempAgua))}" placeholder="—"></div>
       <div class="f" style="margin-bottom:0"><label>pH 25°C</label><input type="text" readonly tabindex="-1" value="${esc(_fmtBoxHoja(phProm, 2))}" placeholder="—"></div>
     </div>
     <div class="g3" style="margin-bottom:12px">
@@ -650,25 +704,18 @@ window._bitFlujosPromPorToma = _bitFlujosPromPorToma;
 function _migrarTomaTemperatura(t){
   if(!t) return false;
   let migrado = false;
-  if(t.tagua !== undefined && t.temp_agua_l1 === undefined){
-    t.temp_agua_l1 = String(t.tagua || '');
-    t.temp_agua_l2 = '';
-    t.temp_agua_l3 = '';
-    migrado = true;
-  } else if(t.temp_agua_l1 === undefined){
+  // AARMS lote11b: un t.tagua o t.tamb guardado no se convierte en lectura. El hueco sigue en blanco.
+  if(t.temp_agua_l1 === undefined){
     t.temp_agua_l1 = '';
     t.temp_agua_l2 = '';
     t.temp_agua_l3 = '';
-  }
-  if(t.tamb !== undefined && t.temp_amb_l1 === undefined){
-    t.temp_amb_l1 = String(t.tamb || '');
-    t.temp_amb_l2 = '';
-    t.temp_amb_l3 = '';
     migrado = true;
-  } else if(t.temp_amb_l1 === undefined){
+  }
+  if(t.temp_amb_l1 === undefined){
     t.temp_amb_l1 = '';
     t.temp_amb_l2 = '';
     t.temp_amb_l3 = '';
+    migrado = true;
   }
   if(t.temp_proc === undefined) t.temp_proc = '';
   if(t.temp_proc_manual === undefined) t.temp_proc_manual = false;
@@ -696,6 +743,42 @@ function _lvarNumDesdeCatalogo(eqKey){
   if(!tipo) return null;
   const item = _equipoActivo(tipo);
   return item && item.id ? String(item.id).trim() : null;
+}
+
+// AARMS lote8c: aviso cuando el catálogo no tiene el equipo o el reactivo
+function _lote8cMsgInventario(){
+  return '<div data-lote8c-bloqueo="1" style="margin-top:6px;font-size:12px;color:#fbbf24;line-height:1.45">Registra el equipo en Inventario. <button type="button" onclick="abrirCatalogo()" style="margin-left:6px;background:transparent;border:1px solid rgba(251,191,36,.45);color:#fbbf24;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>';
+}
+function _lote10EscHtml(s){
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+}
+function _lote10MsgFalta(nombre){
+  return '<div data-lote10-falta="1" style="margin-top:6px;font-size:12px;color:#fbbf24;line-height:1.45">Falta registrar en Inventario: '+_lote10EscHtml(nombre)+'. <button type="button" onclick="abrirCatalogo()" style="margin-left:6px;background:transparent;border:1px solid rgba(251,191,36,.45);color:#fbbf24;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>';
+}
+function _lote10MsgVencido(nombre){
+  return '<div data-lote10-vencido="1" style="margin-top:6px;font-size:12px;color:#f87171;line-height:1.45">Vencido: '+_lote10EscHtml(nombre)+'. Reemplaza en Inventario. <button type="button" onclick="abrirCatalogo()" style="margin-left:6px;background:transparent;border:1px solid rgba(248,113,113,.45);color:#f87171;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>';
+}
+function _lote10FechaLvar(){
+  const el = document.getElementById('lv_fecha');
+  return _lote10FechaRef(el && el.value);
+}
+function _lote8cClaveInput(id, tipo, guardado, soloId){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const prev = String(guardado || '').trim();
+  const eq = (typeof _equipoActivo === 'function') ? _equipoActivo(tipo) : null;
+  const clave = eq ? (soloId ? String(eq.id) : _equipoClave(tipo, eq)) : '';
+  const valor = prev || clave;
+  el.readOnly = true;
+  el.setAttribute('readonly', '');
+  el.tabIndex = -1;
+  el.value = valor;
+  const host = el.closest('.f') || el.parentElement;
+  if(host){
+    const old = host.querySelector('[data-lote8c-bloqueo]');
+    if(old) old.remove();
+    if(!valor) host.insertAdjacentHTML('beforeend', _lote8cMsgInventario());
+  }
 }
 
 // AARMS lvarfix: mapeo LVAR → catálogo (IDs de equipo)
@@ -783,24 +866,36 @@ function _catalogoAguaReactivo(){
 // AARMS v65-cat2: matching robusto por nombre (HNO3 ACS, Suprapuro, etc.)
 function _catalogoMatchPorNombre(nombre){
   if(!_catalogoCache || !_catalogoCache.disoluciones) return null;
-  const norm = s => String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  // AARMS lote10a: el subíndice ₃ de HNO₃ cuenta como 3, y el nombre con marca entre paréntesis sigue siendo el mismo reactivo.
+  const norm = s => String(s||'')
+    .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, ch => String('₀₁₂₃₄₅₆₇₈₉'.indexOf(ch)))
+    .toLowerCase().replace(/[^a-z0-9]/g,'');
   const buscar = norm(nombre);
   let m = _catalogoCache.disoluciones.find(d => norm(d.nombre) === buscar);
   if(m) return m;
-  if(buscar.includes('hno3acs') || buscar === 'hno3acs' || buscar.includes('acsfermont')){
-    m = _catalogoCache.disoluciones.find(d => /hno3.*acs|acs.*hno3/i.test(d.nombre));
+  if(buscar.includes('hno3acs')){
+    m = _catalogoCache.disoluciones.find(d => norm(d.nombre).includes('hno3acs'));
     if(m) return m;
   }
   if(buscar.includes('hno3supra') || buscar.includes('suprapuro') || buscar.includes('jtbaker')){
-    m = _catalogoCache.disoluciones.find(d => /supra|baker/i.test(d.nombre));
+    m = _catalogoCache.disoluciones.find(d => {
+      const n = norm(d.nombre);
+      return n.includes('suprapuro') || n.includes('jtbaker');
+    });
     if(m) return m;
   }
   return null;
 }
+// AARMS lote10b: mismo criterio que las disoluciones. Si el principal está vencido y hay alterno vigente, usa el alterno.
+function _catalogoReactivoResolucion(nombre, fecha){
+  const principal = _catalogoMatchPorNombre(nombre);
+  if(!principal) return { item: null, vencido: false, usoAlterno: false };
+  return _lote10Elegir(principal, _lote10AlternosDisol(principal.nombre), fecha);
+}
 
 // AARMS v65-cat2: corregido mapeo patrones LVAR → catálogo.
-// PATRÓN DE REFERENCIA = buffer de Verificación (Merck) — tiene certificado de referencia
-// PATRÓN DE TRABAJO    = buffer de Calibración (Fermont) — uso diario para calibrar el equipo
+// PATRÓN DE REFERENCIA = buffer de Verificación — tiene certificado de referencia
+// PATRÓN DE TRABAJO    = buffer de Calibración — uso diario para calibrar el equipo
 const _LVAR_PATRON_CAT = {
   pat_ref1:'ver-0', pat_ref2:'ver-1', pat_ref3:'ver-2',
   pat_tra1:'cal-0', pat_tra2:'cal-1', pat_tra3:'cal-2',
@@ -980,14 +1075,27 @@ async function loadLogo(url){
           r.readAsDataURL(blob);
         });
         if(!b64) continue;
-        // Obtener dimensiones reales
         const dims=await new Promise(resolve=>{
           const img=new Image();
-          img.onload=()=>resolve({w:img.naturalWidth,h:img.naturalHeight});
-          img.onerror=()=>resolve({w:1,h:1});
+          img.onload=()=>resolve({w:img.naturalWidth,h:img.naturalHeight,img});
+          img.onerror=()=>resolve({w:1,h:1,img:null});
           img.src=b64;
         });
-        return {data:b64, w:dims.w, h:dims.h, ratio:dims.w/dims.h};
+        // AARMS lote8b: el logo se imprime a lo más a 70 pt (~25 mm). 300 ppi basta y conserva la transparencia.
+        const maxW = Math.round(70 / 72 * 300);
+        let data = b64, w = dims.w, h = dims.h;
+        if(dims.img && dims.w > maxW){
+          w = maxW;
+          h = Math.max(1, Math.round(dims.h * (maxW / dims.w)));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(dims.img, 0, 0, w, h);
+          data = canvas.toDataURL('image/png');
+        }
+        return {data, w, h, ratio:w/h};
       }catch(e){continue;}
     }
     return null;
@@ -995,7 +1103,23 @@ async function loadLogo(url){
 }
 
 // Agrega logo respetando proporciones reales dentro de un espacio maxW x maxH
+// AARMS lote8bc: addImage quita FlateEncode de la lista compartida. Se vuelve a poner al escribir cada página.
+function _pdfMantenerCompress(doc){
+  if(!doc || doc.__lote8bc) return;
+  doc.__lote8bc = true;
+  try {
+    const evs = doc.internal && doc.internal.events;
+    if(!evs || typeof evs.subscribe !== 'function' || typeof doc.internal.getFilters !== 'function') return;
+    evs.subscribe('putPage', function(){
+      const f = doc.internal.getFilters();
+      if(Array.isArray(f) && f.indexOf('FlateEncode') < 0) f.push('FlateEncode');
+    });
+  } catch(_){}
+}
+window._pdfMantenerCompress = _pdfMantenerCompress;
+
 function addLogoProportional(doc, logo, x, y, maxW, maxH){
+  _pdfMantenerCompress(doc);
   if(!logo||!logo.data) return;
   let w,h;
   if(logo.ratio>=1){ // más ancho que alto
@@ -1008,7 +1132,7 @@ function addLogoProportional(doc, logo, x, y, maxW, maxH){
   // Centrar en el espacio disponible
   const ox=(maxW-w)/2;
   const oy=(maxH-h)/2;
-  try{doc.addImage(logo.data,'PNG',x+ox,y+oy,w,h,'','FAST');}catch(e){}
+  try{doc.addImage(logo.data,'PNG',x+ox,y+oy,w,h,'','SLOW');}catch(e){}
 }
 
 /** Texto seguro para jsPDF Helvetica (misma lógica que LVAR / hoja de campo). */
@@ -1028,15 +1152,30 @@ function jsPdfAscii(s){
     .replace(/°/g,''); // 5°C → 5C (sin insertar espacios)
 }
 
-// AARMS sub51a-roboto: cargar Roboto para PDF Machiote
+// AARMS sub51a-roboto: cargar Roboto para PDF Machiote / BLMP
 async function _cargarRobotoParaPDF(){
   if(window._robotoBase64Cache) return window._robotoBase64Cache;
   try {
-    const [regularResp, boldResp] = await Promise.all([
-      fetch('assets/fonts/Roboto-Regular.ttf'),
-      fetch('assets/fonts/Roboto-Bold.ttf')
-    ]);
-    if(!regularResp.ok || !boldResp.ok){
+    const bases = [];
+    try {
+      if(typeof location !== 'undefined' && location.href){
+        bases.push(new URL('assets/fonts/', location.href).href);
+        bases.push(new URL('./assets/fonts/', location.href).href);
+      }
+    } catch(_){}
+    bases.push('assets/fonts/');
+    let regularResp = null, boldResp = null;
+    for(const base of bases){
+      try {
+        // AARMS lote8b: subconjunto con tildes, ñ, subíndices y ±
+        const [r, b] = await Promise.all([
+          fetch(base + 'Roboto-Regular.subset.ttf'),
+          fetch(base + 'Roboto-Bold.subset.ttf')
+        ]);
+        if(r.ok && b.ok){ regularResp = r; boldResp = b; break; }
+      } catch(_){}
+    }
+    if(!regularResp || !boldResp){
       console.warn('[roboto] fetch falló, seguirá con Helvetica');
       return null;
     }
@@ -1161,7 +1300,7 @@ window.addEventListener('appinstalled', ()=>{
   _deferredInstallPrompt = null;
 });
 window.addEventListener('DOMContentLoaded',async ()=>{
-  document.getElementById('o_fecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('o_fecha').value=_lote21HoyFecha();
   await refreshCache();
   renderHome();
   loadSaved();
@@ -1267,6 +1406,633 @@ window._phA25=_phA25;
 window._phAceptaRechaza=_phAceptaRechaza;
 window._phPromedio=_phPromedio;
 window._phRedondeo25=_phRedondeo25;
+
+// AARMS lote4a: registro nuevo en el plan (plan.ph2644). El omar.ph2644h1 viejo solo se lee si no hay estructura nueva.
+function _lote4n(v){
+  if(v==null || String(v).trim()==='') return null;
+  const n = parseFloat(String(v).replace(',', '.'));
+  if(isNaN(n)) return null;
+  return Math.round(n * 100) / 100;
+}
+function _lote4hoy(){
+  const n = new Date();
+  const p = (x) => String(x).padStart(2, '0');
+  return { fecha: n.getFullYear()+'-'+p(n.getMonth()+1)+'-'+p(n.getDate()), hora: p(n.getHours())+':'+p(n.getMinutes()) };
+}
+function _lote21HoyFecha(){
+  // AARMS lote21b: el día es el del dispositivo, no el de toISOString (UTC).
+  return _lote4hoy().fecha;
+}
+function _lote21HoyFechaHoraLocal(){
+  const h = _lote4hoy();
+  return h.fecha + 'T' + h.hora;
+}
+function _lote21FechaPantalla(src){
+  // AARMS lote21b: AAAA-MM-DD se parte. new Date("AAAA-MM-DD") es UTC y retrocede un día.
+  if(src == null || src === '') return '';
+  const s = String(src).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return m[3] + '/' + m[2] + '/' + m[1];
+  const d = new Date(s);
+  if(isNaN(d.getTime())) return s.substring(0, 10);
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+function _lote21MsLocal(src){
+  if(src == null || src === '' || src === 0) return 0;
+  if(typeof src === 'number') return src;
+  const s = String(src).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? 0 : d.getTime();
+}
+function _lote21EsOculto(id){
+  // AARMS lote21e: el catálogo y cualquier plan__ no son un muestreo.
+  const s = String(id == null ? '' : id);
+  return s === '_catalogo_aarms' || s.indexOf('plan__') === 0;
+}
+window._lote21FechaPantalla = _lote21FechaPantalla;
+window._lote21HoyFecha = _lote21HoyFecha;
+window._lote21EsOculto = _lote21EsOculto;
+function _lote4EstamparSiLectura(fila, k, valor){
+  // AARMS lote4cb: la primera lectura estampa fecha y hora. Lo ya tecleado se queda.
+  if(!fila || (k !== 'lectura' && k !== 'l1' && k !== 'l2' && k !== 'l3')) return;
+  if(!String(valor || '').trim()) return;
+  const h = _lote4hoy();
+  if(!String(fila.fecha || '').trim()) fila.fecha = h.fecha;
+  if(!String(fila.hora || '').trim()) fila.hora = h.hora;
+}
+function _lote4filaCal(){
+  // AARMS lote4ba: una fila nueva no hereda fecha, hora ni lecturas.
+  return { fecha: '', hora: '', lote: '', marca: '', buffer: '', lectura: '' };
+}
+function _lote4filaLect(){
+  return { fecha: '', hora: '', lote: '', marca: '', buffer: '', l1: '', l2: '', l3: '' };
+}
+function _lote4LabVacio(){
+  return {
+    b1: { slope: '', temp: '', filas: [_lote4filaCal(), _lote4filaCal(), _lote4filaCal()] },
+    b2: { filas: [_lote4filaLect(), _lote4filaLect(), _lote4filaLect()] },
+    b3: { filas: [_lote4filaLect()] }
+  };
+}
+function _lote4CampoVacio(){
+  return {
+    tira: { hora: '', valor: '' },
+    b4: { slope: '', temp: '', filas: [_lote4filaCal(), _lote4filaCal(), _lote4filaCal()] },
+    b5: { filas: [_lote4filaLect(), _lote4filaLect(), _lote4filaLect()] },
+    b6: { filas: [_lote4filaLect()] },
+    rango: { de: '', a: '' }
+  };
+}
+function _lote4Ph(plan){
+  return (plan && plan.ph2644 && plan.ph2644.version === 2) ? plan.ph2644 : null;
+}
+function _lote4PlanActual(){
+  let plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+  if(!plan && typeof omar !== 'undefined' && omar && omar.ts && typeof getPlanDeMuestreo === 'function'){
+    plan = getPlanDeMuestreo(omar.ts);
+  }
+  return plan || null;
+}
+function _lote4FilaCalEstado(f){
+  const lect = _lote4n(f && f.lectura);
+  const buf = _lote4n(f && f.buffer);
+  if(lect == null || buf == null) return 'vacio';
+  return Math.abs(lect - buf) <= 0.05 + 1e-9 ? 'acepta' : 'rechaza';
+}
+function _lote4FilaComp(f){
+  if(!f) return null;
+  const ls = [_lote4n(f.l1), _lote4n(f.l2), _lote4n(f.l3)];
+  const buf = _lote4n(f.buffer);
+  if(ls.some(n => n == null) || buf == null) return null;
+  const prom = Math.round((ls.reduce((a, b) => a + b, 0) / 3) * 100) / 100;
+  const spread = Math.round((Math.max(...ls) - Math.min(...ls)) * 100) / 100;
+  return {
+    prom,
+    a: Math.abs(prom - buf) <= 0.05 + 1e-9,
+    b: spread <= 0.03 + 1e-9
+  };
+}
+function _lote4EstadoCal(filas){
+  const ev = (filas || []).map(_lote4FilaCalEstado);
+  if(!ev.length || ev.some(e => e === 'vacio')) return 'vacio';
+  return ev.some(e => e === 'rechaza') ? 'rechaza' : 'acepta';
+}
+function _lote4EstadoComp(filas){
+  const rows = (filas || []).map(_lote4FilaComp);
+  if(!rows.length || rows.some(r => !r)) return { a: 'vacio', b: 'vacio' };
+  return {
+    a: rows.every(r => r.a) ? 'acepta' : 'rechaza',
+    b: rows.every(r => r.b) ? 'acepta' : 'rechaza'
+  };
+}
+function _lote4EstadoVer(filas){
+  const f = (filas || [])[0];
+  if(!f || typeof _phAceptaRechaza !== 'function') return 'vacio';
+  const ace = _phAceptaRechaza(f.l1, f.l2, f.l3, f.buffer);
+  if(ace === 'Acepta') return 'acepta';
+  if(ace === 'Rechaza') return 'rechaza';
+  return 'vacio';
+}
+function _lote4PdfEstado(e){
+  if(e === 'acepta') return 'Acepta';
+  if(e === 'rechaza') return 'Rechaza';
+  return '';
+}
+function _lote4LegacyH(plan){
+  const ids = (plan && plan.omarIds) || [];
+  for(const mid of ids){
+    const m = (_cachedMuestreos || []).find(x => String(x.id) === String(mid));
+    if(!m || !m.omar) continue;
+    try{
+      const o = JSON.parse(m.omar);
+      if(o && o.ph2644h1) return Object.assign({}, o.ph2644h1);
+    }catch(_){}
+  }
+  return {};
+}
+function _lote4CalDatos(nodo){
+  return !!(nodo && String(nodo.slope || '').trim() && String(nodo.temp || '').trim());
+}
+function _lote4LabListo(lab){
+  if(!lab || !lab.b1 || !lab.b2 || !lab.b3) return false;
+  if(_lote4EstadoCal(lab.b1.filas) !== 'acepta') return false;
+  // AARMS lote4bb: Slope y Temperatura son dato obligatorio. No deciden ACEPTA.
+  if(!_lote4CalDatos(lab.b1)) return false;
+  const c = _lote4EstadoComp(lab.b2.filas);
+  if(c.a !== 'acepta' || c.b !== 'acepta') return false;
+  return _lote4EstadoVer(lab.b3.filas) === 'acepta';
+}
+function _lote4LegacyPhOk(p){
+  return !!(p && p.cal_l1 && p.comp_l1 && p.ver_l1 && p.cal_l3 && p.comp_l3 && p.ver_l3);
+}
+function _lote4LabTocado(lab){
+  if(!lab) return false;
+  const vals = [];
+  ['b1','b2','b3'].forEach(k => {
+    ((lab[k] && lab[k].filas) || []).forEach(f => {
+      vals.push(f.lectura, f.l1, f.l2, f.l3, f.buffer, f.lote);
+    });
+  });
+  return vals.some(v => v != null && String(v).trim() !== '');
+}
+function _lote4EstadoDocLab(plan){
+  const ph = _lote4Ph(plan);
+  if(ph && ph.lab){
+    if(_lote4LabListo(ph.lab)) return 'completo';
+    return _lote4LabTocado(ph.lab) ? 'progreso' : 'vacio';
+  }
+  const p = _lote4LegacyH(plan);
+  if(!p.cal_l1 && !p.comp_l1 && !p.ver_l1) return 'vacio';
+  if(_lote4LegacyPhOk(p)) return 'completo';
+  return 'progreso';
+}
+function _lote4Faltantes(plan){
+  const ph = _lote4Ph(plan);
+  if(!ph) return [];
+  const out = [];
+  const nom = {
+    b1: 'Calibración en el laboratorio',
+    b2: 'Comprobación en el laboratorio',
+    b3: 'Verificación en el laboratorio',
+    b4: 'Calibración en el campo',
+    b5: 'Comprobación en el campo',
+    b6: 'Verificación en el campo'
+  };
+  const revisar = (bloque, filas, donde, esCal) => {
+    (filas || []).forEach((f, i) => {
+      const vacio = esCal ? _lote4FilaCalEstado(f) === 'vacio' : !_lote4FilaComp(f);
+      if(vacio) out.push({ texto: nom[bloque] + ', fila ' + (i + 1), donde, bloque });
+    });
+  };
+  if(ph.lab){
+    revisar('b1', ph.lab.b1 && ph.lab.b1.filas, 'lab', true);
+    revisar('b2', ph.lab.b2 && ph.lab.b2.filas, 'lab', false);
+    revisar('b3', ph.lab.b3 && ph.lab.b3.filas, 'lab', false);
+  }
+  if(ph.lab && !ph.campo){
+    [1, 2, 3].forEach(i => out.push({ texto: nom.b4 + ', fila ' + i, donde: 'campo', bloque: 'b4' }));
+    [1, 2, 3].forEach(i => out.push({ texto: nom.b5 + ', fila ' + i, donde: 'campo', bloque: 'b5' }));
+    out.push({ texto: nom.b6 + ', fila 1', donde: 'campo', bloque: 'b6' });
+  } else if(ph.campo){
+    revisar('b4', ph.campo.b4 && ph.campo.b4.filas, 'campo', true);
+    revisar('b5', ph.campo.b5 && ph.campo.b5.filas, 'campo', false);
+    revisar('b6', ph.campo.b6 && ph.campo.b6.filas, 'campo', false);
+  }
+  // AARMS lote4bb: el pie de calibración (bloques 1 y 4) se nombra si falta.
+  const pie = (nodo, nombre, donde, bloque) => {
+    if(!nodo || !String(nodo.slope || '').trim()) out.push({ texto: 'Slope de ' + nombre, donde, bloque });
+    if(!nodo || !String(nodo.temp || '').trim()) out.push({ texto: 'Temperatura de ' + nombre, donde, bloque });
+  };
+  if(ph.lab) pie(ph.lab.b1, nom.b1, 'lab', 'b1');
+  if(ph.campo) pie(ph.campo.b4, nom.b4, 'campo', 'b4');
+  else if(ph.lab) pie(null, nom.b4, 'campo', 'b4');
+  return out;
+}
+function _lote4Rechazos(plan){
+  const ph = _lote4Ph(plan);
+  if(!ph) return [];
+  const nom = {
+    b1: 'Calibración en el laboratorio',
+    b2: 'Comprobación en el laboratorio',
+    b3: 'Verificación en el laboratorio',
+    b4: 'Calibración en el campo',
+    b5: 'Comprobación en el campo',
+    b6: 'Verificación en el campo'
+  };
+  const out = [];
+  const poner = (bloque, estado, donde) => {
+    if(estado === 'rechaza') out.push({ texto: nom[bloque], donde, bloque });
+  };
+  if(ph.lab){
+    poner('b1', _lote4EstadoCal(ph.lab.b1 && ph.lab.b1.filas), 'lab');
+    const c2 = _lote4EstadoComp(ph.lab.b2 && ph.lab.b2.filas);
+    if(c2.a === 'rechaza' || c2.b === 'rechaza') out.push({ texto: nom.b2, donde: 'lab', bloque: 'b2' });
+    poner('b3', _lote4EstadoVer(ph.lab.b3 && ph.lab.b3.filas), 'lab');
+  }
+  if(ph.campo){
+    poner('b4', _lote4EstadoCal(ph.campo.b4 && ph.campo.b4.filas), 'campo');
+    const c5 = _lote4EstadoComp(ph.campo.b5 && ph.campo.b5.filas);
+    if(c5.a === 'rechaza' || c5.b === 'rechaza') out.push({ texto: nom.b5, donde: 'campo', bloque: 'b5' });
+    poner('b6', _lote4EstadoVer(ph.campo.b6 && ph.campo.b6.filas), 'campo');
+  }
+  return out;
+}
+function _lote4RangoDe(b4){
+  const nums = ((b4 && b4.filas) || []).map(f => _lote4n(f && f.buffer)).filter(n => n != null);
+  if(!nums.length) return { de: '', a: '' };
+  return { de: Math.min(...nums).toFixed(2), a: Math.max(...nums).toFixed(2) };
+}
+function _lote4esc(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+function _lote4marca(estado){
+  if(estado === 'acepta') return '<span style="color:#86efac;font-weight:800">✓ ACEPTA</span>';
+  if(estado === 'rechaza') return '<span style="color:#f87171;font-weight:800">✗ RECHAZA</span>';
+  return '<span style="color:var(--g2)">—</span>';
+}
+function _lote4Catalogo(verif){
+  const b = _catalogoCache && _catalogoCache.buffers;
+  if(!b) return [];
+  return verif ? (b.verificacion || []) : (b.calibracion || []);
+}
+function _lote4AplicarBuffer(fila, verif, idx){
+  const lista = _lote4Catalogo(verif);
+  const item = lista[idx];
+  if(!item){
+    fila.lote = ''; fila.marca = ''; fila.buffer = '';
+    return;
+  }
+  fila.lote = item.lote || '';
+  fila.marca = item.marca || '';
+  fila.buffer = item.ph != null ? Number(item.ph).toFixed(2) : '';
+}
+function _lote4Base(plan){
+  if(!plan.ph2644 || plan.ph2644.version !== 2){
+    plan.ph2644 = { version: 2, obs: '', historial: [], lab: null, campo: null };
+  }
+  plan.ph2644.historial = plan.ph2644.historial || [];
+  return plan.ph2644;
+}
+async function _lote4Guardar(plan){
+  if(!plan) return;
+  if(typeof _lote2aAsegurarPh === 'function'){
+    try{ await _lote2aAsegurarPh(plan); }catch(e){ console.warn('[lote4 folio]', e); }
+  }
+  try{ await guardarPlan(plan); }catch(e){ console.warn('[lote4 plan]', e); }
+  try{ if(typeof _actualizarGatePlanUI === 'function') _actualizarGatePlanUI(); }catch(_){}
+  try{ if(typeof _aplicarDocEstadoBadge === 'function') _aplicarDocEstadoBadge('phlab'); }catch(_){}
+}
+function _lote4Archivar(ph, bloque, nodo, resultado){
+  ph.historial = ph.historial || [];
+  const f0 = (nodo.filas && nodo.filas[0]) || {};
+  ph.historial.push({
+    fecha: f0.fecha || '',
+    hora: f0.hora || '',
+    bloque,
+    valores: JSON.parse(JSON.stringify(nodo)),
+    resultado
+  });
+}
+function _lote4LimpiarFilas(filas, esCal){
+  (filas || []).forEach(f => {
+    if(esCal) f.lectura = '';
+    else { f.l1 = ''; f.l2 = ''; f.l3 = ''; }
+  });
+}
+
+function _lote4Opts(verif, fila){
+  const lista = _lote4Catalogo(verif);
+  const ref = (fila && fila.fecha) || _lote10FechaRef();
+  let html = '<option value="">Buffer</option>';
+  lista.forEach((it, i) => {
+    const ph = it.ph != null ? Number(it.ph).toFixed(2) : '';
+    const elegido = fila && String(fila.buffer) === ph && String(fila.lote || '') === String(it.lote || '');
+    // AARMS lote10b: no ofrecer vencidos. El que ya está capturado se conserva.
+    if(_catalogoLoteVencido(it, ref) && !elegido) return;
+    const sel = elegido ? ' selected' : '';
+    html += '<option value="'+i+'"'+sel+'>'+_lote4esc(ph+' · '+(it.marca||'')+' · '+(it.lote||''))+'</option>';
+  });
+  return html;
+}
+function _lote4BloqueHtml(opts){
+  const dis = opts.off ? ' disabled' : '';
+  const filas = opts.filas || [];
+  let rows = '';
+  filas.forEach((f, i) => {
+    const marcaFila = opts.esCal ? _lote4marca(_lote4FilaCalEstado(f)) : '';
+    const prom = !opts.esCal ? _lote4FilaComp(f) : null;
+    rows += '<div style="border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-bottom:8px">';
+    rows += '<div style="font-size:11px;font-weight:700;margin-bottom:6px">Fila '+(i+1)+(marcaFila ? ' · '+marcaFila : '')+'</div>';
+    rows += '<div class="g2">';
+    rows += '<div class="f"><label>Fecha</label><input type="date" data-l4="'+opts.id+'" data-i="'+i+'" data-k="fecha" value="'+_lote4esc(f.fecha||'')+'"'+dis+'></div>';
+    rows += '<div class="f"><label>Hora</label><input type="time" data-l4="'+opts.id+'" data-i="'+i+'" data-k="hora" value="'+_lote4esc(f.hora||'')+'"'+dis+'></div>';
+    rows += '<div class="f"><label>Buffer</label><select data-l4="'+opts.id+'" data-i="'+i+'" data-k="buffer"'+dis+'>'+_lote4Opts(opts.verif, f)+'</select></div>';
+    rows += '<div class="f"><label>Lote</label><input type="text" value="'+_lote4esc(f.lote||'')+'" readonly tabindex="-1"></div>';
+    rows += '<div class="f"><label>Marca</label><input type="text" value="'+_lote4esc(f.marca||'')+'" readonly tabindex="-1"></div>';
+    rows += '<div class="f"><label>Valor nominal</label><input type="text" value="'+_lote4esc(f.buffer||'')+'" readonly tabindex="-1"></div>';
+    if(opts.esCal){
+      rows += '<div class="f"><label>Lectura</label><input type="text" inputmode="decimal" data-l4="'+opts.id+'" data-i="'+i+'" data-k="lectura" value="'+_lote4esc(f.lectura||'')+'"'+dis+'></div>';
+    } else {
+      ['l1','l2','l3'].forEach((k, n) => {
+        rows += '<div class="f"><label>L'+(n+1)+'</label><input type="text" inputmode="decimal" data-l4="'+opts.id+'" data-i="'+i+'" data-k="'+k+'" value="'+_lote4esc(f[k]||'')+'"'+dis+'></div>';
+      });
+      rows += '<div class="f"><label>Promedio</label><input type="text" readonly tabindex="-1" value="'+(prom ? prom.prom.toFixed(2) : '')+'"></div>';
+    }
+    rows += '</div></div>';
+  });
+  let pie = '';
+  const vacias = filas.map((f, i) => {
+    const v = opts.esCal ? _lote4FilaCalEstado(f) === 'vacio' : !_lote4FilaComp(f);
+    return v ? (i + 1) : null;
+  }).filter(n => n != null);
+  if(vacias.length && !opts.off){
+    pie += '<div data-falta="'+opts.id+'">Falta la fila '+vacias.join(', ')+'</div>';
+  }
+  if(opts.esCal){
+    const est = _lote4EstadoCal(filas);
+    pie += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">';
+    pie += '<div class="f" style="flex:1;min-width:120px"><label>Slope (%)</label><input type="text" inputmode="decimal" data-l4="'+opts.id+'" data-k="slope" value="'+_lote4esc((opts.nodo&&opts.nodo.slope)||'')+'"'+dis+'></div>';
+    pie += '<div class="f" style="flex:1;min-width:120px"><label>Temperatura (°C)</label><input type="text" inputmode="decimal" data-l4="'+opts.id+'" data-k="temp" value="'+_lote4esc((opts.nodo&&opts.nodo.temp)||'')+'"'+dis+'></div>';
+    pie += '<div>'+_lote4marca(est)+'</div></div>';
+    // AARMS lote4bb: el criterio sigue igual. Faltando Slope o Temperatura, el mensaje dice cuál.
+    if(!opts.off){
+      if(!(opts.nodo && String(opts.nodo.slope || '').trim())) pie += '<div data-falta="'+opts.id+'-slope">Falta Slope</div>';
+      if(!(opts.nodo && String(opts.nodo.temp || '').trim())) pie += '<div data-falta="'+opts.id+'-temp">Falta Temperatura</div>';
+    }
+    if(est === 'rechaza' && !opts.cerrado) pie += '<button type="button" class="btn btn-g" data-l4-rep="'+opts.id+'" style="margin-top:8px">Repetir</button>';
+  } else if(opts.verif){
+    const est = _lote4EstadoVer(filas);
+    const prom = _lote4FilaComp(filas[0]);
+    pie += '<div style="margin-top:6px">'+_lote4marca(est)+'</div>';
+    pie += '<div style="font-size:11px;color:var(--g2);margin-top:4px">Promedio '+(prom ? prom.prom.toFixed(2) : '____')+'</div>';
+    if(est === 'rechaza' && !opts.cerrado) pie += '<button type="button" class="btn btn-g" data-l4-rep="'+opts.id+'" style="margin-top:8px">Repetir</button>';
+  } else {
+    const est = _lote4EstadoComp(filas);
+    pie += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px"><span>± 0.05 '+_lote4marca(est.a)+'</span><span>≤ 0.03 '+_lote4marca(est.b)+'</span></div>';
+    if((est.a === 'rechaza' || est.b === 'rechaza') && !opts.cerrado) pie += '<button type="button" class="btn btn-g" data-l4-rep="'+opts.id+'" style="margin-top:8px">Repetir</button>';
+  }
+  const op = opts.off ? 'opacity:.55;' : '';
+  return '<div class="card" data-l4-card="'+opts.id+'" style="'+op+'"><div class="ch"><div class="ct">'+_lote4esc(opts.titulo)+'</div></div><div class="cb">'+rows+pie+'</div></div>';
+}
+
+async function _lote4aAbrir(){
+  const plan = _lote4PlanActual();
+  if(!plan){ toast('Abre un plan primero', 'w'); return; }
+  if(typeof _catalogoCargar === 'function') await _catalogoCargar();
+  _lote4aPintar(plan);
+  const pl = document.getElementById('ph2644Pill');
+  if(pl) pl.textContent = plan.folio ? ('Plan ' + plan.folio) : 'Plan';
+  if(typeof _aplicarDocEstadoBadge === 'function') _aplicarDocEstadoBadge('phlab');
+  if(typeof goPage === 'function') goPage('pgPh2644');
+}
+function _lote4aPintar(plan){
+  const host = document.getElementById('phLabMount');
+  if(!host) return;
+  const eq = (typeof _equipoActivo === 'function') ? _equipoActivo('potenciometros') : null;
+  if(!eq){
+    host.innerHTML = '<div class="card"><div class="cb" id="phLabSinEquipo">Registra el potenciómetro en Inventario</div></div>';
+    return;
+  }
+  const clave = (typeof _equipoClave === 'function') ? _equipoClave('potenciometros', eq) : '';
+  const ph = _lote4Ph(plan);
+  const lab = (ph && ph.lab) ? ph.lab : _lote4LabVacio();
+  const cerrado = !!(ph && ph.lab && _lote4LabListo(ph.lab));
+  const b1ok = _lote4EstadoCal(lab.b1.filas) === 'acepta' && _lote4CalDatos(lab.b1);
+  const c2 = _lote4EstadoComp(lab.b2.filas);
+  const b2ok = c2.a === 'acepta' && c2.b === 'acepta';
+  const folio = (plan.bitPhFolioDoc || '').trim();
+  const partes = folio ? folio.split(/\s*[-–—/]\s*/) : [];
+  const f1 = partes[0] || '';
+  const f2 = partes[1] || (partes[0] ? '' : '');
+  let html = '';
+  html += '<div class="card"><div class="cb g2">';
+  html += '<div class="f"><label>Clave del equipo</label><input type="text" readonly tabindex="-1" value="'+_lote4esc(clave)+'"></div>';
+  html += '<div class="f"><label>Folio Hoja 1</label><input type="text" readonly tabindex="-1" value="'+_lote4esc(f1)+'"></div>';
+  html += '<div class="f"><label>Folio Hoja 2</label><input type="text" readonly tabindex="-1" value="'+_lote4esc(f2)+'"></div>';
+  html += '</div></div>';
+  html += _lote4BloqueHtml({ id:'b1', titulo:'1. Calibración en el laboratorio', filas: lab.b1.filas, nodo: lab.b1, esCal: true, verif: false, off: cerrado, cerrado });
+  html += _lote4BloqueHtml({ id:'b2', titulo:'2. Comprobación en el laboratorio', filas: lab.b2.filas, nodo: lab.b2, esCal: false, verif: false, off: cerrado || !b1ok, cerrado });
+  html += _lote4BloqueHtml({ id:'b3', titulo:'3. Verificación en el laboratorio', filas: lab.b3.filas, nodo: lab.b3, esCal: false, verif: true, off: cerrado || !b2ok, cerrado });
+  html += '<div class="card"><div class="ch"><div class="ct">Observaciones</div></div><div class="cb"><div class="f"><textarea id="phLabObs" rows="3"'+(cerrado?' readonly':'')+'>'+_lote4esc((ph&&ph.obs)||'')+'</textarea></div></div></div>';
+  html += '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">';
+  html += '<button type="button" class="btn btn-p" id="phLabPdf">Generar PDF</button>';
+  html += '<button type="button" data-btn-continuar-lab class="btn btn-p" id="phLabCont">Guardar y continuar</button>';
+  html += '</div>';
+  host.innerHTML = html;
+  host.oninput = (ev) => { _lote4aInput(plan, ev); };
+  host.onclick = (ev) => {
+    const rep = ev.target && ev.target.closest ? ev.target.closest('[data-l4-rep]') : null;
+    if(rep){ _lote4aRepetir(plan, rep.getAttribute('data-l4-rep')); return; }
+    if(ev.target && ev.target.id === 'phLabPdf' && typeof generarPDFBitacoraPHOficial === 'function'){
+      generarPDFBitacoraPHOficial(plan.id);
+    }
+    if(ev.target && ev.target.id === 'phLabCont' && typeof continuarAlSiguientePaso === 'function'){
+      continuarAlSiguientePaso();
+    }
+  };
+}
+async function _lote4aTomarLab(plan){
+  const ph = _lote4Base(plan);
+  if(!ph.lab) ph.lab = _lote4LabVacio();
+  return ph;
+}
+function _lote4Vivo(plan){
+  if(!plan || !plan.id) return plan;
+  return (_cachedPlanes || []).find(p => p.id === plan.id) || plan;
+}
+async function _lote4aInput(planIn, ev){
+  const plan = _lote4Vivo(planIn);
+  const t = ev.target;
+  if(!t || t.id === 'phLabObs'){
+    if(t && t.id === 'phLabObs'){
+      const ph = await _lote4aTomarLab(plan);
+      ph.obs = t.value;
+      await _lote4Guardar(plan);
+    }
+    return;
+  }
+  const id = t.getAttribute('data-l4');
+  if(!id) return;
+  const ph = await _lote4aTomarLab(plan);
+  const nodo = ph.lab[id];
+  if(!nodo) return;
+  const k = t.getAttribute('data-k');
+  if(k === 'slope' || k === 'temp'){
+    nodo[k] = t.value;
+    await _lote4Guardar(plan);
+    // AARMS lote4bb: al completar el pie se abre el bloque siguiente.
+    _lote4aPintar(plan);
+    const pie = document.querySelector('#phLabMount [data-l4="'+id+'"][data-k="'+k+'"]');
+    if(pie) { try{ pie.focus(); }catch(_){} }
+    return;
+  }
+  const i = Number(t.getAttribute('data-i'));
+  const fila = nodo.filas[i];
+  if(!fila) return;
+  if(k === 'buffer'){
+    _lote4AplicarBuffer(fila, id === 'b3', t.value === '' ? -1 : Number(t.value));
+  } else {
+    fila[k] = t.value;
+  }
+  _lote4EstamparSiLectura(fila, k, t.value);
+  await _lote4Guardar(plan);
+  const foco = t.getAttribute('data-k') + ':' + id + ':' + i;
+  _lote4aPintar(plan);
+  const nxt = document.querySelector('#phLabMount [data-l4="'+id+'"][data-i="'+i+'"][data-k="'+t.getAttribute('data-k')+'"]');
+  if(nxt && foco) { try{ nxt.focus(); }catch(_){} }
+}
+async function _lote4aRepetir(planIn, id){
+  const plan = _lote4Vivo(planIn);
+  const ph = _lote4Ph(plan);
+  if(!ph || !ph.lab || !ph.lab[id]) return;
+  const nodo = ph.lab[id];
+  const esCal = id === 'b1';
+  let resultado = 'Rechaza';
+  if(esCal) resultado = _lote4PdfEstado(_lote4EstadoCal(nodo.filas)) || 'Rechaza';
+  else if(id === 'b3') resultado = _lote4PdfEstado(_lote4EstadoVer(nodo.filas)) || 'Rechaza';
+  else {
+    const c = _lote4EstadoComp(nodo.filas);
+    resultado = 'Rechaza';
+    nodo._badges = { a: c.a, b: c.b };
+  }
+  _lote4Archivar(ph, id, nodo, resultado);
+  _lote4LimpiarFilas(nodo.filas, esCal);
+  await _lote4Guardar(plan);
+  _lote4aPintar(plan);
+}
+
+// AARMS lote4b: tira, bloques 4 a 6 y rango en la entrada de campo. Entre tomas no cambia.
+function _lote4bPintar(){
+  const host = document.getElementById('phCampoMount');
+  if(!host) return;
+  const plan = _lote4PlanActual();
+  if(!plan){ host.innerHTML = ''; return; }
+  if(_lote4EstadoDocLab(plan) !== 'completo'){
+    host.innerHTML = '<div class="card"><div class="cb" id="phCampoCerrado">Laboratorio pendiente.</div></div>';
+    return;
+  }
+  const eq = (typeof _equipoActivo === 'function') ? _equipoActivo('potenciometros') : null;
+  if(!eq){
+    host.innerHTML = '<div class="card"><div class="cb" id="phCampoSinEquipo">Registra el potenciómetro en Inventario</div></div>';
+    return;
+  }
+  const ph = _lote4Ph(plan);
+  const campo = (ph && ph.campo) ? ph.campo : _lote4CampoVacio();
+  const b4ok = _lote4EstadoCal(campo.b4.filas) === 'acepta' && _lote4CalDatos(campo.b4);
+  const c5 = _lote4EstadoComp(campo.b5.filas);
+  const b5ok = c5.a === 'acepta' && c5.b === 'acepta';
+  const rango = campo.rango || { de: '', a: '' };
+  let html = '<div class="card"><div class="ch"><div class="ct">Tira reactiva</div></div><div class="cb g2">';
+  html += '<div class="f"><label>Hora</label><input type="time" id="phTiraHora" value="'+_lote4esc(campo.tira&&campo.tira.hora||'')+'"></div>';
+  html += '<div class="f"><label>Valor aproximado</label><input type="text" inputmode="decimal" id="phTiraValor" value="'+_lote4esc(campo.tira&&campo.tira.valor||'')+'"></div>';
+  html += '</div></div>';
+  html += _lote4BloqueHtml({ id:'b4', titulo:'4. Calibración en el campo', filas: campo.b4.filas, nodo: campo.b4, esCal: true, verif: false, off: false, cerrado: false });
+  html += _lote4BloqueHtml({ id:'b5', titulo:'5. Comprobación en el campo', filas: campo.b5.filas, nodo: campo.b5, esCal: false, verif: false, off: !b4ok, cerrado: false });
+  html += _lote4BloqueHtml({ id:'b6', titulo:'6. Verificación en el campo', filas: campo.b6.filas, nodo: campo.b6, esCal: false, verif: true, off: !b5ok, cerrado: false });
+  html += '<div class="card"><div class="cb g2">';
+  html += '<div class="f"><label>Rango de</label><input type="text" id="phRangoDe" readonly tabindex="-1" value="'+_lote4esc(rango.de||'')+'"></div>';
+  html += '<div class="f"><label>Rango a</label><input type="text" id="phRangoA" readonly tabindex="-1" value="'+_lote4esc(rango.a||'')+'"></div>';
+  html += '</div></div>';
+  host.innerHTML = html;
+  host.oninput = (ev) => { _lote4bInput(plan, ev); };
+  host.onclick = (ev) => {
+    const rep = ev.target && ev.target.closest ? ev.target.closest('[data-l4-rep]') : null;
+    if(rep) _lote4bRepetir(plan, rep.getAttribute('data-l4-rep'));
+  };
+}
+async function _lote4bTomar(plan){
+  const ph = _lote4Base(plan);
+  if(!ph.campo) ph.campo = _lote4CampoVacio();
+  return ph;
+}
+async function _lote4bInput(planIn, ev){
+  const plan = _lote4Vivo(planIn);
+  const t = ev.target;
+  if(!t) return;
+  if(t.id === 'phTiraHora' || t.id === 'phTiraValor'){
+    const ph = await _lote4bTomar(plan);
+    ph.campo.tira = ph.campo.tira || { hora: '', valor: '' };
+    if(t.id === 'phTiraHora') ph.campo.tira.hora = t.value;
+    else ph.campo.tira.valor = t.value;
+    await _lote4Guardar(plan);
+    return;
+  }
+  const id = t.getAttribute('data-l4');
+  if(!id) return;
+  const ph = await _lote4bTomar(plan);
+  const nodo = ph.campo[id];
+  if(!nodo) return;
+  const k = t.getAttribute('data-k');
+  if(k === 'slope' || k === 'temp'){
+    nodo[k] = t.value;
+    await _lote4Guardar(plan);
+    // AARMS lote4bb: al completar el pie se abre el bloque siguiente.
+    _lote4bPintar();
+    const pie = document.querySelector('#phCampoMount [data-l4="'+id+'"][data-k="'+k+'"]');
+    if(pie) { try{ pie.focus(); }catch(_){} }
+    return;
+  }
+  const i = Number(t.getAttribute('data-i'));
+  const fila = nodo.filas[i];
+  if(!fila) return;
+  if(k === 'buffer'){
+    _lote4AplicarBuffer(fila, id === 'b6', t.value === '' ? -1 : Number(t.value));
+  } else fila[k] = t.value;
+  _lote4EstamparSiLectura(fila, k, t.value);
+  if(id === 'b4') ph.campo.rango = _lote4RangoDe(ph.campo.b4);
+  await _lote4Guardar(plan);
+  _lote4bPintar();
+  const nxt = document.querySelector('#phCampoMount [data-l4="'+id+'"][data-i="'+i+'"][data-k="'+k+'"]');
+  if(nxt) { try{ nxt.focus(); }catch(_){} }
+}
+async function _lote4bRepetir(planIn, id){
+  const plan = _lote4Vivo(planIn);
+  const ph = _lote4Ph(plan);
+  if(!ph || !ph.campo || !ph.campo[id]) return;
+  const nodo = ph.campo[id];
+  const esCal = id === 'b4';
+  _lote4Archivar(ph, id, nodo, 'Rechaza');
+  _lote4LimpiarFilas(nodo.filas, esCal);
+  if(id === 'b4') ph.campo.rango = _lote4RangoDe(nodo);
+  await _lote4Guardar(plan);
+  _lote4bPintar();
+}
+window._lote4FilaCalEstado = _lote4FilaCalEstado;
+window._lote4FilaComp = _lote4FilaComp;
+window._lote4EstadoCal = _lote4EstadoCal;
+window._lote4EstadoComp = _lote4EstadoComp;
+window._lote4EstadoVer = _lote4EstadoVer;
+window._lote4PdfEstado = _lote4PdfEstado;
+window._lote4Faltantes = _lote4Faltantes;
+window._lote4Rechazos = _lote4Rechazos;
+window._lote4Ph = _lote4Ph;
+window._lote4LegacyH = _lote4LegacyH;
+window._lote4EstadoDocLab = _lote4EstadoDocLab;
+window._lote4aAbrir = _lote4aAbrir;
+window._lote4bPintar = _lote4bPintar;
 function _toDateTime(fechaISO, horaHHMM){
   if(!fechaISO||!horaHHMM) return null;
   const m=String(horaHHMM).trim().match(/^(\d{1,2}):(\d{2})/);
@@ -1400,7 +2166,7 @@ function _htmlTomaCard(t, idx, openBody){
       <div class="f"><label>Olor</label><div class="sino"><div class="sino-b si ${t.olor===true?'on':''}" onclick="upT(${t.id},'olor',true);this.classList.add('on');this.nextElementSibling.classList.remove('on')">SI</div><div class="sino-b no ${t.olor===false?'on':''}" onclick="upT(${t.id},'olor',false);this.classList.add('on');this.previousElementSibling.classList.remove('on')">NO</div></div></div>
     </div>
     <div class="g3" style="margin-bottom:12px">
-      <div class="f"><label>Cloro</label><div class="sino"><div class="sino-b si ${t.cloro===true?'on':''}" onclick="upT(${t.id},'cloro',true);this.classList.add('on');this.nextElementSibling.classList.remove('on')">SI</div><div class="sino-b no ${t.cloro===false?'on':''}" onclick="upT(${t.id},'cloro',false);this.classList.add('on');this.previousElementSibling.classList.remove('on')">NO</div></div></div>
+      <div class="f"><label>Cloro${(typeof MACHIOTE_CLORO_ANALITOS !== 'undefined' && MACHIOTE_CLORO_ANALITOS.some(a => params.has(a))) ? ' *' : ''}</label><div class="sino"><div class="sino-b si ${t.cloro===true?'on':''}" onclick="upT(${t.id},'cloro',true);this.classList.add('on');this.nextElementSibling.classList.remove('on')">SI</div><div class="sino-b no ${t.cloro===false?'on':''}" onclick="upT(${t.id},'cloro',false);this.classList.add('on');this.previousElementSibling.classList.remove('on')">NO</div></div></div>
       <div class="f"></div>
       <div class="f"></div>
     </div>
@@ -1460,8 +2226,9 @@ function loadSaved(){
     }
     if(omar.ndesc)document.getElementById('o_ndesc').value=omar.ndesc;
     if(omar.ntomas)document.getElementById('o_ntomas').value=omar.ntomas;
-    document.querySelectorAll('#agrid .ai').forEach(el=>{
-      if(analitosSel.has(el.dataset.a))el.classList.add('on');
+    // AARMS lote21a: las tres rejillas (fisicoquímicos, microbiológicos, metales).
+    document.querySelectorAll('.ai').forEach(el=>{
+      el.classList.toggle('on', analitosSel.has(el.dataset.a));
     });
     document.getElementById('acnt').textContent=analitosSel.size+' seleccionados';
     renderHome();
@@ -1469,7 +2236,7 @@ function loadSaved(){
 }
 
 // ── PAGE NAV ──
-const PAGES=['pgHome','pgPlan','pg0','pg1','pgLVAR','pgBlmp','pgColab','pgBpm','pgBm','pgPh2644','pgBitPH','pgBitCond','pgBitTemp','pgBitFlujos','pgBitOD','pgCatalogo','pgAjustes','pgAdmin'];
+const PAGES=['pgHome','pgPlan','pg0','pg1','pgLVAR','pgBlmp','pgColab','pgBpm','pgBm','pgPh2644','pgBitPH','pgBitCond','pgBitTemp','pgBitFlujos','pgBitOD','pgCatalogo','pgAjustes','pgCartas','pgAdmin'];
 function showPage(n){
   PAGES.forEach((id,i)=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',i===n);});
   window.scrollTo({top:0,behavior:'smooth'});
@@ -1505,6 +2272,8 @@ function goPage(id){
     const cont = document.getElementById('bitCondRegistros');
     if(cont && !cont.children.length) _bitCondRender();
   }
+  // AARMS lote5a: al regresar, el resumen se recalcula con los datos de este OMAR.
+  if(id === 'pgBm' && typeof _lote5aPintar === 'function') _lote5aPintar();
 }
 
 async function goHome(){
@@ -1520,8 +2289,8 @@ async function goHome(){
 function abrirModalNuevoMuestreo(){
   closeFabMenu();
   // Reset campos
-  const d = new Date().toISOString().split('T')[0];
-  document.getElementById('nm_folio').value = '';
+  const d = _lote21HoyFecha();
+  const nmFol = document.getElementById('nm_folio'); if(nmFol) nmFol.value = '—';
   document.getElementById('nm_fecha').value = d;
   document.getElementById('nm_muest').value = '';
   const nmN = document.getElementById('nm_num_omars');
@@ -1531,10 +2300,11 @@ function abrirModalNuevoMuestreo(){
   // AARMS simfix: reset campos oficiales de alta
   const nmLv = document.getElementById('nm_folio_lvar'); if(nmLv) nmLv.value = '';
   const nmDir = document.getElementById('nm_dir'); if(nmDir) nmDir.value = '';
+  const nmCiu = document.getElementById('nm_ciudad'); if(nmCiu) nmCiu.value = '';
+  const nmEst = document.getElementById('nm_estado'); if(nmEst) nmEst.value = '';
   const nmNor = document.getElementById('nm_norma'); if(nmNor) nmNor.value = '';
   document.getElementById('modalNuevoMuestreo').style.display = 'block';
-  // Focus en folio (útil en desktop)
-  setTimeout(()=>document.getElementById('nm_folio')?.focus(),100);
+  // AARMS lote2a: el folio BPM se asigna al crear el plan, no se teclea
 }
 
 function cerrarModalNuevoMuestreo(){
@@ -1542,21 +2312,26 @@ function cerrarModalNuevoMuestreo(){
 }
 async function confirmarNuevoMuestreo(){
   const gv = id => document.getElementById(id)?.value.trim() || '';
-  const folio = gv('nm_folio');
-  const fecha = gv('nm_fecha') || new Date().toISOString().split('T')[0];
+  const fecha = gv('nm_fecha') || _lote21HoyFecha();
   const muest = gv('nm_muest');
   const empSeed = gv('nm_empresa');
-  // AARMS simfix: folio LVAR / dirección / norma desde alta de plan
-  const folioLvar = gv('nm_folio_lvar');
   const dirSeed = gv('nm_dir');
+  const ciuSeed = gv('nm_ciudad');
+  const estSeed = gv('nm_estado');
   const normaSeed = gv('nm_norma');
   const numRaw = parseInt(gv('nm_num_omars'), 10);
   const num = Number.isFinite(numRaw) && numRaw > 0 ? numRaw : 1;
 
   const planId = 'plan_' + Date.now();
+  // AARMS lote2a: un folio BPM al crear el plan
+  // AARMS lote16: dos folios bpm, uno por página, consecutivos al crear el plan.
+  const bpmNums = await _folioTomar('bpm', 2, { planId, doc: 'BPM', planFolio: '' });
+  const folio = bpmNums[0];
+  const folioBpm2 = bpmNums[1];
   await idbPlanPut({
     id: planId,
     folio,
+    folioBpm2,
     fecha,
     muestreador: muest,
     blancoCampo: false,
@@ -1565,11 +2340,16 @@ async function confirmarNuevoMuestreo(){
     ts: Date.now(),
     migrated: false,
     lvarBloqueado: false,
+    // AARMS lote14b: la empresa vive en el plan. Un plan viejo no trae esta marca.
+    empresaEnPlan: true,
+    empresa: empSeed,
+    ciudad: ciuSeed,
+    estado: estSeed,
     // AARMS simfix: semilla LVAR / datos oficiales del papel
     direccion: dirSeed,
     norma: normaSeed,
     lvar: {
-      folio: folioLvar || '',
+      folio: '',
       fecha,
       dir: dirSeed,
       direccion: dirSeed,
@@ -1591,6 +2371,8 @@ async function confirmarNuevoMuestreo(){
     fecha,
     empresa: empSeed || '',
     direccion: dirSeed || '',
+    municipio: ciuSeed || '',
+    estado: estSeed || '',
     norma: normaSeed || '',
     analitos: [],
   });
@@ -1614,12 +2396,9 @@ async function confirmarNuevoMuestreo(){
   await refreshCache();
 
   cerrarModalNuevoMuestreo();
-  _currentPlanId = planId;
-  cargarMuestreo(omarIds[0]);
-  toast(num > 1
-    ? `Plan con ${num} OMAR(s). Completa folio, orden de servicio y punto en cada una; en el formulario de OMAR usa «Copiar empresa y analitos a las demás OMARs del plan» si todo es igual salvo el sitio.`
-    : 'Plan creado — llena los datos del OMAR',
-    'g');
+  // AARMS lote14a: al crear, la pantalla del plan con el primer documento de laboratorio
+  await abrirPlan(planId);
+  toast('Plan creado','g');
 }
 
 async function iniciarNuevoMuestreo(){
@@ -1634,11 +2413,19 @@ async function iniciarNuevoMuestreo(){
   // el muestreo se conectará a este plan via planId.
   const newId = Date.now();
   const newPlanId = 'plan_' + newId;
+  let folioNuevo = '';
+  let folioBpm2Nuevo = '';
+  try{
+    const bpmNums = await _folioTomar('bpm', 2, { planId: newPlanId, doc: 'BPM' });
+    folioNuevo = bpmNums[0] || '';
+    folioBpm2Nuevo = bpmNums[1] || '';
+  }catch(e){ console.warn('[lote2a bpm]', e); }
   try{
     await idbPlanPut({
       id: newPlanId,
-      folio: '',
-      fecha: new Date().toISOString().split('T')[0],
+      folio: folioNuevo,
+      folioBpm2: folioBpm2Nuevo,
+      fecha: _lote21HoyFecha(),
       muestreador: '',
       blancoCampo: false,
       loteBlanco: '',
@@ -1658,7 +2445,7 @@ async function iniciarNuevoMuestreo(){
   });
   // Restaurar fecha de hoy
   const fd=document.getElementById('o_fecha');
-  if(fd)fd.value=new Date().toISOString().split('T')[0];
+  if(fd)fd.value=_lote21HoyFecha();
   // Limpiar analitos
   analitosSel=new Set();
   document.querySelectorAll('.ai.on').forEach(el=>el.classList.remove('on'));
@@ -1778,7 +2565,8 @@ function renderHome(filtro=''){
   const cnt=document.getElementById('homeCnt');
   const div=document.getElementById('homeLista');
   if(!cnt||!div)return;
-  cnt.textContent=muestreos.length;
+  if(typeof _lote10PintarArranque === 'function') void _lote10PintarArranque();
+  cnt.textContent=muestreos.filter(m=>!_lote21EsOculto(m.id)).length;
   // Tokenizado del filtro
   const quitarTildes = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const tokens = filtro ? filtro.split(/\s+/).filter(Boolean).map(quitarTildes) : [];
@@ -1855,7 +2643,7 @@ function renderMuestreoRow(m){
   else if(!tieneLab){estado='Pendiente lab';color='var(--acc)';dot='#4a9eff';}
   else{estado='Completo';color='var(--green)';dot='#86efac';}
   const fecha=omarObj.fecha||m.fecha||'';
-  const fmtFecha=fecha?new Date(fecha+'T00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short'}):'—';
+  const fmtFecha=fecha?_lote21FechaPantalla(fecha):'—';
   const el=document.createElement('div');
   el.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--ln);cursor:pointer;-webkit-tap-highlight-color:transparent';
   el.innerHTML=`
@@ -1886,6 +2674,8 @@ function renderMuestreoRow(m){
       });
       return;
     }
+    // AARMS lote14a: desde el inicio se abre el plan. La Hoja se abre dentro del plan.
+    if(m.planId){ abrirPlan(m.planId); return; }
     cargarMuestreo(m.id);
   });
   el.addEventListener('touchstart',()=>el.style.background='var(--bg3)',{passive:true});
@@ -1901,7 +2691,7 @@ function renderPlanCard(plan, muestreos){
     const omarObj=m.omar?JSON.parse(m.omar):{};
     return omarObj.lab&&(omarObj.lab.tnom||omarObj.lab.renom) && m.sigData && m.sigData.length>10;
   }).length;
-  const fmtFecha = plan.fecha ? new Date(plan.fecha+'T00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  const fmtFecha = plan.fecha ? _lote21FechaPantalla(plan.fecha) : '—';
   // Header del plan
   const header = document.createElement('div');
   header.style.cssText='display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(135deg,rgba(74,158,255,.12),rgba(74,158,255,.04));border-bottom:1px solid var(--ln);cursor:pointer;-webkit-tap-highlight-color:transparent';
@@ -1921,15 +2711,14 @@ function renderPlanCard(plan, muestreos){
     </div>
   `;
   header.addEventListener('click',e=>{
+    // AARMS lote2b: el encabezado abre el plan; borrar sigue pidiendo confirmación
     if(e.target.closest('[data-action="del-plan"]')){
       e.stopPropagation();
       eliminarPlanDesdeHome(plan.id);
       return;
     }
-    if(e.target.closest('[data-action="open-plan"]')){
-      e.stopPropagation();
-      abrirPlan(plan.id);
-    }
+    e.stopPropagation();
+    abrirPlan(plan.id);
   });
   wrap.appendChild(header);
   // Lista de OMARs dentro del plan
@@ -1980,13 +2769,12 @@ function _omarParseDesdeMuestreo(omarTs){
 }
 
 function _omarFechaInicio(omarObj){
+  // AARMS lote21b: dd/mm/aaaa en hora local. Una fecha sin hora no pasa por Date UTC.
   if(!omarObj) return '';
   const c=omarObj.campo||{};
   const src=c.ini||omarObj.fechaInicio||omarObj.fecha||omarObj.dt;
   if(!src) return '';
-  const d=new Date(src);
-  if(isNaN(d.getTime())) return String(src).trim().substring(0,10);
-  return d.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  return _lote21FechaPantalla(src);
 }
 window._omarFechaInicio = _omarFechaInicio;
 
@@ -2011,8 +2799,7 @@ window._omarLabelConFecha = _omarLabelConFecha;
 function _omarTsSortKey(omarTs){
   const o=_omarParseDesdeMuestreo(omarTs);
   const src=o?.campo?.ini||o?.fechaInicio||o?.fecha||0;
-  const t=new Date(src).getTime();
-  return isNaN(t)?0:t;
+  return _lote21MsLocal(src);
 }
 window._omarTsSortKey = _omarTsSortKey;
 
@@ -2031,15 +2818,12 @@ function renderPlanPage(){
   setVal('plan_folio', plan.folio);
   setVal('plan_fecha', plan.fecha);
   setVal('plan_muest', plan.muestreador);
-  setVal('plan_blanco_lote', plan.loteBlanco);
-  // Toggle blanco de campo
-  const siEl = document.getElementById('plan_blanco_si');
-  const noEl = document.getElementById('plan_blanco_no');
-  const wrapEl = document.getElementById('plan_blanco_lote_wrap');
-  if(siEl && noEl){
-    siEl.classList.toggle('on', !!plan.blancoCampo);
-    noEl.classList.toggle('on', !plan.blancoCampo);
-    if(wrapEl) wrapEl.style.display = plan.blancoCampo ? 'block' : 'none';
+  _lote14PintarEmpresa(plan);
+  _lote14PintarBlanco(plan);
+  if(!_catalogoCache && typeof _catalogoCargar === 'function'){
+    _catalogoCargar().then(()=>{
+      if(_currentPlanId === plan.id) _lote14PintarBlanco(plan);
+    }).catch(()=>{});
   }
   // AARMS sub2-temp: selector termómetro si hay >1 en inventario
   const termoWrap = document.getElementById('planTermoSelectorWrap');
@@ -2084,7 +2868,7 @@ function renderPlanPage(){
       <div style="width:26px;height:26px;border-radius:7px;background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.25);display:flex;align-items:center;justify-content:center;font-family:var(--syne);font-weight:800;font-size:11px;color:var(--acc);flex-shrink:0">${idx+1}</div>
       <div style="width:8px;height:8px;border-radius:50%;background:${dot};flex-shrink:0;box-shadow:0 0 6px ${dot}88"></div>
       <div style="flex:1;min-width:0">
-        <div style="font-family:var(--syne);font-size:12px;font-weight:700;color:var(--w);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">OMAR-${m.folio||'—'} · ${omarObj.empresa||'—'}</div>
+        <div style="font-family:var(--syne);font-size:12px;font-weight:700;color:var(--w);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">OMAR-${m.folio||'—'} · ${omarObj.empresa||'—'}${omarObj.blancoCampo?' <span style="background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.4);border-radius:5px;padding:1px 6px;font-size:10px;margin-left:4px">Blanco de campo</span>':''}</div>
         <div style="font-size:10px;color:var(--g1);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           ${fechaChipHtml}
           <span>${nTomas}${ntotal?'/'+ntotal:''} tomas · <span style="color:${color}">${estado}</span></span>
@@ -2109,9 +2893,7 @@ function renderPlanPage(){
         });
         return;
       }
-      // Tap en fila = abrir ese muestreo
-      const planGate = _cachedPlanes.find(p=>p.id===_currentPlanId);
-      if(_gateCampoClick(planGate, 'omars')) return;
+      // AARMS lote14a: la fila abre la OMAR. La Hoja se abre en Documentos del plan.
       _lvarFlujoReset = true;
       cargarMuestreo(m.id);
     });
@@ -2136,6 +2918,7 @@ const _PLAN_ORDEN_OFICIAL = [
   'blmp',      // 3. Limpieza pH-metro
   'phlab',     // 4. pH lab (F-AA-264-4 H1)
   'colab',     // 5. Conductímetro lab (F-AA-289-2 H1)
+  'odlab',     // AARMS lote17: OD laboratorio, antes de salir
   'omars',     // 6. OMARs + hoja de campo
   'bitPh',     // 7. Bitácora pH entre tomas
   'bitCond',   // 8. Bitácora conductímetro entre tomas
@@ -2151,12 +2934,13 @@ const _PLAN_PASO_TITULOS = {
   blmp: 'BLMP — Limpieza pH-metro',
   phlab: 'BUCCVpH (F-AA-264-4)',
   colab: 'BLMCCVUC',
+  odlab: 'OD — laboratorio',
   omars: 'OMAR(s) — Hoja de campo',
   bitPh: 'Bitácora pH CAMPO (Hoja 2)',
   bitCond: 'Bitácora conductímetro entre tomas',
   bitTemp: 'Bitácora Temperatura entre tomas',
   bitflujos: 'Bitácora Flujos entre tomas',
-  bitod: 'Bitácora Oxígeno Disuelto (opcional)',
+  bitod: 'OD — campo',
   bm: 'BM — Bitácora de Muestreo',
 };
 
@@ -2167,13 +2951,14 @@ const PLAN_DOCS = [
   {key:'blmp',     label:'Phmetro — limpieza y mantenimiento',  desc:'Antes de salir a campo (laboratorio)',           where:'lab',    ready:true},
   {key:'phlab',    label:'BUCCVpH (F-AA-264-4)',                desc:'Bitácora uso, calibración, comprobación y verificación pH', where:'lab',    ready:true},
   {key:'colab',    label:'BLMCCVUC',                              desc:'Limpieza, mantenimiento, calibración y uso conductímetro',  where:'lab',    ready:true},
+  {key:'odlab',    label:'OD — laboratorio',                    desc:'Páginas 1 y 2, antes de salir',                  where:'lab',    ready:true},
   {key:'omars',    label:'OMAR(s) — hoja de campo',             desc:'Captura de tomas en sitio',                       where:'campo',  ready:true},
   {key:'phcam',    label:'Phmetro — entre tomas',               desc:'Registro entre tomas (Ca / Co / V)',              where:'campo',  ready:true},
   {key:'condcamp', label:'Conductímetro — entre tomas',         desc:'Paso 2 · requiere laboratorio completado',        where:'campo',  ready:true},
   {key:'bittemp',  label:'Bitácora Temperatura',                desc:'3 lecturas T agua/ambiente · proc. automático',   where:'campo',  ready:true},
   {key:'bitflujos',label:'Bitácora Flujos',                     desc:'3 lecturas L/s · % ponderado automático',         where:'campo',  ready:true},
-  // AARMS sub7-od: opcional — no bloquea Machiote ni forma parte del lab gate
-  {key:'bitod',    label:'Bitácora OD (opcional)',               desc:'Oxígeno disuelto NMX-AA-012 · 5 tablas',          where:'campo',  ready:true},
+  // AARMS lote17: el campo del OD se abre cuando el laboratorio del plan está completo
+  {key:'bitod',    label:'OD — campo',                           desc:'Páginas 3 y 4, en el sitio',                      where:'campo',  ready:true},
   {key:'bm',       label:'Bitácora de muestreo',                desc:'Del arribo al cierre (varios bloques)',           where:'cierre', ready:true},
 ];
 
@@ -2183,12 +2968,13 @@ function _planDocSortKey(key){
   if(key==='bittemp') return _PLAN_ORDEN_OFICIAL.indexOf('bitTemp');
   if(key==='bitflujos') return _PLAN_ORDEN_OFICIAL.indexOf('bitflujos');
   if(key==='bitod') return _PLAN_ORDEN_OFICIAL.indexOf('bitod');
+  if(key==='odlab') return _PLAN_ORDEN_OFICIAL.indexOf('odlab');
   const i = _PLAN_ORDEN_OFICIAL.indexOf(key);
   return i >= 0 ? i : 999;
 }
 
 function _planEstadoDocKey(plan, planDocKey){
-  const map = { lvar:'lvar', bpm:'bpm', blmp:'blmp', phlab:'phlab', colab:'colab', phcam:'bitPh', condcamp:'bitCond', bittemp:'bitTemp', bitflujos:'bitflujos', bitod:'bitod', omars:'omars', bm:'bm' };
+  const map = { lvar:'lvar', bpm:'bpm', blmp:'blmp', phlab:'phlab', colab:'colab', phcam:'bitPh', condcamp:'bitCond', bittemp:'bitTemp', bitflujos:'bitflujos', bitod:'bitod', odlab:'odlab', omars:'omars', bm:'bm' };
   const k = map[planDocKey] || planDocKey;
   return _planEstadoDoc(plan, k);
 }
@@ -2214,10 +3000,29 @@ function _planExentoDeGate(plan){
 }
 window._planExentoDeGate = _planExentoDeGate;
 
-// AARMS sub-gate: helper central — laboratorio completo (5 docs)
+// AARMS lote19a: el OD de laboratorio cuenta solo cuando una OMAR lo pidió y el plan no es el formato viejo.
+function _lote19OdCuenta(plan){
+  if(!plan || typeof _lote17OdAplica !== 'function' || !_lote17OdAplica(plan)) return false;
+  if(typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan)) return false;
+  return true;
+}
+function _lote19DocVisible(plan, key){
+  if(key === 'odlab') return _lote19OdCuenta(plan);
+  if(key === 'bitod'){
+    if(plan && typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan)) return true;
+    return _lote19OdCuenta(plan);
+  }
+  return true;
+}
+window._lote19OdCuenta = _lote19OdCuenta;
+window._lote19DocVisible = _lote19DocVisible;
+
+// AARMS sub-gate: helper central — laboratorio completo (5 docs, y el OD de laboratorio cuando aplica)
 function _labCompleto(plan){
   if(!plan) return false;
   const docsLabRequeridos = ['bpm', 'lvar', 'blmp', 'phlab', 'colab'];
+  // AARMS lote19a: el OD de laboratorio entra al grupo antes de salir.
+  if(_lote19OdCuenta(plan)) docsLabRequeridos.push('odlab');
   for(const docKey of docsLabRequeridos){
     if(_planEstadoDoc(plan, docKey) !== 'completo') return false;
   }
@@ -2234,6 +3039,8 @@ function _labEstado(plan){
     { key:'phlab', label:'BUCCVpH (Calibración pH-metro)' },
     { key:'colab', label:'BLMCCVUC (Calibración conductímetro)' },
   ];
+  // AARMS lote19a: Laboratorio pendiente incluye el OD de laboratorio cuando aplica.
+  if(_lote19OdCuenta(plan)) docsLab.push({ key:'odlab', label:'OD — laboratorio' });
   const faltantes = [];
   const detalles = docsLab.map(d=>{
     const estado = _planEstadoDoc(plan, d.key);
@@ -2260,28 +3067,99 @@ function _machioteDisponible(plan){
 window._machioteDisponible = _machioteDisponible;
 
 function _planDocGateLocked(plan, docKey){
+  if(docKey === 'bitod' && plan && typeof _lote17OdAplica === 'function' && _lote17OdAplica(plan) && !(typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan))){
+    if(typeof _lote17OdVerifRechazada === 'function' && _lote17OdVerifRechazada(plan, 'lab')) return true;
+    if(!_planExentoDeGate(plan) && !_labCompleto(plan)) return true;
+  }
   if(!plan || _planExentoDeGate(plan)) return false;
   if(docKey === 'bm') return !_machioteDisponible(plan);
   if(_GATE_DOCS_CAMPO.includes(docKey)) return !_labCompleto(plan);
   return false;
 }
 
+// AARMS lote2b: lista real de lo que falta, en corto
+function _lote2bFaltanCortos(plan){
+  const docs = [
+    { key:'bpm', corto:'BPM' },
+    { key:'lvar', corto:'LVAR' },
+    { key:'blmp', corto:'BLMP' },
+    { key:'phlab', corto:'BUCCVpH' },
+    { key:'colab', corto:'BLMCCVUC' },
+  ];
+  // AARMS lote19a: el texto de desbloqueo nombra el OD de laboratorio cuando aplica.
+  if(_lote19OdCuenta(plan)) docs.push({ key:'odlab', corto:'OD — laboratorio' });
+  return docs.filter(d => _planEstadoDoc(plan, d.key) !== 'completo').map(d => d.corto);
+}
+function _lote2bTextoFaltan(plan){
+  const xs = _lote2bFaltanCortos(plan);
+  if(!xs.length) return '';
+  if(xs.length <= 3) return 'Faltan: ' + xs.join(', ');
+  const n = xs.length - 3;
+  return 'Faltan: ' + xs.slice(0, 3).join(', ') + ' y ' + n + ' más';
+}
+function _lote2bLineaDesbloqueo(plan, docKey){
+  if(docKey === 'bm' && plan && _labCompleto(plan)){
+    const bits = [];
+    if(!(plan.bitPh||[]).length) bits.push('pH');
+    if(!(plan.bitCond||[]).length) bits.push('conductividad');
+    if(!(plan.bitTemp||[]).length) bits.push('temperatura');
+    if(!(plan.bitFlujos||[]).length) bits.push('flujos');
+    return 'Se desbloquea al completar: ' + bits.join(', ');
+  }
+  const xs = _lote2bFaltanCortos(plan);
+  return 'Se desbloquea al completar: ' + (xs.join(', ') || 'el laboratorio');
+}
+function _lote2bIrAlPlan(plan){
+  if(!plan) return;
+  const mostrar = ()=>{
+    const host = document.getElementById('planProgresoHost');
+    if(host) host.scrollIntoView({ block:'center', behavior:'smooth' });
+  };
+  const enPlan = document.getElementById('pgPlan')?.classList.contains('on') && _currentPlanId === plan.id;
+  if(enPlan){ mostrar(); return; }
+  Promise.resolve(abrirPlan(plan.id)).then(mostrar).catch(mostrar);
+}
+function _lote2bMostrarBloqueo(plan, docKey){
+  const linea = _lote2bLineaDesbloqueo(plan, docKey);
+  const corto = _lote2bTextoFaltan(plan);
+  toast(corto || linea, 'w', {
+    faltan: true,
+    ms: 8000,
+    onClick: ()=> _lote2bIrAlPlan(plan)
+  });
+  confirmAction({
+    title: 'Documento bloqueado',
+    message: linea,
+    okText: 'Ir al siguiente pendiente',
+    okDanger: false,
+    cancelText: 'Cerrar'
+  }).then(ok=>{
+    if(!ok || !plan) return;
+    const paso = _planSiguientePaso(plan);
+    if(paso) abrirDocPlan(paso.key);
+  });
+}
+
 // AARMS sub-gate: interceptar click en doc de campo — true = bloqueado
 function _gateCampoClick(plan, docKey){
+  if(docKey === 'bitod' && plan && typeof _lote17OdAplica === 'function' && _lote17OdAplica(plan) && !(typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan))){
+    if(typeof _lote17OdVerifRechazada === 'function' && _lote17OdVerifRechazada(plan, 'lab')){
+      toast('La verificación de laboratorio se rechazó. Repítela para continuar.','w');
+      return true;
+    }
+    if(!_planExentoDeGate(plan) && !_labCompleto(plan)){
+      _lote2bMostrarBloqueo(plan, docKey);
+      return true;
+    }
+  }
   if(!plan || _planExentoDeGate(plan)) return false;
   if(docKey === 'bm'){
     if(_machioteDisponible(plan)) return false;
-    if(!_labCompleto(plan)){
-      const est = _labEstado(plan);
-      toast('🔒 Completa el laboratorio antes de campo. Faltan: '+est.faltantes.join(', '), 'w');
-    }else{
-      toast('🔒 El Machiote requiere capturar las 4 bitácoras de campo primero', 'w');
-    }
+    _lote2bMostrarBloqueo(plan, docKey);
     return true;
   }
   if(_GATE_DOCS_CAMPO.includes(docKey) && !_labCompleto(plan)){
-    const est = _labEstado(plan);
-    toast('🔒 Completa el laboratorio antes de campo. Faltan: '+est.faltantes.join(', '), 'w');
+    _lote2bMostrarBloqueo(plan, docKey);
     return true;
   }
   return false;
@@ -2309,19 +3187,16 @@ function _actualizarGatePlanUI(){
   _actualizarGateBanner();
   const plan = _planActivo();
   const btn = document.getElementById('planBtnNuevaOmar');
+  // AARMS lote14a: la OMAR se llena antes del campo. El candado queda en la Hoja.
   if(btn){
-    const locked = plan && _planDocGateLocked(plan, 'omars');
-    btn.style.opacity = locked ? '0.4' : '';
-    btn.style.cursor = locked ? 'not-allowed' : '';
-    btn.disabled = !!locked;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
+    btn.disabled = false;
   }
-  // AARMS simfix: re-evaluar candados visuales al instante (sin hard refresh)
+  // AARMS lote3bc: no volver a dibujar la lista desde aquí (renderPlanDocs ya llama a esta función)
   const list = document.getElementById('planDocsList');
   if(list && plan){
-    const onPlan = !!(document.getElementById('pgPlan') && document.getElementById('pgPlan').classList.contains('on'));
-    if(onPlan){
-      try{ renderPlanDocs(); }catch(_){}
-    } else {
+    {
       list.querySelectorAll('[data-plan-doc-key]').forEach(row=>{
         const key = row.getAttribute('data-plan-doc-key');
         const locked = !!_planDocGateLocked(plan, key);
@@ -2338,7 +3213,6 @@ function renderPlanDocs(){
   const badge = document.getElementById('planDocsBadge');
   if(!list) return;
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
-  const docs = (plan && plan.docs) || {};
   let done = 0;
   list.innerHTML = '';
   const order = ['lab','campo','cierre'];
@@ -2351,7 +3225,10 @@ function renderPlanDocs(){
     gh.textContent = grTitle[phase] || phase;
     list.appendChild(gh);
     inPhase.forEach(d=>{
-      const isDone = !!docs[d.key]?.done;
+      // AARMS lote19a: sin OD no aparecen las dos fichas. El plan viejo conserva solo la de campo.
+      if(!_lote19DocVisible(plan, d.key)) return;
+      // AARMS lote3c: el letrero cuenta lo mismo que la barra (completo por datos)
+      const isDone = _planEstadoDocKey(plan, d.key) === 'completo';
       if(isDone) done++;
       const whereBadge = d.where==='lab' ? `<span style="background:rgba(74,158,255,.12);color:var(--acc);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px;letter-spacing:.04em">LAB</span>`
         : d.where==='campo' ? `<span style="background:rgba(251,191,36,.12);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px;letter-spacing:.04em">CAMPO</span>`
@@ -2361,7 +3238,8 @@ function renderPlanDocs(){
       row.className = 'plan-doc-row doc-card'+(locked?' gate-locked':'');
       row.setAttribute('data-plan-doc-key', d.key);
       row.style.cssText='display:flex;align-items:center;gap:11px;padding:12px 4px;border-bottom:1px solid var(--ln);cursor:'+(locked?'not-allowed':'pointer')+';-webkit-tap-highlight-color:transparent;position:relative;'+(d.ready?'':'opacity:.65')+(locked?'':'' );
-      const gateHint = locked ? '<div style="font-size:9.5px;color:var(--g2);margin-top:2px">Completa el laboratorio primero</div>' : '';
+      const noAplica = (d.key === 'odlab' || d.key === 'bitod') && plan && typeof _lote17OdAplica === 'function' && !_lote17OdAplica(plan) && !(typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan));
+      const gateHint = locked ? ('<div style="font-size:11px;color:var(--g1);margin-top:3px;line-height:1.35">'+_lote2bLineaDesbloqueo(plan, d.key)+'</div>') : '';
       row.innerHTML = `
       <div style="width:28px;height:28px;border-radius:7px;background:${isDone?'rgba(134,239,172,.15)':'var(--bg3)'};border:1px solid ${isDone?'rgba(134,239,172,.4)':'var(--ln)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;color:${isDone?'var(--green)':'var(--g2)'}">
         ${isDone ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' : '<span style="font-family:var(--syne);font-size:10px;font-weight:800">○</span>'}
@@ -2373,12 +3251,14 @@ function renderPlanDocs(){
           ${whereBadge}
           ${d.ready ? '' : '<span style="background:rgba(251,191,36,.1);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">PRÓXIMO</span>'}
         </div>
-        <div style="font-size:10px;color:var(--g1);margin-top:3px">${d.desc}</div>
+        <div style="font-size:10px;color:var(--g1);margin-top:3px">${noAplica ? 'No aplica: ninguna OMAR pidió oxígeno disuelto' : d.desc}</div>
+        ${d.key === 'bm' ? '<div id="lote5cPlanBm"></div>' : ''}
         ${gateHint}
       </div>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--g2)" stroke-width="2.5" stroke-linecap="round" style="flex-shrink:0"><polyline points="9 18 15 12 9 6"/></svg>
     `;
-      row.addEventListener('click',async ()=>{
+      row.addEventListener('click',async (ev)=>{
+        if(ev.target.closest('[data-lote5c-stop]')) return;
         if(_gateCampoClick(plan, d.key)) return;
         // AARMS sub3fix3: Bitácora Flujos directo + precargar OMAR si hace falta
         if(d.key==='bitflujos'){
@@ -2391,8 +3271,11 @@ function renderPlanDocs(){
       list.appendChild(row);
     });
   });
-  if(badge) badge.textContent = `${done}/${PLAN_DOCS.length}`;
+  // AARMS lote19a: el total sube solo cuando el OD aplica (11 sin OD, 13 con OD, 12 en un plan viejo).
+  const totalDocs = PLAN_DOCS.filter(d => _lote19DocVisible(plan, d.key)).length;
+  if(badge) badge.textContent = `${done}/${totalDocs}`;
   _actualizarGatePlanUI();
+  if(typeof _lote5cPintarPlan === 'function') _lote5cPintarPlan();
   // AARMS sub9-firma: refrescar sello Revisado por…
   if(typeof _renderSelloFirmaPlan === 'function') _renderSelloFirmaPlan();
 }
@@ -2430,7 +3313,7 @@ async function abrirDocPlan(key){
     toast(d.label + ' — próximamente','');
     return;
   }
-  const needsOmar = ['blmp','colab','phcam','condcamp','bpm','bm','phlab','bitPh','bitCond','bitTemp','bittemp','bitflujos','bitod'].includes(key);
+  const needsOmar = ['blmp','colab','phcam','condcamp','bpm','bm','phlab','bitPh','bitCond','bitTemp','bittemp','bitflujos','bitod','odlab'].includes(key);
   if(needsOmar && !omar?.ts){
     const ok = await _flujosAsegurarOmarCargado();
     if(!ok){
@@ -2445,7 +3328,8 @@ async function abrirDocPlan(key){
       toast('Este plan no tiene OMARs aún','w');
       return;
     }
-    await cargarMuestreo(plan.omarIds[0]);
+    // AARMS lote14a: este documento del plan es la Hoja de Campo
+    await cargarMuestreo(plan.omarIds[0], { irHoja: true });
     return;
   }
   if(key === 'bitPh'){
@@ -2466,7 +3350,11 @@ async function abrirDocPlan(key){
   }
   // AARMS sub7-od
   if(key === 'bitod'){
-    await abrirBitacoraOD({ origen:'plan' });
+    await abrirBitacoraOD({ origen:'plan', modo:'campo' });
+    return;
+  }
+  if(key === 'odlab'){
+    await abrirBitacoraOD({ origen:'plan', modo:'lab' });
     return;
   }
   if(key === 'lvar'){ abrirLVAR(); return; }
@@ -2677,10 +3565,12 @@ function _labelSiguientePasoLab(plan){
     blmp:  'BLMP (Limpieza pH-metro)',
     phlab: 'BUCCVpH (Calibración pH-metro)',
     colab: 'BLMCCVUC (Calibración conductímetro)',
-    omars: 'Hoja de Campo'
+    omars: 'el plan'
   };
   const skip = _pantallaActualLab();
   const key = _siguientePasoLabKey(plan, skip);
+  // AARMS lote14a: al terminar el laboratorio se vuelve al plan; la Hoja se abre desde ahí
+  if(key === 'omars') return 'Guardar y volver al plan';
   return 'Guardar y continuar a ' + (labels[key] || key);
 }
 window._labelSiguientePasoLab = _labelSiguientePasoLab;
@@ -2746,7 +3636,8 @@ async function continuarAlSiguientePaso(omarIdOpt){
   for(const key of orden){
     if(_planEstadoDoc(plan, key) !== 'completo'){
       if(key === 'omars'){
-        await _irACampoDesdeLab(omarIdOpt);
+        // AARMS lote14a: la Hoja de Campo se abre desde el plan
+        await abrirPlan(_currentPlanId);
         return;
       }
       await abrirDocPlan(key);
@@ -2754,8 +3645,8 @@ async function continuarAlSiguientePaso(omarIdOpt){
       return;
     }
   }
-  // Todos completos → Hoja de Campo
-  await _irACampoDesdeLab(omarIdOpt);
+  // AARMS lote14a: laboratorio completo → pantalla del plan
+  await abrirPlan(_currentPlanId);
 }
 window.continuarAlSiguientePaso = continuarAlSiguientePaso;
 
@@ -2776,6 +3667,8 @@ async function abrirLVAR(){
   if(!plan){ return; }
 
   _lvarData = plan.lvar || {};
+  const pgLvar = document.getElementById('pgLVAR');
+  if(pgLvar) pgLvar.setAttribute('data-lote21-plan', plan.id);
   // Bloqueo desactivado por petición del usuario — el LVAR siempre queda editable.
   _lvarBloqueado = false;
 
@@ -2795,14 +3688,15 @@ async function abrirLVAR(){
     }
   }
 
-  setVal('lv_folio',  _lvarData.folio);
-  setVal('lv_fecha',  _lvarData.fecha || plan.fecha || new Date().toISOString().split('T')[0]);
+  setVal('lv_folio',  _lvarData.folio || '—');
+  setVal('lv_fecha',  _lvarData.fecha || plan.fecha || _lote21HoyFecha());
   setVal('lv_lugar',  _lvarData.lugar || primerOmar.sitio || '');
   setVal('lv_dir',    _lvarData.direccion || primerOmar.direccion || '');
   // SIN default "Guaymas": ahora jala del OMAR
   setVal('lv_ciudad', _lvarData.ciudad || primerOmar.municipio || '');
   setVal('lv_estado', _lvarData.estado || primerOmar.estado || '');
-  setVal('lv_tipo',   _lvarData.tipo || primerOmar.tipo || '');
+  // AARMS lvarnomixto: tipo = resumen de OMARs del plan (no primer OMAR suelto ni valor inventado)
+  setVal('lv_tipo',   _lvarTipoMuestreoParaUiYPdf(_lvarData.tipo));
   setVal('lv_norma',  _lvarData.norma || primerOmar.norma || '');
   setVal('lv_obs',    _lvarData.obs);
   setVal('lv_asig',   _lvarData.asig || plan.muestreador || '');
@@ -2831,6 +3725,9 @@ async function abrirLVAR(){
   }
   // AARMS lvarfix: rebuild equipos DESPUÉS de cargar catálogo (antes quedaban AA/PT/ vacíos)
   buildLvarEquipos();
+  // AARMS lote8c: disoluciones y reactivos después de cargar el catálogo
+  buildLvarLoteCadList('lv_disol', LVAR_DISOL, 'disol');
+  buildLvarReactivos();
   _lvarAutocompletarClavesDesdeInventario();
   await _catalogoPrefillLvarDOM();
   _aplicarDocEstadoBadge('lvar');
@@ -2841,6 +3738,8 @@ async function abrirLVAR(){
   if(banner) banner.style.display = _lvarBloqueado ? 'block' : 'none';
   // Inputs read-only si está bloqueado
   document.querySelectorAll('#pgLVAR input, #pgLVAR textarea, #pgLVAR select').forEach(el => {
+    if(el.id === 'lv_folio') return;
+    if(el.getAttribute('data-lote8c') === '1') return;
     if(_lvarBloqueado){
       el.setAttribute('readonly','');
       el.setAttribute('disabled','');
@@ -2849,6 +3748,9 @@ async function abrirLVAR(){
       el.removeAttribute('disabled');
     }
   });
+  // AARMS lvarnomixto: tipo se deriva de OMARs — siempre no editable
+  const _lvTipoEl = document.getElementById('lv_tipo');
+  if(_lvTipoEl){ _lvTipoEl.setAttribute('readonly',''); _lvTipoEl.removeAttribute('disabled'); }
   // Botón Guardar / Generar PDF
   const btns = document.querySelectorAll('#pgLVAR .bbar button, #pgLVAR button.btn');
   btns.forEach(b => {
@@ -2938,6 +3840,8 @@ function _lvarGetOmarsActuales(){
       omarId: m.id,
       folio: o.folio || m.folio || '',
       sitio: o.sitio || '',
+      // AARMS lvarfiel2: tipo Simple/Compuesto para sección OMARs del PDF
+      tipo: o.tipo || '',
       ntomas: parseInt(o.ntomas) || 1,
       analitos: [...analitosCodes],
       analitosNombres: o.analitos || [],
@@ -2946,6 +3850,39 @@ function _lvarGetOmarsActuales(){
     };
   });
 }
+
+// AARMS lvarnomixto: resume tipo desde OMARs del plan (Simple / Compuesto / ambos) — jamás categoría inventada
+function _lvarTipoMuestreoDesdeOmars(){
+  const omars = _lvarGetOmarsActuales().filter(o => !o.noRealizada);
+  const n = omars.length;
+  if(!n) return '';
+  let tieneSimple = false, tieneComp = false;
+  omars.forEach(o => {
+    const t = String(o.tipo || '').trim().toLowerCase();
+    if(t === 'simple') tieneSimple = true;
+    else if(t === 'compuesto') tieneComp = true;
+  });
+  const suf = n === 1 ? '1 OMAR' : (n + ' OMARs');
+  if(tieneSimple && tieneComp) return 'Simple + Compuesto (' + suf + ')';
+  if(tieneSimple) return 'Simple (' + suf + ')';
+  if(tieneComp) return 'Compuesto (' + suf + ')';
+  return '';
+}
+
+/** true si el texto guardado no es un resumen válido Simple/Compuesto (p. ej. valor inventado). */
+function _lvarTipoNecesitaRecalc(raw){
+  const s = String(raw || '').trim();
+  if(!s) return true;
+  if(/^simple(\s*\+|\s*\(|$)/i.test(s)) return false;
+  if(/^compuesto(\s*\(|$)/i.test(s)) return false;
+  return true;
+}
+
+function _lvarTipoMuestreoParaUiYPdf(raw){
+  if(!_lvarTipoNecesitaRecalc(raw)) return String(raw).trim();
+  return _lvarTipoMuestreoDesdeOmars() || String(raw || '').trim();
+}
+window._lvarTipoMuestreoDesdeOmars = _lvarTipoMuestreoDesdeOmars;
 
 function buildLvarOmars(){
   const c = document.getElementById('lv_omars_list');
@@ -3007,7 +3944,7 @@ async function lvarAgregarNuevoOmar(){
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
   if(!plan){ return; }
   const her = getMuestreosDePlan(_currentPlanId);
-  let emp0 = '', muest0 = plan.muestreador || '', fecha0 = plan.fecha || new Date().toISOString().split('T')[0];
+  let emp0 = '', muest0 = plan.muestreador || '', fecha0 = plan.fecha || _lote21HoyFecha();
   if(her.length){
     const o0 = her[0].omar ? JSON.parse(her[0].omar) : {};
     emp0 = o0.empresa || her[0].empresa || '';
@@ -3158,25 +4095,26 @@ function buildLvarEquipos(){
     }
     const catNum = _lvarNumDesdeCatalogo(eq.key);
     const userNum = saved.num && String(saved.num).trim() ? String(saved.num).trim() : '';
-    // AARMS lvarfix: si vino del catálogo (o no hay override manual), preferir inventario
-    const useCat = !!catNum && (!userNum || saved.fromCatalog);
-    const displayNum = useCat ? catNum : (userNum || catNum || '');
-    const fromCatalog = useCat;
-    const hasData = !!displayNum;
-    const autoBadge = fromCatalog
-      ? '<span style="font-size:9px;font-weight:700;color:#10b981;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);padding:2px 6px;border-radius:4px;letter-spacing:.04em">AUTO</span>'
-      : '';
+    // AARMS lote8c: un plan ya guardado conserva el número tecleado; la captura nueva sale del catálogo
+    const guardadoManual = !!userNum && !saved.fromCatalog;
+    const displayNum = guardadoManual ? userNum : (catNum || '');
+    if(!displayNum){
+      return `
+      <div data-lv-row="${eq.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
+        <div style="font-size:13px;color:var(--w);font-weight:600">${eq.label}</div>
+        ${_lote8cMsgInventario()}
+      </div>`;
+    }
+    const fromCatalog = !guardadoManual;
+    const hasData = true;
     const fromAttr = fromCatalog ? ' data-from-catalog="1"' : '';
     return `
       <div data-lv-row="${eq.key}" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-            <div style="font-size:13px;color:var(--w);font-weight:600">${eq.label}</div>
-            ${autoBadge}
-          </div>
+          <div style="font-size:13px;color:var(--w);font-weight:600;margin-bottom:2px">${eq.label}</div>
           <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
             <span style="font-family:var(--mono);font-size:12px;color:var(--acc);background:rgba(74,158,255,.1);padding:6px 8px;border-radius:6px;border:1px solid rgba(74,158,255,.25)">${eq.prefix}</span>
-            <input data-lv-eq="${eq.key}" data-field="num" data-required="true" type="text" value="${displayNum.replace(/"/g,'&quot;')}" placeholder="nº" style="flex:1"${fromAttr}>
+            <input data-lote8c="1" data-lv-eq="${eq.key}" data-field="num" data-required="true" type="text" readonly tabindex="-1" value="${displayNum.replace(/"/g,'&quot;')}" style="flex:1"${fromAttr}>
           </div>
         </div>
         ${_lvCheckBadge(hasData)}
@@ -3240,7 +4178,22 @@ function buildLvarLoteCadList(containerId, items, section){
   const d = _lvarData[section] || {};
   c.innerHTML = items.map(it=>{
     const s = d[it.key] || {};
-    const hasData = !!((s.lote && s.lote.trim()) || (s.cad && s.cad.trim()));
+    const guardado = !!((s.lote && String(s.lote).trim()) || (s.cad && String(s.cad).trim()));
+    const res = (typeof _catalogoDisolResolucion === 'function') ? _catalogoDisolResolucion(it, _lote10FechaLvar()) : { item: null, vencido: false };
+    const cat = res.item;
+    const catLote = cat && String(cat.lote || '').trim();
+    const catCad = cat && String(cat.caducidad || '').trim();
+    if(!guardado && !catLote && !catCad){
+      return `
+      <div data-lv-row="${it.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
+        <div style="font-size:12.5px;color:var(--w);font-weight:600">${it.label}</div>
+        ${_lote10MsgFalta(it.label)}
+      </div>`;
+    }
+    const lote = guardado ? (s.lote || '') : (cat.lote || '');
+    const cad = guardado ? (s.cad || '') : (cat.caducidad || '');
+    const hasData = !!(String(lote).trim() || String(cad).trim());
+    const esc = (v) => String(v || '').replace(/"/g, '&quot;');
     return `
       <div data-lv-row="${it.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
@@ -3248,9 +4201,10 @@ function buildLvarLoteCadList(containerId, items, section){
           ${_lvCheckBadge(hasData)}
         </div>
         <div class="g2">
-          <input data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="lote" data-field="lote" data-required="true" type="text" value="${s.lote||''}" placeholder="Lote">
-          <input data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" value="${s.cad||''}" placeholder="Caducidad (dd/mm/aa)">
+          <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="lote" data-field="lote" data-required="true" type="text" readonly tabindex="-1" value="${esc(lote)}">
+          <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" readonly tabindex="-1" value="${esc(cad)}">
         </div>
+        ${(!guardado && res.vencido) ? _lote10MsgVencido(it.label) : ''}
       </div>`;
   }).join('');
 }
@@ -3261,7 +4215,26 @@ function buildLvarReactivos(){
   const d = _lvarData.react || {};
   c.innerHTML = LVAR_REACTIVOS.map(r=>{
     const s = d[r.key] || {};
-    const hasData = !!((s.lote && s.lote.trim()) || (s.marca && s.marca.trim()) || (s.cad && s.cad.trim()));
+    const guardado = !!((s.lote && String(s.lote).trim()) || (s.cad && String(s.cad).trim()) || (s.marca && String(s.marca).trim()));
+    const res = (typeof _catalogoReactivoResolucion === 'function')
+      ? _catalogoReactivoResolucion(r.pdfLabel || r.label || r.key, _lote10FechaLvar())
+      : { item: (typeof _catalogoMatchPorNombre === 'function') ? _catalogoMatchPorNombre(r.pdfLabel || r.label || r.key) : null, vencido: false };
+    const cat = res.item;
+    const catLote = cat && String(cat.lote || '').trim();
+    const catCad = cat && String(cat.caducidad || '').trim();
+    const catMarca = cat ? (cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '') : '';
+    if(!guardado && !catLote && !catCad && !String(catMarca).trim()){
+      return `
+      <div data-lv-row="${r.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
+        <div style="font-size:12.5px;color:var(--w);font-weight:600">${r.label}</div>
+        ${_lote10MsgFalta(r.label)}
+      </div>`;
+    }
+    const lote = guardado ? (s.lote || '') : (cat.lote || '');
+    const cad = guardado ? (s.cad || '') : (cat.caducidad || '');
+    const marca = (s.marca && String(s.marca).trim()) ? s.marca : (cat ? (cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '') : '');
+    const hasData = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
+    const esc = (v) => String(v || '').replace(/"/g, '&quot;');
     return `
       <div data-lv-row="${r.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
@@ -3269,10 +4242,11 @@ function buildLvarReactivos(){
           ${_lvCheckBadge(hasData)}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-          <input data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="lote" data-field="lote" data-required="true" type="text" value="${s.lote||''}"  placeholder="Lote">
-          <input data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="marca" data-field="marca" data-required="true" type="text" value="${s.marca||''}" placeholder="Marca">
-          <input data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" value="${s.cad||''}"   placeholder="Cad.">
+          <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="lote" data-field="lote" data-required="true" type="text" readonly tabindex="-1" value="${esc(lote)}">
+          <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="marca" data-field="marca" data-required="true" type="text" readonly tabindex="-1" value="${esc(marca)}">
+          <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" readonly tabindex="-1" value="${esc(cad)}">
         </div>
+        ${(!guardado && res.vencido) ? _lote10MsgVencido(r.label) : ''}
       </div>`;
   }).join('');
 }
@@ -3283,13 +4257,38 @@ const _MARCA_PLACEHOLDER = {
   // El resto usa "Marca" genérico
 };
 
+function _lote10PatronDe(p, fecha){
+  const mapKey = (_LVAR_PATRON_CAT && _LVAR_PATRON_CAT[p.key]) || '';
+  if(!_catalogoCache || !mapKey) return { item: null, vencido: false, usoAlterno: false };
+  if(mapKey.startsWith('ver-') || mapKey.startsWith('cal-')){
+    const lista = mapKey.startsWith('ver-') ? (_catalogoCache.buffers && _catalogoCache.buffers.verificacion) : (_catalogoCache.buffers && _catalogoCache.buffers.calibracion);
+    const i = parseInt(mapKey.split('-')[1], 10);
+    const principal = lista && lista[i];
+    const mismo = (lista || []).filter((b, bi) => bi !== i && principal && Number(b.ph) === Number(principal.ph));
+    return _lote10Elegir(principal, mismo, fecha);
+  }
+  if(mapKey.startsWith('cond-')){
+    const item = _catalogoCache.conductividad && _catalogoCache.conductividad[parseInt(mapKey.split('-')[1], 10)];
+    return _lote10Elegir(item, [], fecha);
+  }
+  if(mapKey === 'agua_reactivo') return _lote10Elegir(_catalogoAguaReactivo(), [], fecha);
+  return { item: null, vencido: false, usoAlterno: false };
+}
 function buildLvarPatrones(){
   const c = document.getElementById('lv_patrones');
   if(!c) return;
   const d = _lvarData.patrones || {};
   c.innerHTML = LVAR_PATRONES.map(p=>{
     const s = d[p.key] || {};
-    const hasData = !!((s.lote && s.lote.trim()) || (s.marca && s.marca.trim()) || (s.cad && s.cad.trim()) || (p.conValor && s.valor && s.valor.trim()));
+    const res = _lote10PatronDe(p, _lote10FechaLvar());
+    const cat = res.item || {};
+    const lote = (s.lote && String(s.lote).trim()) ? s.lote : (cat.lote || '');
+    const marca = (s.marca && String(s.marca).trim()) ? s.marca : (cat.marca || '');
+    const cad = (s.cad && String(s.cad).trim()) ? s.cad : (cat.caducidad || '');
+    const valor = (s.valor && String(s.valor).trim()) ? s.valor : (p.conValor && cat.ph != null && cat.ph !== '' ? Number(cat.ph).toFixed(2) : (s.valor || ''));
+    const tieneLote = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
+    const hasData = tieneLote;
+    const aviso = tieneLote ? (res.vencido ? _lote10MsgVencido(p.label) : '') : _lote10MsgFalta(p.label);
     const grid = p.conValor
       ? 'grid-template-columns:70px 1fr 1fr 1fr'
       : 'grid-template-columns:1fr 1fr 1fr';
@@ -3307,11 +4306,12 @@ function buildLvarPatrones(){
           ${_lvCheckBadge(hasData)}
         </div>
         <div style="display:grid;${grid};gap:6px">
-          ${p.conValor ? `<input type="text" ${phAttrs} data-lv-patrones="${p.key}" data-campo="valor" data-field="valor" data-required="true" value="${s.valor||''}" placeholder="pH" readonly style="opacity:.85;background:rgba(74,158,255,.05);cursor:not-allowed;text-align:center;font-weight:700;color:var(--acc)">` : ''}
-          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="lote" data-field="lote" data-required="true" type="text" value="${s.lote||''}"  placeholder="Lote">
-          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="marca" data-field="marca" data-required="true" type="text" value="${s.marca||''}" placeholder="${_MARCA_PLACEHOLDER[p.key] || 'Marca'}">
-          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="cad" data-field="cad" data-required="true" type="text" value="${s.cad||''}"   placeholder="Cad.">
+          ${p.conValor ? `<input type="text" ${phAttrs} data-lv-patrones="${p.key}" data-campo="valor" data-field="valor" data-required="true" value="${valor||''}" placeholder="pH" readonly style="opacity:.85;background:rgba(74,158,255,.05);cursor:not-allowed;text-align:center;font-weight:700;color:var(--acc)">` : ''}
+          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="lote" data-field="lote" data-required="true" type="text" value="${lote||''}"  placeholder="Lote">
+          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="marca" data-field="marca" data-required="true" type="text" value="${marca||''}" placeholder="${_MARCA_PLACEHOLDER[p.key] || 'Marca'}">
+          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="cad" data-field="cad" data-required="true" type="text" value="${cad||''}"   placeholder="Cad.">
         </div>
+        ${aviso}
       </div>`;
   }).join('');
 }
@@ -3378,6 +4378,9 @@ function buildLvarEnvases(){
   }).join('');
 }
 
+let _lvarFolioPendiente = null;
+let _hcarFolioPendiente = null;
+let _cciarFolioPendiente = null;
 async function guardarLVAR(silent){
   if(!_currentPlanId) return;
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
@@ -3385,15 +4388,35 @@ async function guardarLVAR(silent){
   if(_lvarBloqueado){ return; }  // No-op si está bloqueado
 
   const gv = id => { const e=document.getElementById(id); return e?e.value.trim():''; };
+  const limpio = v => (!v || v === '—' || v === '-') ? '' : v;
+  let folio = limpio(gv('lv_folio'));
+  const tieneDatos = ['lv_fecha','lv_lugar','lv_dir','lv_ciudad','lv_estado','lv_tipo','lv_norma','lv_obs','lv_asig'].some(id => limpio(gv(id)));
+  if(!folio && tieneDatos){
+    if(!_lvarFolioPendiente){
+      _lvarFolioPendiente = _folioTomar('lvar', 1, {
+        planId: plan.id, planFolio: plan.folio || '', doc: 'LVAR',
+        ya: ()=>{
+          const ya = plan.lvar && limpio(plan.lvar.folio);
+          return ya ? [ya] : [];
+        },
+        aplicar: (out)=>{ plan.lvar = plan.lvar || {}; plan.lvar.folio = out[0]; }
+      });
+    }
+    const nums = await _lvarFolioPendiente;
+    folio = (plan.lvar && limpio(plan.lvar.folio)) || nums[0];
+    _lvarFolioPendiente = null;
+    _lote2aPintarCampo('lv_folio', folio);
+  }
 
   const data = {
-    folio:     gv('lv_folio'),
+    folio,
     fecha:     gv('lv_fecha'),
     lugar:     gv('lv_lugar'),
     direccion: gv('lv_dir'),
     ciudad:    gv('lv_ciudad'),
     estado:    gv('lv_estado'), // AARMS v64: estado separado
-    tipo:      gv('lv_tipo'),
+    // AARMS lvarnomixto: persistir resumen válido (recalcula si el campo trae valor inventado)
+    tipo:      _lvarTipoMuestreoParaUiYPdf(gv('lv_tipo')),
     norma:     gv('lv_norma'),
     obs:       gv('lv_obs'),
     asig:      gv('lv_asig'),
@@ -3434,62 +4457,102 @@ async function guardarLVAR(silent){
   if(typeof _actualizarGatePlanUI === 'function') _actualizarGatePlanUI();
 }
 
+async function _lote21LvarFundirPantalla(plan){
+  // AARMS lote21d: la pantalla solo entra si es este plan. Un cuadro vacío no borra lo guardado.
+  const pg = document.getElementById('pgLVAR');
+  if(!plan || !pg || !pg.classList.contains('on')) return;
+  if(String(pg.getAttribute('data-lote21-plan') || '') !== String(plan.id)) return;
+  const gv = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
+  const limpio = v => (!v || v === '—' || v === '-') ? '' : v;
+  const prev = plan.lvar || {};
+  const poner = (k, v) => { if(limpio(v)) prev[k] = limpio(v); };
+  poner('fecha', gv('lv_fecha'));
+  poner('lugar', gv('lv_lugar'));
+  poner('direccion', gv('lv_dir'));
+  poner('ciudad', gv('lv_ciudad'));
+  poner('estado', gv('lv_estado'));
+  poner('norma', gv('lv_norma'));
+  poner('obs', gv('lv_obs'));
+  poner('asig', gv('lv_asig'));
+  const tipo = _lvarTipoMuestreoParaUiYPdf(gv('lv_tipo'));
+  if(limpio(tipo)) prev.tipo = tipo;
+  const folio = limpio(gv('lv_folio'));
+  if(folio) prev.folio = folio;
+  plan.lvar = prev;
+  await guardarPlan(plan);
+}
 async function generarPDFLVAR(){
   if(!_currentPlanId){ toast('No hay plan abierto','w'); return; }
-  await guardarLVAR(true);
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
   if(!plan){ return; }
-  const data = plan.lvar || {};
+  await _lote21LvarFundirPantalla(plan);
+  // AARMS lote21d: el PDF sale de una copia. La fusión del catálogo no se escribe en el plan.
+  const data = JSON.parse(JSON.stringify(plan.lvar || {}));
 
   // AARMS v66-fix: fusionar valores del catálogo en data antes de generar PDF
   // Esto asegura que disoluciones, reactivos y patrones lleven sus lotes/marcas/caducidades
   // aunque el usuario solo haya visto el prefill en pantalla (sin tocarlo).
   await _catalogoCargar();
   if(_catalogoCache){
-    // DISOLUCIONES
+    const fechaLvar = data.fecha || '';
     data.disol = data.disol || {};
     LVAR_DISOL.forEach(it => {
       const actual = data.disol[it.key] || {};
-      const cat = _catalogoDisolMatch(it);
-      if(cat){
+      const res = _catalogoDisolResolucion(it, fechaLvar);
+      const cat = res.item;
+      if(cat && res.usoAlterno){
+        actual.lote = cat.lote || '';
+        actual.cad = cat.caducidad || '';
+        data.disol[it.key] = actual;
+      } else if(cat){
         if(!actual.lote && cat.lote) actual.lote = cat.lote;
         if(!actual.cad && cat.caducidad) actual.cad = cat.caducidad;
         data.disol[it.key] = actual;
       }
     });
-    // REACTIVOS (HNO3 ACS, HNO3 Suprapuro)
     data.react = data.react || {};
     LVAR_REACTIVOS.forEach(it => {
       const actual = data.react[it.key] || {};
-      const cat = _catalogoMatchPorNombre(it.pdfLabel || it.label || it.key);
-      if(cat){
+      const res = (typeof _catalogoReactivoResolucion === 'function')
+        ? _catalogoReactivoResolucion(it.pdfLabel || it.label || it.key, fechaLvar)
+        : { item: _catalogoMatchPorNombre(it.pdfLabel || it.label || it.key), usoAlterno: false };
+      const cat = res.item;
+      if(!cat) return;
+      if(res.usoAlterno){
+        actual.lote = cat.lote || '';
+        actual.marca = cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '';
+        actual.cad = cat.caducidad || '';
+      } else {
         if(!actual.lote && cat.lote) actual.lote = cat.lote;
-        if(!actual.marca){
-          actual.marca = cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '';
-        }
+        if(!actual.marca) actual.marca = cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '';
         if(!actual.cad && cat.caducidad) actual.cad = cat.caducidad;
-        data.react[it.key] = actual;
       }
+      data.react[it.key] = actual;
     });
-    // PATRONES (referencia + trabajo + KCl + agua reactivo)
     data.patrones = data.patrones || {};
     LVAR_PATRONES.forEach(p => {
       const actual = data.patrones[p.key] || {};
-      const mapKey = _LVAR_PATRON_CAT[p.key]; // 'ver-0', 'cal-1', 'cond-0', 'agua_reactivo'
+      const mapKey = _LVAR_PATRON_CAT[p.key];
       if(!mapKey) return;
       let catItem = null;
-      if(mapKey.startsWith('ver-')){
+      if(mapKey.startsWith('ver-') || mapKey.startsWith('cal-')){
+        const lista = mapKey.startsWith('ver-') ? (_catalogoCache.buffers && _catalogoCache.buffers.verificacion) : (_catalogoCache.buffers && _catalogoCache.buffers.calibracion);
         const i = parseInt(mapKey.split('-')[1], 10);
-        catItem = _catalogoCache.buffers?.verificacion?.[i];
+        const principal = lista && lista[i];
+        const mismoPh = (lista || []).filter((b, bi) => bi !== i && principal && Number(b.ph) === Number(principal.ph));
+        const resB = _lote10Elegir(principal, mismoPh, fechaLvar);
+        catItem = resB.item;
         if(catItem && !actual.valor) actual.valor = (typeof catItem.ph === 'number') ? catItem.ph.toFixed(2) : (catItem.ph || '');
-      } else if(mapKey.startsWith('cal-')){
-        const i = parseInt(mapKey.split('-')[1], 10);
-        catItem = _catalogoCache.buffers?.calibracion?.[i];
-        if(catItem && !actual.valor) actual.valor = (typeof catItem.ph === 'number') ? catItem.ph.toFixed(2) : (catItem.ph || '');
+        if(resB.usoAlterno && catItem){
+          actual.lote = catItem.lote || '';
+          actual.marca = catItem.marca || '';
+          actual.cad = catItem.caducidad || '';
+          data.patrones[p.key] = actual;
+          return;
+        }
       } else if(mapKey.startsWith('cond-')){
         const i = parseInt(mapKey.split('-')[1], 10);
-        catItem = _catalogoCache.conductividad?.[i];
-        // KCl no lleva valor pH; deja vacío (la columna valor mostrará '-')
+        catItem = _catalogoCache.conductividad && _catalogoCache.conductividad[i];
       } else if(mapKey === 'agua_reactivo'){
         catItem = _catalogoAguaReactivo();
       }
@@ -3499,26 +4562,16 @@ async function generarPDFLVAR(){
         if(!actual.cad && catItem.caducidad) actual.cad = catItem.caducidad;
         data.patrones[p.key] = actual;
       }
-      // AARMS v66-p2: KCl Patrón se prepara en lab → marca explícita en PDF si vacía
-      if(p.key === 'kcl_pat'){
-        const pat = data.patrones[p.key] || actual;
-        if(!pat.marca || !String(pat.marca).trim()){
-          pat.marca = '(preparado en lab)';
-          data.patrones[p.key] = pat;
-        }
-      }
     });
-    // Guardar la fusión en el plan
-    plan.lvar = data;
-    try { await guardarPlan(plan); } catch(e){ console.warn('[lvar pdf fusión catálogo]', e); }
   }
 
   const {jsPDF} = window.jspdf;
   const logoPDF = await loadLogo(LOGO_PDF_URI);
 
   // Portrait letter: 612 x 792 pt
+  // AARMS lote8bc: compress en todos los generadores (flujos de contenido)
   // AARMS sub8-pdfs: tablas/firma premium (helpers Machiote, Helvetica); columnas intactas
-  const doc = new jsPDF({orientation:'portrait',unit:'pt',format:'letter'});
+  const doc = new jsPDF({orientation:'portrait',unit:'pt',format:'letter',compress:true});
   const W=612, H=792, M=28;
   const CW = W - M*2;  // 556
   const FONT = 'helvetica';
@@ -3533,9 +4586,21 @@ async function generarPDFLVAR(){
 
   // AARMS v64: header uniforme
   const HDR = 72;
-  const folioLVAR = (plan.lvar && plan.lvar.folio) ? `Folio: ${plan.lvar.folio}` : 'Folio: —';
-  // AARMS sub10-std: LVAR usa membrete compartido
-  _pdfStdHeader(doc, logoPDF, W, M, HDR, 'LISTA DE VERIFICACION', folioLVAR || 'LVAR', 'F-AA-60-16');
+  const folioLVAR = data.folio ? `Folio: ${data.folio}` : 'Folio: —';
+  // AARMS lvartitulofix: título completo — shrink fuente / ensancha caja / wrap 2 líneas (solo LVAR)
+  // AARMS lvarfiel2: título oficial completo (corrige typo MUESTEO → MUESTREO)
+  if(typeof window._pdfMembreteStd === 'function'){
+    window._pdfMembreteStd(doc, logoPDF, {
+      docTitulo: 'LISTA DE VERIFICACIÓN DE MUESTREO',
+      docSubtitulo: folioLVAR || 'LVAR',
+      codigoFormato: 'F-AA-60-16',
+      margin: M,
+      contentY: HDR,
+      docTituloFit: true
+    }, FONT);
+  } else {
+    _pdfStdHeader(doc, logoPDF, W, M, HDR, 'LISTA DE VERIFICACIÓN DE MUESTREO', folioLVAR || 'LVAR', 'F-AA-60-16');
+  }
   let y = HDR + 8;
 
   // ════════ Helpers de dibujo ════════
@@ -3590,6 +4655,75 @@ async function generarPDFLVAR(){
     doc.text((isEmpty ? '-' : raw).substring(0,Math.floor(w/4.4)), x+3, yy+h-3);
   };
 
+  // AARMS lvarfirmafix: precalcular firmas ANTES del cuerpo (ensureSpace puede firmar al saltar página)
+  function _lvarFirmaPngUsable(png){
+    if(!png || typeof png !== 'string') return false;
+    if(!/^data:image\/(png|jpeg|jpg)/i.test(png)) return false;
+    if(png.length < 1200) return false;
+    return true;
+  }
+  async function _lvarFirmaPngSobreBlanco(dataUrl){
+    if(!_lvarFirmaPngUsable(dataUrl)) return '';
+    return await new Promise((resolve) => {
+      try {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const c = document.createElement('canvas');
+            c.width = Math.max(1, img.naturalWidth || img.width || 1);
+            c.height = Math.max(1, img.naturalHeight || img.height || 1);
+            const g = c.getContext('2d');
+            g.fillStyle = '#ffffff';
+            g.fillRect(0, 0, c.width, c.height);
+            g.drawImage(img, 0, 0);
+            resolve(c.toDataURL('image/png'));
+          } catch(e){ resolve(''); }
+        };
+        img.onerror = () => resolve('');
+        img.src = dataUrl;
+      } catch(e){ resolve(''); }
+    });
+  }
+  const _lvarFirmasCached = await (async () => {
+    const baseM = (plan.firmas && plan.firmas.muestreador) || {};
+    const baseS = (plan.firmas && plan.firmas.supervisor) || {};
+    return {
+      muestreador: {
+        nombre: String(data.asig || baseM.nombre || '').trim(),
+        cargo: baseM.cargo || 'Muestreador',
+        firmaPng: await _lvarFirmaPngSobreBlanco(baseM.firmaPng),
+        fecha: baseM.fecha || '',
+        hora: baseM.hora || ''
+      },
+      supervisor: {
+        nombre: String(data.sup || baseS.nombre || '').trim(),
+        cargo: baseS.cargo || 'Supervisor',
+        firmaPng: await _lvarFirmaPngSobreBlanco(baseS.firmaPng),
+        fecha: baseS.fecha || data.supFecha || '',
+        hora: baseS.hora || data.supHora || ''
+      }
+    };
+  })();
+  function drawFooter(pagLabel){
+    if(typeof _firmaPrem === 'function'){
+      const n = (doc.internal && doc.internal.getNumberOfPages) ? doc.internal.getNumberOfPages() : 1;
+      _firmaPrem(doc, pagLabel || ('Pag. '+n), 'F-AA-60-16', {
+        font:FONT, W, H, yOffset:70,
+        plan: plan,
+        firmas: _lvarFirmasCached
+      });
+    } else {
+      const fy = H - 22;
+      doc.setDrawColor(...MGRAY); doc.setLineWidth(0.4);
+      doc.line(M, fy-4, W-M, fy-4);
+      doc.setFont(FONT,'normal'); doc.setFontSize(6.5); doc.setTextColor(120,128,142);
+      doc.text('Asesoría y Análisis S.C.  —  Tel. 622 224 0910  —  Guaymas, Sonora', M, fy);
+      // AARMS lote8f: pie LVAR sin la frase añadida y sin "(Digital)"
+      doc.setTextColor(...ACCENT); doc.setFont(FONT,'bold');
+      doc.text('F-AA-60-16', W-M, fy+8, {align:'right'});
+    }
+  }
+
   // Asegurar página nueva si nos pasamos (deja espacio para firma premium)
   const ensureSpace = (need) => {
     if(y + need > H - 90){
@@ -3620,12 +4754,13 @@ async function generarPDFLVAR(){
   textCell(M+CW*0.70, y, CW*0.30, r1H, 'NORMA',         data.norma  || '');
   y += r1H;
   textCell(M, y, CW*0.50, r1H, 'LUGAR DE MUESTREO', data.lugar || '');
-  textCell(M+CW*0.50, y, CW*0.50, r1H, 'TIPO DE MUESTREO', data.tipo || '');
+  // AARMS lvarnomixto: PDF siempre con resumen Simple/Compuesto desde OMARs del plan
+  textCell(M+CW*0.50, y, CW*0.50, r1H, 'TIPO DE MUESTREO', _lvarTipoMuestreoParaUiYPdf(data.tipo) || data.tipo || '');
   y += r1H;
   textCell(M, y, CW, r1H, 'DIRECCIÓN', data.direccion || '');
   y += r1H + 6;
 
-  // (Sección OMARs eliminada — info reside en BPM y hoja de campo, no en LVAR)
+  // AARMS lvarfiel2: OMARs se dibujan antes de Contenedores (respaldo del cálculo)
 
   // ════════ EQUIPOS ════════
   ensureSpace(80);
@@ -3861,13 +4996,78 @@ async function generarPDFLVAR(){
   if(colIdx===1) y += cH;
   y += 6;
 
+  // ════════ OMARs DEL PLAN (respaldo visible del cálculo de contenedores) ════════
+  // AARMS lvarfiel2: todos los OMARs del plan — solo lectura; justifica cantidades
+  ensureSpace(60);
+  y = sectionTitle('OMARS DEL PLAN (RESPALDO DE CONTENEDORES)', y);
+  const omarsPdf = _lvarGetOmarsActuales();
+  const omarH = 14;
+  const omarCws = [CW*0.16, CW*0.18, CW*0.12, CW*0.54];
+  if(typeof _hdrPrem === 'function'){
+    y = _hdrPrem(doc, ['FOLIO OMAR','TIPO','N° TOMAS','ANALITOS / PARAMETROS'], M, y, omarCws, omarH, FONT);
+  } else {
+    doc.setFillColor(...MGRAY); doc.rect(M, y, CW, omarH, 'F');
+    bordeRect(M, y, CW, omarH);
+    doc.setTextColor(...NAVY); doc.setFont(FONT,'bold'); doc.setFontSize(6.5);
+    doc.text('FOLIO OMAR', M+3, y+9);
+    doc.text('TIPO', M+CW*0.16+3, y+9);
+    doc.text('N° TOMAS', M+CW*0.34+3, y+9);
+    doc.text('ANALITOS / PARAMETROS', M+CW*0.46+3, y+9);
+    y += omarH;
+  }
+  if(omarsPdf.length === 0){
+    if(typeof _filaPrem === 'function'){
+      y = _filaPrem(doc, ['—','—','—','Sin OMARs en el plan'], M, y, omarCws, omarH, 0, {
+        font:FONT, fontSize:6.8, maxCharsArr:[12, 14, 8, 40]
+      });
+    } else {
+      doc.setFillColor(...LGRAY); doc.rect(M, y, CW, omarH, 'F');
+      bordeRect(M, y, CW, omarH);
+      doc.setTextColor(120,128,142); doc.setFont(FONT,'italic'); doc.setFontSize(7);
+      doc.text('Sin OMARs en el plan', M+5, y+9);
+      y += omarH;
+    }
+  } else {
+    omarsPdf.forEach((om, idx) => {
+      ensureSpace(omarH+2);
+      const tipoTxt = om.noRealizada
+        ? ((om.tipo || '—') + ' N/R')
+        : (om.tipo || '—');
+      const analitosTxt = (om.analitos && om.analitos.length)
+        ? om.analitos.join(', ')
+        : ((om.analitosNombres && om.analitosNombres.length) ? om.analitosNombres.join(', ') : '—');
+      if(typeof _filaPrem === 'function'){
+        y = _filaPrem(doc, [
+          asci(om.folio || '—'),
+          asci(tipoTxt),
+          String(om.ntomas || 1),
+          asci(analitosTxt)
+        ], M, y, omarCws, omarH, idx, {
+          font:FONT, fontSize:6.6, maxCharsArr:[12, 16, 8, 42]
+        });
+      } else {
+        const bg = idx%2===0 ? WHITE : [248,250,252];
+        doc.setFillColor(...bg); doc.rect(M, y, CW, omarH, 'F');
+        bordeRect(M, y, CW, omarH);
+        doc.setTextColor(...ACCENT); doc.setFont(FONT,'bold'); doc.setFontSize(7);
+        doc.text(asci(om.folio || '—'), M+3, y+9);
+        doc.setTextColor(...DGRAY); doc.setFont(FONT,'normal'); doc.setFontSize(6.8);
+        doc.text(asci(tipoTxt), M+CW*0.16+3, y+9);
+        doc.text(String(om.ntomas || 1), M+CW*0.34+3, y+9);
+        doc.text(asci(analitosTxt).substring(0, 55), M+CW*0.46+3, y+9);
+        y += omarH;
+      }
+    });
+  }
+  y += 6;
+
   // ════════ CONTENEDORES ════════
   ensureSpace(80);
   y = sectionTitle('CONTENEDORES POR TIPO DE MUESTRA', y);
   const env = data.envases || {};
   // Filtrar solo aplicables (igual que la pantalla)
-  // Obtener OMARs reales del plan para cálculo de envases (no se dibujan en el PDF)
-  const omars = _lvarGetOmarsActuales();
+  // AARMS lvarfiel2: mismos OMARs del plan (ya dibujados arriba) para el cálculo
+  const omars = omarsPdf;
   const omarsActivas = omars.filter(o => !o.noRealizada);
   const analitosTotales = new Set();
   omarsActivas.forEach(o => (o.analitos||[]).forEach(a => analitosTotales.add(a)));
@@ -3961,47 +5161,37 @@ async function generarPDFLVAR(){
   doc.text(`Fecha: ${data.supFecha||'-'}    Hora: ${data.supHora||'-'}`, M+CW*0.5+4, y+22);
   y += respH;
 
-  // Observaciones
-  if(data.obs && data.obs.trim()){
-    ensureSpace(40);
-    const obsH = 30;
-    doc.setFillColor(255,250,235); doc.rect(M, y, CW, obsH, 'F');
-    doc.setDrawColor(220,180,80); doc.setLineWidth(0.5);
-    doc.rect(M, y, CW, obsH, 'S');
-    doc.setTextColor(140,80,10); doc.setFont(FONT,'bold'); doc.setFontSize(7);
-    doc.text('OBSERVACIONES', M+4, y+8);
-    doc.setFont(FONT,'normal'); doc.setTextColor(...DGRAY); doc.setFontSize(8);
-    const obsLines = doc.splitTextToSize(asci(data.obs.trim()), CW-10);
-    doc.text(obsLines.slice(0,3), M+4, y+16);
-    y += obsH;
+  // AARMS lote4bc: el recuadro de la pág. 2 existe siempre. Vacío: diagonal. Con texto: sin tacha.
+  ensureSpace(58);
+  if(typeof _pdfBarraSeccion === 'function') y = _pdfBarraSeccion(doc, 'OBSERVACIONES', M, y, CW, FONT);
+  const obsTxt = (data.obs && String(data.obs).trim()) ? String(data.obs).trim() : '';
+  if(obsTxt){
+    const obsLines = doc.splitTextToSize(asci(obsTxt), CW - 12);
+    const boxH = Math.max(28, 10 + obsLines.length * 11);
+    doc.setFillColor(255, 250, 235);
+    doc.setDrawColor(220, 180, 80);
+    doc.setLineWidth(0.5);
+    doc.rect(M, y, CW, boxH, 'FD');
+    doc.setFont(FONT, 'normal'); doc.setTextColor(...DGRAY); doc.setFontSize(8);
+    doc.text(obsLines, M + 6, y + 14);
+    y += boxH + 8;
+  } else {
+    const boxH = 28;
+    doc.setDrawColor(...MGRAY); doc.setLineWidth(0.4);
+    doc.rect(M, y, CW, boxH);
+    if(typeof _lote4bcTachar === 'function') _lote4bcTachar(doc, M, y, CW, boxH);
+    y += boxH + 8;
   }
 
   // ════════ FOOTER / FIRMA PREMIUM ════════
-  // AARMS sub8-pdfs: firma premium F-AA-60-16 (Digital)
-  function drawFooter(pagLabel){
-    if(typeof _firmaPrem === 'function'){
-      const n = (doc.internal && doc.internal.getNumberOfPages) ? doc.internal.getNumberOfPages() : 1;
-      _firmaPrem(doc, pagLabel || ('Pag. '+n), 'F-AA-60-16 (Digital)', { font:FONT, W, H, yOffset:70 });
-    } else {
-      const fy = H - 22;
-      doc.setDrawColor(...MGRAY); doc.setLineWidth(0.4);
-      doc.line(M, fy-4, W-M, fy-4);
-      doc.setFont(FONT,'normal'); doc.setFontSize(6.5); doc.setTextColor(120,128,142);
-      doc.text('Asesoría y Análisis S.C.  —  Tel. 622 224 0910  —  Guaymas, Sonora', M, fy);
-      doc.text('Documento generado con AARMS — valor de registro oficial', M, fy+8);
-      doc.setTextColor(...ACCENT); doc.setFont(FONT,'bold');
-      doc.text('F-AA-60-16 (Digital)', W-M, fy+8, {align:'right'});
-    }
-  }
+  // AARMS sub8-pdfs + lvarfirmafix: firmas ya precalculadas arriba (nombres RESPONSABLES + PNG sobre blanco)
   drawFooter();
 
-  // Guardar metadata de generación SIN bloquear el LVAR (sigue editable)
-  plan.lvarPdfGeneradoAt = Date.now();
-  await guardarPlan(plan);
+  // AARMS lote21d: generar no escribe metadata encima del registro.
 
   // Entregar PDF
   const empresaSlug = _slug(plan.muestreador || 'AARMS').substring(0,20);
-  const fechaCorta = (data.fecha || plan.fecha || new Date().toISOString().split('T')[0]).replace(/-/g,'');
+  const fechaCorta = (data.fecha || plan.fecha || _lote21HoyFecha()).replace(/-/g,'');
   const fileName = `LVAR_${data.folio||'sinFolio'}_${empresaSlug}_${fechaCorta}.pdf`;
 
   try {
@@ -4053,7 +5243,7 @@ async function descargarMuestreoCompleto(){
     if(o.empresa){ empresa = o.empresa; break; }
   }
   empresa = _slug(empresa || 'sinEmpresa');
-  const fechaCorta = (plan.fecha || new Date().toISOString().split('T')[0]).replace(/-/g,'');
+  const fechaCorta = (plan.fecha || _lote21HoyFecha()).replace(/-/g,'');
   const prefix = `Plan-${folioP}_${empresa}_${fechaCorta}`;
 
   // Construir lista de items disponibles
@@ -4283,6 +5473,159 @@ function _downloadBlob(blob, filename){
   }, 100);
 }
 
+// AARMS lote14b: empresa, dirección, ciudad y estado. Contacto, puesto y teléfono siguen en la OMAR.
+function _lote14PlanDeTs(omarTs){
+  return (_cachedPlanes||[]).find(p => (p.omarIds||[]).some(id => String(id)===String(omarTs))) || null;
+}
+function _lote14CamposEmpresa(plan){
+  return [
+    ['o_emp', plan ? plan.empresa : ''],
+    ['o_dir', plan ? plan.direccion : ''],
+    ['o_mun', plan ? plan.ciudad : ''],
+    ['o_estado', plan ? plan.estado : ''],
+    ['h_emp', plan ? plan.empresa : ''],
+    ['h_dir', plan ? plan.direccion : '']
+  ];
+}
+function _lote14AplicarEmpresa(plan){
+  const on = !!(plan && plan.empresaEnPlan);
+  _lote14CamposEmpresa(plan).forEach(([id, val])=>{
+    const e = document.getElementById(id);
+    if(!e) return;
+    if(on){
+      e.value = val || '';
+      e.readOnly = true;
+      e.setAttribute('readonly','');
+      e.setAttribute('data-lote14','1');
+      e.style.backgroundColor = 'rgba(74,158,255,.06)';
+    } else if(e.getAttribute('data-lote14')==='1'){
+      e.readOnly = false;
+      e.removeAttribute('readonly');
+      e.removeAttribute('data-lote14');
+      e.style.backgroundColor = '';
+    }
+  });
+  if(on && typeof omar === 'object' && omar){
+    omar.empresa = plan.empresa || '';
+    omar.direccion = plan.direccion || '';
+    omar.municipio = plan.ciudad || '';
+    omar.estado = plan.estado || '';
+  }
+  const ban = document.getElementById('lote14BlancoBanner');
+  if(ban) ban.style.display = (omar && omar.blancoCampo) ? 'block' : 'none';
+}
+function _lote14PintarEmpresa(plan){
+  const box = document.getElementById('planEmpresaBox');
+  if(box) box.style.display = (plan && plan.empresaEnPlan) ? '' : 'none';
+  if(!plan || !plan.empresaEnPlan) return;
+  const setVal = (id,v)=>{ const e=document.getElementById(id); if(e) e.value = v || ''; };
+  setVal('plan_empresa', plan.empresa);
+  setVal('plan_dir', plan.direccion);
+  setVal('plan_ciudad', plan.ciudad);
+  setVal('plan_estado', plan.estado);
+}
+function _lote14LoteAguaCatalogo(plan){
+  const elegido = (typeof _lote10Elegir === 'function')
+    ? _lote10Elegir((typeof _catalogoAguaReactivo === 'function') ? _catalogoAguaReactivo() : null, [], plan && plan.fecha)
+    : { item: null };
+  const item = elegido && elegido.item;
+  return item && String(item.lote || '').trim() ? String(item.lote).trim() : '';
+}
+function _lote14PintarBlanco(plan){
+  const siEl = document.getElementById('plan_blanco_si');
+  const noEl = document.getElementById('plan_blanco_no');
+  const wrapEl = document.getElementById('plan_blanco_lote_wrap');
+  const loteEl = document.getElementById('plan_blanco_lote');
+  const aviso = document.getElementById('plan_blanco_aviso');
+  const si = !!(plan && plan.blancoCampo);
+  if(siEl && noEl){
+    siEl.classList.toggle('on', si);
+    noEl.classList.toggle('on', !si);
+  }
+  if(wrapEl) wrapEl.style.display = si ? 'block' : 'none';
+  if(!loteEl) return;
+  const nuevo = !!(plan && plan.empresaEnPlan);
+  if(nuevo){
+    loteEl.readOnly = true;
+    loteEl.setAttribute('readonly','');
+    const lote = _lote14LoteAguaCatalogo(plan);
+    loteEl.value = lote;
+    if(aviso) aviso.innerHTML = lote ? '' : (typeof _lote10MsgFalta === 'function' ? _lote10MsgFalta('Agua Reactivo') : 'Falta registrar en Inventario');
+  } else {
+    loteEl.readOnly = false;
+    loteEl.removeAttribute('readonly');
+    loteEl.value = (plan && plan.loteBlanco) || '';
+    if(aviso) aviso.innerHTML = '';
+  }
+}
+async function _lote14RepartirEmpresa(plan){
+  if(!plan || !plan.empresaEnPlan) return;
+  for(const mid of (plan.omarIds || [])){
+    const m = (_cachedMuestreos||[]).find(x => String(x.id)===String(mid));
+    if(!m) continue;
+    let o = {};
+    try { o = m.omar ? JSON.parse(m.omar) : {}; } catch(e){ o = {}; }
+    o.empresa = plan.empresa || '';
+    o.direccion = plan.direccion || '';
+    o.municipio = plan.ciudad || '';
+    o.estado = plan.estado || '';
+    if(o.campo && typeof o.campo === 'object'){
+      o.campo.emp = plan.empresa || '';
+      o.campo.dir = plan.direccion || '';
+    }
+    m.empresa = plan.empresa || '';
+    m.omar = JSON.stringify(o);
+    await idbPut(m);
+  }
+  if(typeof omar === 'object' && omar && (plan.omarIds||[]).some(id => String(id)===String(omar.ts))){
+    omar.empresa = plan.empresa || '';
+    omar.direccion = plan.direccion || '';
+    omar.municipio = plan.ciudad || '';
+    omar.estado = plan.estado || '';
+  }
+  try { await refreshCache(); } catch(e){}
+}
+async function planAgregarOmarBlanco(){
+  // AARMS lote14c:
+  if(!_currentPlanId){ toast('Plan inválido','w'); return; }
+  await guardarPlanFormulario();
+  const plan = _cachedPlanes.find(p => p.id === _currentPlanId);
+  if(!plan || !plan.blancoCampo){ toast('Activa blanco de campo en el plan','w'); return; }
+  const ya = getMuestreosDePlan(_currentPlanId).find(m => {
+    try { return !!(m.omar && JSON.parse(m.omar).blancoCampo); } catch(e){ return false; }
+  });
+  if(ya){
+    toast('Este plan ya tiene la OMAR de blanco de campo','');
+    await cargarMuestreo(ya.id);
+    return;
+  }
+  const newId = Date.now();
+  const enPlan = !!plan.empresaEnPlan;
+  const o = {
+    ts: newId,
+    blancoCampo: true,
+    muestreador: plan.muestreador || '',
+    fecha: plan.fecha || '',
+    empresa: enPlan ? (plan.empresa || '') : '',
+    direccion: enPlan ? (plan.direccion || '') : '',
+    municipio: enPlan ? (plan.ciudad || '') : '',
+    estado: enPlan ? (plan.estado || '') : '',
+    analitos: [],
+    tipo: '',
+    intervalo: '',
+    ntomas: ''
+  };
+  await idbPut({
+    id: newId, planId: plan.id, folio: '', empresa: o.empresa, fecha: o.fecha,
+    muestreador: o.muestreador, ts: newId, tomas: [], omar: JSON.stringify(o),
+    sigData: null, sigData2: null
+  });
+  await planAgregarOmar(plan.id, newId);
+  await refreshCache();
+  await cargarMuestreo(newId);
+}
+window.planAgregarOmarBlanco = planAgregarOmarBlanco;
+
 function togglePlanBlanco(si){
   const siEl = document.getElementById('plan_blanco_si');
   const noEl = document.getElementById('plan_blanco_no');
@@ -4290,6 +5633,9 @@ function togglePlanBlanco(si){
   if(siEl) siEl.classList.toggle('on', si);
   if(noEl) noEl.classList.toggle('on', !si);
   if(wrapEl) wrapEl.style.display = si ? 'block' : 'none';
+  // AARMS lote14c: al activar, el lote se ve desde el catálogo
+  const plan = (_cachedPlanes||[]).find(p => p.id === _currentPlanId);
+  if(plan && si) _lote14PintarBlanco(Object.assign({}, plan, { blancoCampo: true }));
 }
 
 async function guardarPlanFormulario(){
@@ -4297,14 +5643,43 @@ async function guardarPlanFormulario(){
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
   if(!plan) return;
   const gv = id => { const e=document.getElementById(id); return e?e.value.trim():''; };
-  plan.folio = gv('plan_folio');
+  // AARMS lote2a: no reescribir el folio BPM desde el campo
+  const escrito = gv('plan_folio');
+  if(!plan.folio || plan.folio === '—'){
+    if(escrito && escrito !== '—') plan.folio = escrito;
+    else {
+      const nums = await _folioTomar('bpm', 2, {
+        planId: plan.id, doc: 'BPM',
+        ya: ()=> (plan.folio && plan.folio !== '—' && plan.folioBpm2) ? [plan.folio, plan.folioBpm2] : [],
+        aplicar: (out)=>{ plan.folio = out[0]; plan.folioBpm2 = out[1]; }
+      });
+      plan.folio = plan.folio || nums[0];
+      plan.folioBpm2 = plan.folioBpm2 || nums[1];
+    }
+  }
+  _lote2aPintarCampo('plan_folio', plan.folio);
   plan.fecha = gv('plan_fecha');
   plan.muestreador = gv('plan_muest');
   plan.blancoCampo = document.getElementById('plan_blanco_si')?.classList.contains('on') || false;
-  plan.loteBlanco = gv('plan_blanco_lote');
+  if(plan.empresaEnPlan){
+    plan.empresa = gv('plan_empresa');
+    plan.direccion = gv('plan_dir');
+    plan.ciudad = gv('plan_ciudad');
+    plan.estado = gv('plan_estado');
+  }
+  if(plan.blancoCampo && plan.empresaEnPlan){
+    try { await _catalogoCargar(); } catch(e){}
+    const loteCat = _lote14LoteAguaCatalogo(plan);
+    plan.loteBlanco = loteCat || '';
+  } else if(plan.blancoCampo){
+    plan.loteBlanco = gv('plan_blanco_lote');
+  } else {
+    plan.loteBlanco = plan.empresaEnPlan ? '' : gv('plan_blanco_lote');
+  }
   // Si se marcó como explícito (tiene folio o varias OMARs), limpiar flag migrated
   if(plan.folio || (plan.omarIds||[]).length>1) plan.migrated = false;
   await guardarPlan(plan);
+  await _lote14RepartirEmpresa(plan);
   toast('Plan guardado ✓','g');
   // Refrescar UI
   renderPlanPage();
@@ -4313,14 +5688,13 @@ async function guardarPlanFormulario(){
 // Crea una nueva OMAR dentro del plan actual y lleva al usuario a llenarla
 async function planNuevaOmar(){
   if(!_currentPlanId){toast('Plan inválido','w');return;}
-  const planGate = _cachedPlanes.find(p=>p.id===_currentPlanId);
-  if(_gateCampoClick(planGate, 'omars')) return;
+  // AARMS lote14a: agregar una OMAR no abre la Hoja de Campo
   // Guardar cualquier cambio pendiente del formulario del plan
   await guardarPlanFormulario();
   const newId = Date.now();
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
   const her = getMuestreosDePlan(_currentPlanId);
-  let emp0 = '', muest0 = plan?.muestreador || '', fecha0 = plan?.fecha || new Date().toISOString().split('T')[0];
+  let emp0 = '', muest0 = plan?.muestreador || '', fecha0 = plan?.fecha || _lote21HoyFecha();
   if(her.length){
     const o0 = her[0].omar ? JSON.parse(her[0].omar) : {};
     emp0 = o0.empresa || her[0].empresa || '';
@@ -4336,7 +5710,13 @@ async function planNuevaOmar(){
     muestreador: muest0,
     ts: newId,
     tomas: [],
-    omar: JSON.stringify({ ts: newId, muestreador: muest0, fecha: fecha0, analitos: [] }),
+    omar: JSON.stringify({
+      ts: newId, muestreador: muest0, fecha: fecha0, analitos: [],
+      empresa: (plan && plan.empresaEnPlan) ? (plan.empresa || '') : emp0,
+      direccion: (plan && plan.empresaEnPlan) ? (plan.direccion || '') : '',
+      municipio: (plan && plan.empresaEnPlan) ? (plan.ciudad || '') : '',
+      estado: (plan && plan.empresaEnPlan) ? (plan.estado || '') : ''
+    }),
     sigData: null,
   };
   await idbPut(nuevo);
@@ -4354,7 +5734,8 @@ function _mergeOmarCamposComunes(dest, src){
   const s = typeof src === 'object' && src ? src : {};
   _OMAR_CAMPOS_COMUNES.forEach(k=>{
     if(k==='analitos'){
-      if(Array.isArray(s.analitos)) o.analitos = [...s.analitos];
+      // AARMS lote21a: un arreglo vacío no pisa analitos ya guardados.
+      if(Array.isArray(s.analitos) && s.analitos.length) o.analitos = [...s.analitos];
       return;
     }
     if(s[k]!==undefined) o[k] = s[k];
@@ -4417,9 +5798,10 @@ async function eliminarPlanActual(){
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
   if(!plan) return;
   const omars = getMuestreosDePlan(_currentPlanId);
+  const mensajeBorrar = await _lote6aMensajeBorrarPlan(plan, omars.length);
   confirmAction({
     title:'Eliminar plan completo',
-    message:`¿Eliminar el plan y sus ${omars.length} OMAR${omars.length!==1?'s':''}? Esta acción no se puede deshacer.`,
+    message: mensajeBorrar,
     okText:'Eliminar todo',
     okDanger:true,
   }).then(async ok=>{
@@ -4435,7 +5817,7 @@ async function eliminarPlanActual(){
 async function crearNuevoPlan(){
   closeFabMenu();
   const plan = await crearPlan({
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: _lote21HoyFecha(),
     muestreador: '',
   });
   _currentPlanId = plan.id;
@@ -4526,7 +5908,9 @@ async function cargarMuestreo(id, opts){
   const newId=String(id);
   const switching=omar?.ts && String(omar.ts)!==newId;
   if(omar?.ts) _flushTomasDesdeDOM();
-  if(switching) await saveMuestreoActual(); // AARMS v66-flujos: evitar race al cambiar OMAR
+  // AARMS lote3ba: no guardar si la hoja en pantalla no es de esta OMAR (pantalla vacía tras recargar)
+  const hojaDeEste = window._lote3baHojaDe && String(window._lote3baHojaDe) === String(omar && omar.ts);
+  if(switching && hojaDeEste) await saveMuestreoActual();
 
   // AARMS toastfix: buscar en cache; si falta, refrescar desde IDB (idbPut no actualiza cache)
   let m=(getMuestreos()||[]).find(x=>String(x.id)===String(id));
@@ -4678,7 +6062,8 @@ async function cargarMuestreo(id, opts){
   // AARMS sub21-bittemp: migrar Sub-2 (temp en tomas) → plan.bitTemp
   const planM = typeof getPlanDeMuestreo === 'function' ? getPlanDeMuestreo(m.id) : null;
   if(planM && omar && typeof _migrarBitTempSub2 === 'function'){
-    await _migrarBitTempSub2(planM, omar);
+    const omarMig = Array.isArray(omar.tomas) ? omar : Object.assign({}, omar, { tomas: tomas || [] });
+    await _migrarBitTempSub2(planM, omarMig);
   }
   // AARMS sub3-flujos: migrar Sub-2 (flujo en tomas) → plan.bitFlujos
   if(planM && omar && typeof _migrarBitFlujosSub2 === 'function'){
@@ -4712,10 +6097,14 @@ async function cargarMuestreo(id, opts){
   // Decidir a qué página ir:
   //   - Si la OMAR está vacía (sin folio ni empresa) → Paso 1 (pg0) para llenarla
   //   - Si ya tiene datos básicos → Paso 2 (pg1) Campo/Cadena/Firma
+  // AARMS lote3ba: la hoja se restaura antes de que goPage guarde la pantalla.
+  // Sin folio la OMAR igual tiene campo; si no se pinta, el guardado lo borra.
+  loadCampoFromOMAR();
   const omarLlena = !!omar.folio;
+  // AARMS lote14a: cargar una OMAR abre su formulario. La Hoja solo si quien llama lo pide.
+  const irHoja = !!opts.irHoja && omarLlena;
 
-  if(omarLlena){
-    loadCampoFromOMAR();
+  if(irHoja){
     buildCusTable();
     renderTomas();
     updTCnt();
@@ -4732,7 +6121,7 @@ async function cargarMuestreo(id, opts){
         else el.value='';
       });
       const fd=document.getElementById('o_fecha');
-      if(fd) fd.value = m.fecha || new Date().toISOString().split('T')[0];
+      if(fd) fd.value = m.fecha || _lote21HoyFecha();
       const plan = _cachedPlanes.find(p=>(p.omarIds||[]).includes(m.id));
       if(plan && plan.muestreador){
         const mf=document.getElementById('o_muest');
@@ -4751,7 +6140,7 @@ async function cargarMuestreo(id, opts){
       if(topOmar) topOmar.textContent='—';
     } else {
       const fd=document.getElementById('o_fecha');
-      if(fd && !fd.value) fd.value = m.fecha || new Date().toISOString().split('T')[0];
+      if(fd && !fd.value) fd.value = m.fecha || _lote21HoyFecha();
       const plan = _cachedPlanes.find(p=>(p.omarIds||[]).includes(m.id));
       if(plan && plan.muestreador){
         const mf=document.getElementById('o_muest');
@@ -4766,7 +6155,9 @@ async function cargarMuestreo(id, opts){
   }
   renderHermanasBreadcrumb();
   _pintarLvarFlujoCampoBar();
-  if(!opts.silent) toast(omarLlena ? 'Muestreo cargado ✓' : 'Captura los datos de la OMAR','g');
+  _lote14AplicarEmpresa(_lote14PlanDeTs(m.id));
+  if(!opts.silent && !opts.irHoja) toast(omarLlena ? 'OMAR lista para editar' : 'Captura los datos de la OMAR','g');
+  else if(!opts.silent && opts.irHoja && !omarLlena) toast('Primero completa la OMAR','w');
 }
 
 function abrirListaMuestreos(){
@@ -4846,11 +6237,21 @@ function goSec(n){
   });
   window.scrollTo({top:0,behavior:'smooth'});
   if(n===0) renderTomas();
+  if(n===1 && typeof _lote7bPintarIdent==='function') _lote7bPintarIdent();
   if(n===2)buildRes();
 }
 
 // ── OMAR ──
 const TOMAS_POR_INTERVALO={'<4h':2,'4-8h':4,'8-12h':4,'12-18h':6,'18-24h':6};
+// AARMS lote1c: tomas de muestra simple según duración de la descarga
+const SIMPLE_TOMAS_POR_INTERVALO={'<4h':1,'4-8h':2,'8-12h':3,'12-18h':4,'18-24h':6};
+function _tablaTomasSegunTipo(tipo){
+  // AARMS lote1c: sin argumento usa la OMAR guardada (omar.tipo), no el formulario
+  const guardado = (typeof omar !== 'undefined' && omar && omar.tipo) || '';
+  const form = (document.getElementById('o_tipo') && document.getElementById('o_tipo').value) || '';
+  const t = tipo || guardado || form;
+  return t === 'Simple' ? SIMPLE_TOMAS_POR_INTERVALO : TOMAS_POR_INTERVALO;
+}
 
 // AARMS v64: separación en horas entre tomas según intervalo
 const HORAS_ENTRE_TOMAS = {
@@ -4891,8 +6292,10 @@ function setTipo(t,silent){
   document.getElementById('tb_simp').classList.toggle('btn-g',t!=='Simple');
   document.getElementById('tb_comp').classList.toggle('btn-p',t==='Compuesto');
   document.getElementById('tb_comp').classList.toggle('btn-g',t!=='Compuesto');
-  document.getElementById('intField').style.display=t==='Compuesto'?'block':'none';
-  document.getElementById('tomasField').style.display=t==='Simple'?'block':'none';
+  // AARMS lote1c: chips en Simple y en Compuesto; el N° de tomas ya no se captura a mano
+  document.getElementById('intField').style.display=(t==='Simple'||t==='Compuesto')?'block':'none';
+  const tomasField=document.getElementById('tomasField');
+  if(tomasField) tomasField.style.display='none';
   if(t==='Compuesto'){
     document.getElementById('o_ntomas').value='';
     document.getElementById('tomasAuto').textContent='';
@@ -4902,10 +6305,17 @@ function setInt(el,v){
   document.querySelectorAll('#intChips .chip').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
   document.getElementById('o_int').value=v;
-  const n=TOMAS_POR_INTERVALO[v]||0;
+  const tipo=document.getElementById('o_tipo')?document.getElementById('o_tipo').value:'';
+  const n=_tablaTomasSegunTipo(tipo)[v]||0;
   document.getElementById('o_ntomas').value=n;
   const lbl=document.getElementById('tomasAuto');
-  if(lbl)lbl.textContent=n+' tomas automáticas para intervalo '+v;
+  if(lbl)lbl.textContent=n+' tomas automáticas para duración '+v;
+}
+// AARMS lote1c: exige duración en un guardado nuevo. Una Simple ya guardada con N° de tomas y sin chip no se bloquea: elegir el chip reescribiría ese N°.
+function _lote1cFaltaDuracion(g){
+  if(g('o_int')) return false;
+  if(g('o_tipo')==='Simple' && g('o_ntomas') && omar && omar.tipo==='Simple' && !omar.intervalo && String(omar.ntomas||'')===g('o_ntomas')) return false;
+  return true;
 }
 // Metales que activan MP automáticamente (excepto Hg y Cromo Hexavalente)
 const MP_TRIGGER=['Aluminio','Arsénico','Bario','Cadmio','Cobre','Cromo Total','Fierro','Níquel','Plata','Plomo','Zinc'];
@@ -5003,7 +6413,15 @@ function _snapshotOmarFromPg0(){
     intervalo:g('o_int')||omar.intervalo||'',
     ndesc:g('o_ndesc')||omar.ndesc||'',
     ntomas:g('o_ntomas')||omar.ntomas||'',
-    analitos:omar.analitos||[...analitosSel],
+    // AARMS lote21a: en la orden manda lo marcado. Un [] guardado no desplaza las fichas.
+    analitos:(function(){
+      const pg0 = document.getElementById('pg0');
+      const enOrden = !!(pg0 && pg0.classList.contains('on'));
+      const marcados = [...analitosSel];
+      if(enOrden || marcados.length) return marcados;
+      if(Array.isArray(omar.analitos) && omar.analitos.length) return [...omar.analitos];
+      return marcados;
+    })(),
     reglas:g('o_reglas')||omar.reglas||'',
     ts:omar.ts||_pendingNewMuestreoId||omar.ts,
     lab:labSafe,
@@ -5042,6 +6460,7 @@ function guardarOMAR(){
   if(!g('o_muest')){faltantes.push('Muestreador');const e=document.getElementById('o_muest');if(e)e.style.borderColor='#f87171';}
   if(!g('o_sitio')){faltantes.push('Sitio de muestreo');const e=document.getElementById('o_sitio');if(e)e.style.borderColor='#f87171';}
   if(!g('o_tipo')){faltantes.push('Tipo de muestreo (Simple/Compuesto)');}
+  if(_lote1cFaltaDuracion(g)){faltantes.push('Duración de la descarga');}
   if(!document.getElementById('o_mat')?.value?.trim()){faltantes.push('Matriz');const e=document.getElementById('o_mat');if(e)e.style.borderColor='#f87171';}
   if(faltantes.length>0){
     toast('Faltan: '+faltantes.join(', '),'w');
@@ -5088,13 +6507,15 @@ function showOmarRes(){
 
 // Variante 1: Guardar OMAR y continuar al LVAR (caso típico — un OMAR o el último OMAR)
 async function guardarOMARyContinuarLVAR(){
-  const ok = await _validarYGuardarOMAR(true); // valida + guarda + ESPERA persistir
+  // AARMS lote14a: guardar vuelve al plan. Si el LVAR pidió esta OMAR, se regresa al LVAR.
+  const volverLvar = !!_returnToLvarAfterOmar;
+  const ok = await _validarYGuardarOMAR(true);
   if(!ok) return;
-  if(await _flujosConsumirReturnToLvar()) return;
-  _returnToLvarAfterOmar = false;
-  goPage('pgLVAR');
-  abrirLVAR();
-  toast('OMAR guardado ✓ — continúa con el LVAR','g');
+  if(volverLvar) return;
+  const pid = _currentPlanId || (_lote14PlanDeTs(omar && omar.ts) || {}).id;
+  if(pid) await abrirPlan(pid);
+  else goHome();
+  toast('OMAR guardada ✓','g');
 }
 
 // Variante 2: Guardar OMAR y agregar otro al mismo plan
@@ -5128,11 +6549,16 @@ async function _validarYGuardarOMAR(requireSitio){
     if(e)e.style.borderColor='';
   });
   let faltantes=[];
+  const planEmp = _lote14PlanDeTs(omar && omar.ts);
+  const empresaDelPlan = !!(planEmp && planEmp.empresaEnPlan);
+  if(empresaDelPlan) _lote14AplicarEmpresa(planEmp);
   if(!g('o_omar')){faltantes.push('Folio OMAR');const e=document.getElementById('o_omar');if(e)e.style.borderColor='#f87171';}
-  if(!g('o_emp')){faltantes.push('Empresa');const e=document.getElementById('o_emp');if(e)e.style.borderColor='#f87171';}
+  if(!empresaDelPlan && !g('o_emp')){faltantes.push('Empresa');const e=document.getElementById('o_emp');if(e)e.style.borderColor='#f87171';}
+  if(empresaDelPlan && !(planEmp.empresa && String(planEmp.empresa).trim())) faltantes.push('Empresa (en Datos del plan)');
   if(!g('o_muest')){faltantes.push('Muestreador');const e=document.getElementById('o_muest');if(e)e.style.borderColor='#f87171';}
   if(requireSitio && !g('o_sitio')){faltantes.push('Sitio de muestreo');const e=document.getElementById('o_sitio');if(e)e.style.borderColor='#f87171';}
   if(!g('o_tipo')){faltantes.push('Tipo de muestreo (Simple/Compuesto)');}
+  if(_lote1cFaltaDuracion(g)){faltantes.push('Duración de la descarga');}
   if(!document.getElementById('o_mat')?.value?.trim()){faltantes.push('Matriz');const e=document.getElementById('o_mat');if(e)e.style.borderColor='#f87171';}
   if(!analitosSel || analitosSel.size===0){faltantes.push('Al menos 1 analito');}
   if(faltantes.length>0){
@@ -5144,8 +6570,12 @@ async function _validarYGuardarOMAR(requireSitio){
   const prevOmar = (omar && typeof omar === 'object') ? omar : {};
   omar={
     ...prevOmar,
-    folio:g('o_omar'),ssar:g('o_ssar'),muestreador:g('o_muest'),elaboro:g('o_elab'),empresa:g('o_emp'),
-    contacto:g('o_cont'),puesto:g('o_puest'),direccion:g('o_dir'),municipio:g('o_mun'),estado:g('o_estado'), // AARMS v64: estado separado
+    folio:g('o_omar'),ssar:g('o_ssar'),muestreador:g('o_muest'),elaboro:g('o_elab'),
+    empresa: empresaDelPlan ? (planEmp.empresa || '') : g('o_emp'),
+    contacto:g('o_cont'),puesto:g('o_puest'),
+    direccion: empresaDelPlan ? (planEmp.direccion || '') : g('o_dir'),
+    municipio: empresaDelPlan ? (planEmp.ciudad || '') : g('o_mun'),
+    estado: empresaDelPlan ? (planEmp.estado || '') : g('o_estado'),
     telefono:g('o_tel'),sitio:g('o_sitio'),idmuestra:g('o_idm'),norma:getNorma(),
     mat:document.getElementById('o_mat').value,fecha:g('o_fecha'),tipo:g('o_tipo'),
     intervalo:g('o_int'),ndesc:g('o_ndesc'),ntomas:g('o_ntomas'),
@@ -5206,6 +6636,9 @@ function getParamsFromOMAR(){
 function irCampo(){
   closeFabMenu();
   if(!omar.folio){toast('Primero confirma la OMAR','w');return;}
+  // AARMS lote14a: la Hoja sigue bloqueada hasta completar el laboratorio
+  const planHoja = (_cachedPlanes||[]).find(p=>(p.omarIds||[]).some(id=>String(id)===String(omar.ts)));
+  if(_gateCampoClick(planHoja, 'omars')) return;
   const mat=_matrizNormalizada(omar.mat||document.getElementById('o_mat')?.value||'');
   if(!mat){
     toast('Selecciona la matriz en Orden de muestreo','w');
@@ -5227,13 +6660,12 @@ function loadCampoFromOMAR(){
   const set=(id,v)=>{const e=document.getElementById(id);if(e&&v!==undefined&&v!=='')e.value=v;};
   set('h_emp',omar.empresa);set('h_ate',omar.contacto);set('h_dir',omar.direccion);
   set('h_idm',omar.idmuestra);set('h_omar',omar.folio);
-  set('c_omar',omar.folio);set('c_idm',omar.idmuestra);
   if(omar.tipo)document.getElementById('h_tipo').value=omar.tipo;
   if(omar.intervalo){
     document.getElementById('h_int').value=omar.intervalo;
     document.querySelectorAll('#h_intChips .chip').forEach(c=>{if(c.textContent.trim()===omar.intervalo)c.classList.add('on');});
   }
-  if(omar.muestreador){set('c_rnom',omar.muestreador);set('mn_nom',omar.muestreador);}
+  if(omar.muestreador){set('mn_nom',omar.muestreador);}
   const matOrden=_matrizNormalizada(omar.mat||'');
   const matCampo=_matrizNormalizada(omar.campo?.mat||'');
   const matFinal=matCampo||matOrden;
@@ -5249,26 +6681,19 @@ function loadCampoFromOMAR(){
 
   // Auto-rellenar folio del PLAN (BPM) — viene del plan padre, no se re-teclea
   const plan = _cachedPlanes.find(p=>(p.omarIds||[]).includes(omar.ts));
+  // AARMS lote8d: el folio BPM solo se muestra; no se teclea
   const planFolioEl = document.getElementById('h_plan');
-  if(planFolioEl && plan){
-    if(plan.folio){
-      planFolioEl.value = plan.folio;
-      planFolioEl.readOnly = true;
-      planFolioEl.style.backgroundColor = 'rgba(74,158,255,.06)';
-      planFolioEl.style.cursor = 'not-allowed';
-      planFolioEl.title = 'Folio del plan — se define en la página del plan';
-    } else {
-      // Plan sin folio todavía: dejar el campo editable pero con aviso
-      planFolioEl.value = '';
-      planFolioEl.readOnly = false;
-      planFolioEl.style.backgroundColor = '';
-      planFolioEl.style.cursor = '';
-      planFolioEl.placeholder = 'Asigna el folio en la página del plan';
-    }
+  if(planFolioEl){
+    planFolioEl.value = (plan && plan.folio) ? plan.folio : '';
+    planFolioEl.readOnly = true;
+    planFolioEl.setAttribute('readonly', '');
+    planFolioEl.style.backgroundColor = 'rgba(74,158,255,.06)';
+    planFolioEl.style.cursor = 'not-allowed';
+    planFolioEl.title = 'Folio del plan — se define en la página del plan';
   }
 
   document.getElementById('topOmar2').textContent='OMAR-'+(omar.folio||'—');
-  const now=new Date().toISOString().slice(0,16);
+  const now=_lote21HoyFechaHoraLocal(); // AARMS lote21b
   if(!document.getElementById('h_ini').value)document.getElementById('h_ini').value=now;
   // Cargar datos de laboratorio si ya existen
   if(omar.lab){
@@ -5281,7 +6706,9 @@ function loadCampoFromOMAR(){
     sv('c_isnom',l.isnom);sv('c_isfir',l.isfir);sv('c_isfec',l.isfec);sv('c_ishor',l.ishor);
     sv('c_rsnom',l.rsnom);sv('c_rsfir',l.rsfir);sv('c_rsfec',l.rsfec);sv('c_rshor',l.rshor);
     sv('c_ltnom',l.ltnom);sv('c_ltfir',l.ltfir);sv('c_ltfec',l.ltfec);sv('c_lthor',l.lthor);
+    sv('c_lrnom',l.lrnom);sv('c_lrfir',l.lrfir);sv('c_lrfec',l.lrfec);sv('c_lrhor',l.lrhor);
     sv('c_sup',l.sup);
+    sv('c_obs',l.obs);
   }
   // Restaurar TODOS los datos del form de Hoja de Campo guardados por OMAR
   // (GPS, clima, fechas, observaciones, hcar, cciar, etc.)
@@ -5290,7 +6717,7 @@ function loadCampoFromOMAR(){
     const sv=(id,v)=>{const e=document.getElementById(id);if(e&&v!==undefined&&v!=='')e.value=v;};
     sv('h_emp',c.emp); sv('h_ate',c.ate); sv('h_dir',c.dir);
     sv('h_hcar',c.hcar); sv('h_cciar',c.cciar);
-    sv('h_ini',c.ini); sv('h_fin',c.fin);
+    sv('h_ini',c.ini); sv('h_fin',c.fin); sv('h_arribo',c.arribo);
     sv('h_idm',c.idm);
     if(c.mat){const e=document.getElementById('h_mat');if(e)e.value=_matrizNormalizada(c.mat);}
     if(c.tipo){const e=document.getElementById('h_tipo');if(e)e.value=c.tipo;}
@@ -5300,12 +6727,17 @@ function loadCampoFromOMAR(){
     sv('gps_n',c.gpsN); sv('gps_w',c.gpsW);
     sv('fn_nom',c.fnNom); sv('fn_car',c.fnCar);
     sv('mn_nom',c.mnNom);
+    window._lote3baHojaDe = omar && omar.ts;
     // Marcar chip de intervalo si lo tenía
     if(c.int){
       document.querySelectorAll('#h_intChips .chip').forEach(chip=>{
         if(chip.textContent.trim()===c.int) chip.classList.add('on');
       });
     }
+  }
+  // AARMS lote14b: la empresa del plan pisa lo guardado en la hoja
+  if(typeof _lote14AplicarEmpresa === 'function' && omar && omar.ts){
+    _lote14AplicarEmpresa(_lote14PlanDeTs(omar.ts));
   }
 }
 
@@ -5349,7 +6781,7 @@ function addToma(){
   _autoSaveDeferred();
 
   // AARMS v64: auto-generar tomas restantes al llenar hora de la primera
-  if(esLaPrimera && omar.intervalo && TOMAS_POR_INTERVALO[omar.intervalo]){
+  if(esLaPrimera && omar.intervalo && _tablaTomasSegunTipo()[omar.intervalo]){
     setTimeout(()=>{
       const card = document.querySelector('[data-toma-id="'+id+'"]');
       if(!card) return;
@@ -5370,7 +6802,7 @@ function addToma(){
 // AARMS v64: genera tomas restantes (n-1) basadas en la primera
 function _autoGenerarTomasRestantes(horaPrimera){
   if(!omar || !omar.intervalo) return;
-  const n = TOMAS_POR_INTERVALO[omar.intervalo];
+  const n = _tablaTomasSegunTipo()[omar.intervalo];
   if(!n || n < 2) return;
   const gap = HORAS_ENTRE_TOMAS[omar.intervalo];
   const fechaBase = omar.fecha || _defaultBitRegistroFecha();
@@ -5511,10 +6943,11 @@ function renderTomas(){
   // AARMS v64: banner de sugerencia de auto-generación
   const banner = document.getElementById('tomasBannerAuto');
   if(banner){
-    if(tomas.length === 0 && omar && omar.intervalo && TOMAS_POR_INTERVALO[omar.intervalo]){
-      const n = TOMAS_POR_INTERVALO[omar.intervalo];
+    if(tomas.length === 0 && omar && omar.intervalo && _tablaTomasSegunTipo()[omar.intervalo]){
+      const n = _tablaTomasSegunTipo()[omar.intervalo];
       const gap = HORAS_ENTRE_TOMAS[omar.intervalo];
-      banner.innerHTML = '<div style="background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.3);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.5"><div style="font-weight:700;color:var(--acc);margin-bottom:4px">Intervalo '+omar.intervalo+' → '+n+' tomas cada '+gap+'h</div><div style="color:var(--g1)">Captura la hora de la <b>primera toma</b> y la app genera las otras '+(n-1)+' automáticamente.</div></div>';
+      const extra = n>=2 ? ' y la app genera las otras '+(n-1)+' automáticamente' : '';
+      banner.innerHTML = '<div style="background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.3);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.5"><div style="font-weight:700;color:var(--acc);margin-bottom:4px">Duración de la descarga '+omar.intervalo+' → '+n+' toma'+(n===1?'':'s')+' cada '+gap+'h</div><div style="color:var(--g1)">Captura la hora de la <b>primera toma</b>'+extra+'.</div></div>';
       banner.style.display = 'block';
     } else {
       banner.style.display = 'none';
@@ -5619,16 +7052,38 @@ async function irCustodia(){
   if(tomas.length===0){toast('Agrega al menos una toma','w');return;}
   _syncTomasFromDOM();
   try{ await saveMuestreoActual(); }catch(e){ console.warn('[irCustodia save]',e); }
-  syncCampoToCustodia();
   buildCusTable();
+  _lote7bPintarIdent();
   goSec(1);
   toast('Hoja guardada ✓','g');
 }
-function syncCampoToCustodia(){
-  const g=id=>document.getElementById(id)?document.getElementById(id).value:'';
-  document.getElementById('c_cciar').value=g('h_cciar');
-  document.getElementById('c_hcar').value=g('h_hcar');
+// AARMS lote7b: la Cadena muestra los mismos cuadros de la Hoja. No hay copia.
+function _lote7bPintarIdent(){
+  const host=document.getElementById('lote7bIdent');
+  const g=id=>{ const e=document.getElementById(id); return e?String(e.value||'').trim():''; };
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const folio=id=>{ const v=g(id); return (v && v!=='—') ? v : '—'; };
+  if(host){
+    const tipo=g('h_tipo');
+    const intv=g('h_int');
+    const chip=(txt,on)=>`<span class="chip${on?' on':''}" style="pointer-events:none">${esc(txt)}</span>`;
+    host.innerHTML=`
+      <div class="g3">
+        <div class="f"><label>Folio CCIAR</label><input type="text" readonly tabindex="-1" style="opacity:.9" value="${esc(folio('h_cciar'))}"></div>
+        <div class="f"><label>Folio OMAR</label><input type="text" readonly tabindex="-1" style="opacity:.9" value="${esc(folio('h_omar'))}"></div>
+        <div class="f"><label>Folio HCAR</label><input type="text" readonly tabindex="-1" style="opacity:.9" value="${esc(folio('h_hcar'))}"></div>
+      </div>
+      <div class="f"><label>Tipo de muestra</label><div class="chips">${['Simple','Compuesto'].map(t=>chip(t, tipo===t)).join('')}</div></div>
+      <div class="f"><label>Tiempos de toma</label><div class="chips">${['<4h','4-8h','8-12h','12-18h','18-24h'].map(t=>chip(t, intv===t)).join('')}</div></div>
+      <div class="f"><label>Identificación de la muestra</label><input type="text" readonly tabindex="-1" style="opacity:.9" value="${esc(g('h_idm'))}"></div>`;
+  }
+  const resp=document.getElementById('lote7bResp');
+  if(resp){
+    const nom=g('mn_nom') || (typeof omar!=='undefined' && omar && omar.muestreador) || '—';
+    resp.textContent=nom || '—';
+  }
 }
+window._lote7bPintarIdent=_lote7bPintarIdent;
 
 // ── CUSTODIA ──
 // Pre-filled data per analito (same as PDF)
@@ -5651,7 +7106,7 @@ const CADENA_DATA={
   'HELM':{pres:'4',     vol:'5000', env:'5',    ph:''},
   'CLR' :{pres:'4',     vol:'250',  env:'11',   ph:''},
   'ECOL':{pres:'4/7o11',vol:'100',  env:'12o9', ph:''},
-  'TOX' :{pres:'4',     vol:'40',   env:'10',   ph:''},
+  'TOX' :{pres:'4',     vol:'40/500', env:'10', ph:''}, // AARMS lote7a: volumen oficial
   'CLOR':{pres:'4',     vol:'500',  env:'4',    ph:''},
   'CrHx':{pres:'4/12',  vol:'500',  env:'4',    ph:'9'},
   'OTRS':{pres:'',      vol:'',     env:'',     ph:''},
@@ -5706,45 +7161,127 @@ function _machioteParamsDeToma(t){
   return [];
 }
 
-// AARMS sub4-cons: LEER preservación de CADENA_DATA (no mutar). Respeta lógica cloro CTYF/ENTE/ECOL.
-function _cadenaPresParaAnalito(analitoKey){
-  if(typeof CADENA_DATA !== 'object' || !CADENA_DATA[analitoKey]) return '';
-  if(['CTYF', 'ENTE.', 'ECOL'].includes(analitoKey)){
-    const conCloro = typeof tieneCloro === 'function' && tieneCloro();
-    return conCloro ? '4/7' : '4';
+// AARMS lote7c: la Cadena traduce la página 4 del Machiote. No cambia esa tabla.
+const _LOTE7C_MACH_A_CADENA = {
+  '4':'1', '6':'2', '8':'3', '2':'4', '13':'5', '1':'6',
+  '3':'7', '9':'8', '7':'9', '11':'10', '10':'11', '12':'12'
+};
+function _lote7cTraducir(codigoMachiote){
+  const raw = String(codigoMachiote || '').trim();
+  if(!raw) return '';
+  const out = [];
+  raw.split('/').forEach(p => {
+    const n = String(p).trim();
+    if(n === '5' || n === '14') return;
+    const c = _LOTE7C_MACH_A_CADENA[n];
+    if(c) out.push(c);
+  });
+  return out.join('/');
+}
+function _lote7cPres(analitoKey){
+  const def = (typeof MACHIOTE_CONSERVADORES === 'object') ? MACHIOTE_CONSERVADORES[analitoKey] : null;
+  if(!def) return '';
+  let codigo = '';
+  if(def.cloro){
+    const con = typeof tieneCloro === 'function' && tieneCloro();
+    codigo = con ? '7/4' : '11/4';
+  } else {
+    codigo = def.codigo || '';
   }
-  return String(CADENA_DATA[analitoKey].pres || '');
+  return _lote7cTraducir(codigo);
+}
+window._lote7cTraducir = _lote7cTraducir;
+window._lote7cPres = _lote7cPres;
+
+// AARMS sub4-cons: solo Cadena. AARMS lote7c: ya no lee CADENA_DATA.pres.
+function _cadenaPresParaAnalito(analitoKey){
+  return _lote7cPres(analitoKey);
 }
 
-// AARMS sub51b-compound: mostrar TODOS los códigos, hielo primero, separados por /
-// AARMS humofix: CTYF/ENTE./ECOL por TOMA (cloro) — SOLO Machiote; cadena de custodia intacta
-function _machioteCodigoConservador(analitoKey, toma){
-  const esCloroSensible = ['CTYF', 'ENTE.', 'ECOL'].includes(analitoKey);
-  if(esCloroSensible && toma){
-    return toma.cloro === true ? '4/7' : '4';
+// AARMS bmconserv: tabla propia Machiote (leyenda F-AA-114-18). Hielo (4) al final.
+// pH se LEE de CADENA_DATA.ph — no duplicar. NO tocar CADENA_DATA.pres ni Cadena.
+const MACHIOTE_CONSERVADORES = {
+  'FQ':    { codigo: '4',     ml: '5', phCadena: false },
+  'FOS.':  { codigo: '4',     ml: '5', phCadena: false },
+  'DBO5':  { codigo: '4',     ml: '5', phCadena: false },
+  'NO2':   { codigo: '4',     ml: '5', phCadena: false },
+  'NO3':   { codigo: '4',     ml: '5', phCadena: false },
+  'HELM':  { codigo: '4',     ml: '5', phCadena: false },
+  'CLR':   { codigo: '4',     ml: '5', phCadena: false },
+  'CLOR':  { codigo: '4',     ml: '5', phCadena: false },
+  'TOX':   { codigo: '4',     ml: '5', phCadena: false },
+  'SAAM':  { codigo: '1/4',   ml: '1', phCadena: true },
+  'GYA':   { codigo: '1/4',   ml: '1', phCadena: true },
+  'DQO':   { codigo: '1/4',   ml: '1', phCadena: true },
+  'N.TOT': { codigo: '1/4',   ml: '1', phCadena: true },
+  'TOC':   { codigo: '10/4',  ml: '1', phCadena: true },
+  'MP':    { codigo: '9/4',   ml: '1', phCadena: true },
+  'Hg':    { codigo: '9/3/4', ml: '1', phCadena: true },
+  'CIAN':  { codigo: '2/4',   ml: '1', phCadena: true },
+  'CrHx':  { codigo: '12/4',  ml: '1', phCadena: true },
+  // AARMS bmconserv: cloro por toma — 7/4 / 11/4 / vacío; ml y pH siempre 5
+  'CTYF':  { cloro: true, ml: '5', phCadena: false },
+  'ENTE.': { cloro: true, ml: '5', phCadena: false },
+  'ECOL':  { cloro: true, ml: '5', phCadena: false }
+};
+window.MACHIOTE_CONSERVADORES = MACHIOTE_CONSERVADORES;
+
+const MACHIOTE_CLORO_ANALITOS = ['CTYF', 'ENTE.', 'ECOL'];
+
+// AARMS bmconserv: celda completa {codigo, ml, ph} desde tabla Machiote
+function _machioteConservadorCelda(analitoKey, toma){
+  const def = MACHIOTE_CONSERVADORES[analitoKey];
+  if(!def) return { codigo: '', ml: '', ph: '' };
+  let codigo = '';
+  if(def.cloro){
+    if(toma && toma.cloro === true) codigo = '7/4';
+    else if(toma && toma.cloro === false) codigo = '11/4';
+    else codigo = '';
+  } else {
+    codigo = def.codigo || '';
   }
-  const presCrudo = _cadenaPresParaAnalito(analitoKey);
-  if(!presCrudo) return '';
-  let partes = String(presCrudo).split('/').map(p => p.trim()).filter(Boolean);
-  partes = partes.map(p => {
-    if(/o/i.test(p) && !/^\d+$/.test(p)){
-      const m = p.split(/o/i);
-      return (m[0] || '').trim();
-    }
-    return p;
-  }).filter(p => /^\d{1,2}$/.test(p) && +p >= 1 && +p <= 14);
-  const vistos = new Set();
-  const unicos = [];
-  partes.forEach(p => {
-    if(!vistos.has(p)){ vistos.add(p); unicos.push(p); }
-  });
-  if(!unicos.length) return '';
-  const tieneHielo = unicos.includes('4');
-  const sinHielo = unicos.filter(p => p !== '4');
-  if(tieneHielo) return ['4', ...sinHielo].join('/');
-  return unicos.join('/');
+  const ml = def.ml != null ? String(def.ml) : '5';
+  let ph = '5';
+  if(def.phCadena){
+    const raw = (typeof CADENA_DATA === 'object' && CADENA_DATA[analitoKey])
+      ? CADENA_DATA[analitoKey].ph : '';
+    ph = (raw != null && String(raw) !== '') ? String(raw) : '';
+  }
+  return { codigo, ml, ph };
+}
+window._machioteConservadorCelda = _machioteConservadorCelda;
+
+// AARMS bmconserv: código solo (compat); ya no usa CADENA_DATA.pres ni hielo-primero
+function _machioteCodigoConservador(analitoKey, toma){
+  return _machioteConservadorCelda(analitoKey, toma).codigo;
 }
 window._machioteCodigoConservador = _machioteCodigoConservador;
+
+// AARMS bmconserv: ¿OMAR pide CTYF/ENTE/ECOL?
+function _machioteOmarPideCloroAnalitos(omarOpt){
+  const list = _machioteTomasFuente(omarOpt);
+  return list.some(t => {
+    const ps = _machioteParamsDeToma(t);
+    return MACHIOTE_CLORO_ANALITOS.some(a => ps.includes(a));
+  });
+}
+window._machioteOmarPideCloroAnalitos = _machioteOmarPideCloroAnalitos;
+
+// AARMS bmconserv: tomas con CTYF/ENTE/ECOL sin cloro capturado
+function _machioteCloroFaltantes(omarOpt){
+  if(!_machioteOmarPideCloroAnalitos(omarOpt)) return [];
+  const list = _machioteTomasFuente(omarOpt);
+  const out = [];
+  list.forEach((t, i) => {
+    const ps = _machioteParamsDeToma(t);
+    if(!MACHIOTE_CLORO_ANALITOS.some(a => ps.includes(a))) return;
+    if(t.cloro !== true && t.cloro !== false){
+      out.push('Cloro en toma ' + (i + 1));
+    }
+  });
+  return out;
+}
+window._machioteCloroFaltantes = _machioteCloroFaltantes;
 
 function _analitoEnToma(omarOpt, tomaIdx, analitoKey){
   const list = _machioteTomasFuente(omarOpt);
@@ -5762,7 +7299,8 @@ function _analitosUsadosEnOmar(omarOpt){
 }
 window._analitosUsadosEnOmar = _analitosUsadosEnOmar;
 
-// AARMS sub4-cons: pre-llenar matriz desde cadena (respeta ediciones manuales)
+// AARMS sub4-cons: pre-llenar matriz (respeta ediciones manuales — no pisa celdas existentes)
+// AARMS bmconserv: valores nuevos desde MACHIOTE_CONSERVADORES (codigo + ml + ph)
 function _machioteInicializarConservadores(omarOpt){
   const o = omarOpt || (omar && omar.ts ? omar : null);
   if(!o) return;
@@ -5777,12 +7315,14 @@ function _machioteInicializarConservadores(omarOpt){
       const key = 'toma' + (i + 1);
       if(!o.machiote.conservadores[a.key][key]){
         const enToma = _analitoEnToma(o, i, a.key);
-        // AARMS humofix: código default con contexto de la toma (cloro per-toma)
-        const codigoDefault = _machioteCodigoConservador(a.key, list[i]);
+        // AARMS bmconserv: celda completa; sin marca manual vs auto (no inventar)
+        const celda = enToma
+          ? _machioteConservadorCelda(a.key, list[i])
+          : { codigo: '', ml: '', ph: '' };
         o.machiote.conservadores[a.key][key] = {
-          codigo: enToma ? codigoDefault : '',
-          ml: '',
-          ph: ''
+          codigo: celda.codigo || '',
+          ml: celda.ml || '',
+          ph: celda.ph || ''
         };
       }
     }
@@ -5881,12 +7421,9 @@ function tieneCloro(){
 
 function buildCusTable(){
   const conCloro=tieneCloro();
-  // Actualizar dinámicamente según cloro
-  CADENA_DATA['CTYF'].pres=conCloro?'4/7':'4';
+  // AARMS lote7c: el código de preservación sale de _lote7cPres. El envase sigue en pantalla.
   CADENA_DATA['CTYF'].env=conCloro?'9':'12';
-  CADENA_DATA['ENTE.'].pres=conCloro?'4/7':'4';
   CADENA_DATA['ENTE.'].env=conCloro?'7':'6';
-  CADENA_DATA['ECOL'].pres=conCloro?'4/7':'4';
   CADENA_DATA['ECOL'].env=conCloro?'9':'12';
   // Active params from tomas — solo los seleccionados por el usuario
   const activeSet=new Set([
@@ -5908,7 +7445,7 @@ function buildCusTable(){
 
   // Build rows
   const ROWS=[
-    ['Cód. Preserv.',  p=>CADENA_DATA[p]?.pres||'—'],
+    ['Cód. Preserv.',  p=>_lote7cPres(p)||'—'], // AARMS lote7c
     ['Volumen (mL)',    p=>CADENA_DATA[p]?.vol||'—'],
     ['Tipo de Envase', p=>CADENA_DATA[p]?.env||'—'],
     ['N° Frascos',     p=>CADENA_DATA[p]?.env?((['GYA','CTYF','ENTE.','ECOL'].includes(p))?String(tomas.length||1):'1'):'—'],
@@ -6011,6 +7548,10 @@ function checkCamposCompletos(){
   const tomasSinFlujo=tomas.filter(t=>!t.ls).length;
   if(tomasSinPH>0) faltantes.push(`pH en ${tomasSinPH} toma(s)`);
   if(tomasSinFlujo>0) faltantes.push(`Flujo en ${tomasSinFlujo} toma(s)`);
+  // AARMS bmconserv: cloro obligatorio si la toma pide CTYF/ENTE/ECOL (mismo toast faltantes)
+  if(typeof _machioteCloroFaltantes === 'function'){
+    _machioteCloroFaltantes(omar).forEach(f => faltantes.push(f));
+  }
   if(!sigData) faltantes.push('Firma del cliente');
   return faltantes;
 }
@@ -6237,13 +7778,14 @@ function drawSig(doc,data,bx,by,bw,bh){
 
 // ── INDEXEDDB ──
 // v2: store 'planes'. v3: AARMS cartacontrol → store 'cartas_control'
-const DB_NAME='aarms_db', DB_VER=3, STORE='muestreos', STORE_PLANES='planes', STORE_CARTAS='cartas_control';
+// v4: AARMS blmpfiel → store 'blmp_registros' (bitácora por equipo AA/PT)
+const DB_NAME='aarms_db', DB_VER=5, STORE='muestreos', STORE_PLANES='planes', STORE_CARTAS='cartas_control', STORE_BLMP='blmp_registros', STORE_VERSIONES='doc_versiones';
 let _db=null;
 
 function openDB(){
   return new Promise((res,rej)=>{
-    // AARMS cartacontrol: si la conexión vieja no tiene el store, forzar reopen/upgrade
-    if(_db && (!_db.objectStoreNames.contains(STORE_CARTAS) || _db.version < DB_VER)){
+    // AARMS cartacontrol / blmpfiel: si falta store o versión, forzar reopen/upgrade
+    if(_db && (!_db.objectStoreNames.contains(STORE_CARTAS) || !_db.objectStoreNames.contains(STORE_BLMP) || !_db.objectStoreNames.contains(STORE_VERSIONES) || _db.version < DB_VER)){
       try{ _db.close(); }catch(_){}
       _db = null;
     }
@@ -6266,11 +7808,227 @@ function openDB(){
         sc.createIndex('periodoId','periodoId',{unique:false});
         sc.createIndex('fecha','fecha',{unique:false});
       }
+      // AARMS blmpfiel: registros BLMP por equipo (folio LMP-XXXX propio)
+      if(!db.objectStoreNames.contains(STORE_BLMP)){
+        const sb=db.createObjectStore(STORE_BLMP,{keyPath:'id'});
+        sb.createIndex('folio','folio',{unique:true});
+        sb.createIndex('aapt','aapt',{unique:false});
+        sb.createIndex('fecha','fecha',{unique:false});
+      }
+      // AARMS lote5c: versiones de documentos del plan. Este lote guarda el Machiote.
+      if(!db.objectStoreNames.contains(STORE_VERSIONES)){
+        const sv=db.createObjectStore(STORE_VERSIONES,{keyPath:'id'});
+        sv.createIndex('planId','planId',{unique:false});
+        sv.createIndex('omarId','omarId',{unique:false});
+        sv.createIndex('tipo','tipo',{unique:false});
+      }
     };
     req.onsuccess=e=>{_db=e.target.result;res(_db);};
     req.onerror=e=>rej(e);
   });
 }
+
+// AARMS lote5c: documentos guardados. Registro {plan, OMAR, tipo, versión, fecha y hora, PDF}.
+function _lote5cFecha(ts){
+  const d = new Date(ts);
+  const p = n => String(n).padStart(2, '0');
+  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function _lote5cPut(rec){
+  return openDB().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(STORE_VERSIONES, 'readwrite');
+    const req = tx.objectStore(STORE_VERSIONES).put(rec);
+    req.onsuccess = () => res(rec);
+    req.onerror = e => rej(e);
+  }));
+}
+function _lote5cTodo(){
+  return openDB().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(STORE_VERSIONES, 'readonly');
+    const req = tx.objectStore(STORE_VERSIONES).getAll();
+    req.onsuccess = e => res(e.target.result || []);
+    req.onerror = e => rej(e);
+  }));
+}
+async function _lote5cListar(planId, omarId, tipo){
+  const all = await _lote5cTodo();
+  return all.filter(r => String(r.planId) === String(planId) && String(r.omarId) === String(omarId) && r.tipo === (tipo || 'bm'))
+    .sort((a, b) => a.version - b.version);
+}
+async function _lote5cUltima(planId, omarId, tipo){
+  const xs = await _lote5cListar(planId, omarId, tipo);
+  return xs.length ? xs[xs.length - 1] : null;
+}
+async function _lote5cRegistrar(plan, omarRef, blob){
+  if(!plan || !plan.id || !omarRef || !omarRef.ts || !blob) return null;
+  const huella = typeof _lote5cHuellaActual === 'function' ? _lote5cHuellaActual() : '';
+  const prev = await _lote5cListar(plan.id, omarRef.ts, 'bm');
+  const last = prev.length ? prev[prev.length - 1] : null;
+  // AARMS lote15b: una sola copia por OMAR. La nueva reemplaza a las anteriores.
+  if(last && last.huella === huella){
+    if(prev.length > 1) await _lote15bPodarTodo();
+    return last;
+  }
+  if(prev.length) await _lote15bBorrarIds(prev.map(r => r.id));
+  const buf = await blob.arrayBuffer();
+  const rec = {
+    id: String(plan.id) + '|bm|' + String(omarRef.ts),
+    planId: plan.id,
+    omarId: String(omarRef.ts),
+    tipo: 'bm',
+    version: 1,
+    fecha: Date.now(),
+    huella,
+    pdf: buf,
+    bytes: buf.byteLength
+  };
+  await _lote5cPut(rec);
+  window.__lote5cBytes = rec.bytes;
+  if(typeof _lote5cPintarPlan === 'function') _lote5cPintarPlan();
+  return rec;
+}
+function _lote15bBorrarIds(ids){
+  if(!ids || !ids.length) return Promise.resolve();
+  return openDB().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(STORE_VERSIONES, 'readwrite');
+    const st = tx.objectStore(STORE_VERSIONES);
+    ids.forEach(id => st.delete(id));
+    tx.oncomplete = () => res();
+    tx.onerror = e => rej(e);
+  }));
+}
+async function _lote15bPodarTodo(){
+  // AARMS lote15b: de lo ya guardado, queda la más reciente de cada OMAR.
+  const all = await _lote5cTodo();
+  const grupos = new Map();
+  all.forEach(r => {
+    if(!r || r.tipo !== 'bm') return;
+    const k = String(r.planId) + '|' + String(r.omarId);
+    if(!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(r);
+  });
+  const borrar = [];
+  grupos.forEach(xs => {
+    xs.sort((a, b) => (a.version - b.version) || (a.fecha - b.fecha));
+    xs.slice(0, -1).forEach(r => borrar.push(r.id));
+  });
+  if(borrar.length) await _lote15bBorrarIds(borrar);
+}
+async function _lote5cBorrarPlan(planId){
+  const all = await _lote5cTodo();
+  const ids = all.filter(r => String(r.planId) === String(planId)).map(r => r.id);
+  if(!ids.length) return;
+  await openDB().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(STORE_VERSIONES, 'readwrite');
+    const st = tx.objectStore(STORE_VERSIONES);
+    ids.forEach(id => st.delete(id));
+    tx.oncomplete = () => res();
+    tx.onerror = e => rej(e);
+  }));
+}
+function _lote5cBlob(rec){
+  if(!rec || !rec.pdf) return null;
+  return new Blob([rec.pdf], { type: 'application/pdf' });
+}
+function _lote5cAbrirRec(rec){
+  const blob = _lote5cBlob(rec);
+  if(!blob) return;
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+function _lote5cDescargarRec(rec){
+  const blob = _lote5cBlob(rec);
+  if(!blob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'Machiote_v' + rec.version + '.pdf';
+  a.click();
+}
+function _lote6aEsc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function _lote6aEtiquetaOmar(omarId){
+  if(typeof _omarLabelConFecha === 'function') return _omarLabelConFecha(omarId);
+  return 'OMAR ' + omarId;
+}
+async function _lote5cPintarPlan(){
+  const host = document.getElementById('lote5cPlanBm');
+  if(!host || !_currentPlanId) return;
+  const plan = (_cachedPlanes || []).find(p => p.id === _currentPlanId);
+  if(!plan){ host.innerHTML = ''; return; }
+  // AARMS lote6a: cada OMAR tiene su botón. AARMS lote15b: solo la copia vigente.
+  try{ await _lote15bPodarTodo(); }catch(e){}
+  const bloques = [];
+  for(const id of (plan.omarIds || [])){
+    const xs = await _lote5cListar(plan.id, id, 'bm');
+    if(!xs.length) continue;
+    bloques.push({ id: String(id), xs, top: xs[xs.length - 1], et: _lote6aEtiquetaOmar(id) });
+  }
+  if(!bloques.length){ host.innerHTML = ''; return; }
+  host.innerHTML = bloques.map((b, i) => `<div data-lote5c-stop style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center">
+    <button type="button" data-lote5c-stop data-lote5c-ver="${i}" style="background:rgba(134,239,172,.12);border:1px solid rgba(134,239,172,.4);color:var(--green);border-radius:7px;padding:6px 8px;font-size:11px;cursor:pointer;text-align:left">Ver Machiote guardado (${_lote5cFecha(b.top.fecha)})</button>
+  </div>`).join('');
+  host.querySelectorAll('[data-lote5c-ver]').forEach(btn => {
+    btn.onclick = ev => {
+      ev.stopPropagation();
+      const b = bloques[Number(btn.getAttribute('data-lote5c-ver'))];
+      if(b) _lote5cAbrirRec(b.top);
+    };
+  });
+}
+function _lote5cModal(lista, etiqueta){
+  const prev = document.getElementById('lote5cModal');
+  if(prev) prev.remove();
+  const et = etiqueta || 'OMAR';
+  const modal = document.createElement('div');
+  modal.id = 'lote5cModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(7,8,15,.92);z-index:99999;display:flex;align-items:flex-end';
+  const filas = lista.slice().sort((a, b) => b.fecha - a.fecha).map((r, i) => `
+    <div data-lote5c-fila="${_lote6aEsc(et)}" style="display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--ln)">
+      <div style="flex:1;font-size:13px;color:var(--w)">${_lote6aEsc(et)} · v${r.version} · ${_lote5cFecha(r.fecha)}</div>
+      <button type="button" data-lote5c-open="${i}" style="background:var(--bg3);border:1px solid var(--ln);color:var(--w);border-radius:8px;padding:6px 10px;cursor:pointer">Abrir</button>
+      <button type="button" data-lote5c-dl="${i}" style="background:var(--bg3);border:1px solid var(--ln);color:var(--w);border-radius:8px;padding:6px 10px;cursor:pointer">Descargar</button>
+    </div>`).join('');
+  modal.innerHTML = `<div style="width:100%;background:var(--bg1);border-radius:20px 20px 0 0;padding:20px;max-height:80vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-family:var(--syne);font-weight:800;color:var(--w)">Versiones del Machiote · ${_lote6aEsc(et)}</div>
+      <button type="button" id="lote5cCerrar" style="background:var(--bg3);border:1px solid var(--ln);color:var(--g1);width:34px;height:34px;border-radius:10px;cursor:pointer">✕</button>
+    </div>
+    ${filas}
+  </div>`;
+  document.body.appendChild(modal);
+  const orden = lista.slice().sort((a, b) => b.fecha - a.fecha);
+  modal.querySelector('#lote5cCerrar').onclick = () => modal.remove();
+  modal.querySelectorAll('[data-lote5c-open]').forEach(b => {
+    b.onclick = () => _lote5cAbrirRec(orden[Number(b.getAttribute('data-lote5c-open'))]);
+  });
+  modal.querySelectorAll('[data-lote5c-dl]').forEach(b => {
+    b.onclick = () => _lote5cDescargarRec(orden[Number(b.getAttribute('data-lote5c-dl'))]);
+  });
+}
+async function _lote6aMensajeBorrarPlan(plan, nOmars, titulo){
+  // AARMS lote6a: el diálogo dice que también se van los documentos guardados.
+  let nVer = 0;
+  try {
+    const all = await _lote5cTodo();
+    nVer = all.filter(r => String(r.planId) === String(plan && plan.id)).length;
+  } catch(e){}
+  const om = nOmars + ' OMAR' + (nOmars !== 1 ? 's' : '');
+  const ver = nVer
+    ? ' También se eliminan los documentos guardados (' + nVer + (nVer === 1 ? ' versión' : ' versiones') + ').'
+    : ' También se eliminan los documentos guardados.';
+  const cabeza = titulo
+    ? ('¿Eliminar ' + titulo + ' y sus ' + om + '?')
+    : ('¿Eliminar el plan y sus ' + om + '?');
+  return cabeza + ver + ' Esta acción no se puede deshacer.';
+}
+window._lote6aMensajeBorrarPlan = _lote6aMensajeBorrarPlan;
+window._lote5cRegistrar = _lote5cRegistrar;
+window._lote5cListar = _lote5cListar;
+window._lote5cUltima = _lote5cUltima;
+window._lote5cBorrarPlan = _lote5cBorrarPlan;
+window._lote5cPintarPlan = _lote5cPintarPlan;
+window._lote5cAbrirRec = _lote5cAbrirRec;
 
 // ── HELPERS para store 'planes' ──
 function idbPlanGetAll(){
@@ -6330,7 +8088,8 @@ function getMuestreos(){
   return _cachedMuestreos||[];
 }
 function getPlanes(){
-  return _cachedPlanes||[];
+  // AARMS lote21e: plan__ y el catálogo no entran en listas.
+  return (_cachedPlanes||[]).filter(p=>p && !_lote21EsOculto(p.id));
 }
 let _cachedMuestreos=[];
 let _cachedPlanes=[];
@@ -6349,7 +8108,8 @@ async function refreshCache(){
     }
   }catch(e){}
   // Auto-migración a planes: cada muestreo sin planId se vuelve un plan "solo"
-  const huerfanos = _cachedMuestreos.filter(m=>!m.planId);
+  // AARMS lote21e: el catálogo vive en el almacén de muestreos y no se vuelve un plan.
+  const huerfanos = _cachedMuestreos.filter(m=>!m.planId && !_lote21EsOculto(m.id));
   if(huerfanos.length){
     for(const m of huerfanos){
       const planId = 'plan_'+m.id;
@@ -6400,7 +8160,7 @@ async function crearPlan(datos={}){
   const rec = {
     id,
     folio: datos.folio || '',
-    fecha: datos.fecha || new Date().toISOString().split('T')[0],
+    fecha: datos.fecha || _lote21HoyFecha(),
     muestreador: datos.muestreador || '',
     blancoCampo: datos.blancoCampo || false,
     loteBlanco: datos.loteBlanco || '',
@@ -6433,28 +8193,35 @@ async function marcarPlanDocDone(key, planIdOpt){
 }
 
 async function eliminarPlan(planId, {borrarOmars=true}={}){
+  // AARMS lote21e: borrar un plan no toca el catálogo ni un id plan__.
+  if(_lote21EsOculto(planId)) return;
   const plan = _cachedPlanes.find(p=>p.id===planId);
   if(!plan) return;
+  // AARMS lote2a: el número no vuelve al contador; queda como plan eliminado
+  _lote2aMarcarPlanEliminado(planId);
   if(borrarOmars){
     for(const mid of (plan.omarIds||[])){
+      if(_lote21EsOculto(mid)) continue;
       await idbDelete(mid);
     }
   }
   await idbPlanDelete(planId);
+  if(typeof _lote5cBorrarPlan === 'function') await _lote5cBorrarPlan(planId);
   if(_currentPlanId===planId) _currentPlanId=null;
   _cachedPlanes = await idbPlanGetAll();
   _cachedMuestreos = await idbGetAll();
 }
 
 /** Eliminar plan completo desde la lista del inicio (home). */
-function eliminarPlanDesdeHome(planId){
+async function eliminarPlanDesdeHome(planId){
   const plan=_cachedPlanes.find(p=>p.id===planId);
   if(!plan) return;
   const n=(plan.omarIds||[]).length;
   const tit=plan.folio?`Plan #${plan.folio}`:'Plan sin folio';
+  const mensajeHome = await _lote6aMensajeBorrarPlan(plan, n, tit);
   confirmAction({
     title:'Eliminar plan de muestreo',
-    message:`¿Eliminar ${tit} y sus ${n} OMAR${n!==1?'s':''}? Se borran todos los datos. Esta acción no se puede deshacer.`,
+    message: mensajeHome,
     okText:'Eliminar plan',
     okDanger:true,
     cancelText:'Cancelar',
@@ -6523,6 +8290,8 @@ async function planRemoverOmar(planId, muestreoId, {borrarMuestreo=false}={}){
 }
 
 async function saveMuestreoActual(){
+  // AARMS lote3ba: generar el Machiote no puede escribir la pantalla encima del registro
+  if(window._lote3baSinGuardar) return;
   _flushTomasDesdeDOM();
   if(typeof _snapshotOmarFromPg0==='function') _snapshotOmarFromPg0();
   // Antes requería omar.folio; ahora guarda siempre — incluso borradores parciales.
@@ -6548,7 +8317,9 @@ async function saveMuestreoActual(){
     isnom:gv('c_isnom'),isfir:gv('c_isfir'),isfec:gv('c_isfec'),ishor:gv('c_ishor'),
     rsnom:gv('c_rsnom'),rsfir:gv('c_rsfir'),rsfec:gv('c_rsfec'),rshor:gv('c_rshor'),
     ltnom:gv('c_ltnom'),ltfir:gv('c_ltfir'),ltfec:gv('c_ltfec'),lthor:gv('c_lthor'),
+    lrnom:gv('c_lrnom'),lrfir:gv('c_lrfir'),lrfec:gv('c_lrfec'),lrhor:gv('c_lrhor'),
     sup:gv('c_sup'),
+    obs:gv('c_obs'),
   };
   // Guardar también todos los datos del form de Hoja de Campo y firmas (pg1)
   // que ANTES no se guardaban — por eso se perdían entre OMARs.
@@ -6559,6 +8330,7 @@ async function saveMuestreoActual(){
     hcar:   gv('h_hcar'),
     cciar:  gv('h_cciar'),
     ini:    gv('h_ini'),
+    arribo: gv('h_arribo'),
     fin:    gv('h_fin'),
     idm:    gv('h_idm'),
     mat:    matCampo,
@@ -6581,11 +8353,62 @@ async function saveMuestreoActual(){
   if(!planId && _pendingNewPlanId && _pendingNewMuestreoId===mid){
     planId = _pendingNewPlanId;
   }
+  // AARMS lote3bb: cada OMAR consume un HCAR y un CCIAR. Guardar otra vez no consume.
+  const _folioVacio = v => !v || v === '—' || v === '-';
+  let campoPrev = {};
+  if(prev && prev.omar){ try { campoPrev = (JSON.parse(prev.omar).campo) || {}; } catch(e){} }
+  if(_folioVacio(omar.campo.hcar) && !_folioVacio(campoPrev.hcar)) omar.campo.hcar = String(campoPrev.hcar).trim();
+  if(_folioVacio(omar.campo.cciar) && !_folioVacio(campoPrev.cciar)) omar.campo.cciar = String(campoPrev.cciar).trim();
+  omar.campo.hcar = _folioVacio(omar.campo.hcar) ? '' : String(omar.campo.hcar).trim();
+  omar.campo.cciar = _folioVacio(omar.campo.cciar) ? '' : String(omar.campo.cciar).trim();
+  const planObj = planId ? _cachedPlanes.find(p => p.id === planId) : null;
+  // AARMS lote14b: la Hoja y la Cadena leen estos campos. Si el plan tiene la empresa, no se quedan los de la pantalla.
+  if(planObj && planObj.empresaEnPlan){
+    omar.empresa = planObj.empresa || '';
+    omar.direccion = planObj.direccion || '';
+    omar.municipio = planObj.ciudad || '';
+    omar.estado = planObj.estado || '';
+    omar.campo.emp = planObj.empresa || '';
+    omar.campo.dir = planObj.direccion || '';
+  }
+  const hayDatosFolio = (Array.isArray(tomas) && tomas.length > 0) || !!(omar.empresa && String(omar.empresa).trim()) || !!(omar.campo.emp && String(omar.campo.emp).trim());
+  if(hayDatosFolio && planId){
+    const planFol = (planObj || {}).folio || '';
+    const ctxOmar = { omarId: omar.ts || '', omarFolio: omar.folio || '' };
+    if(!omar.campo.hcar){
+      if(!_hcarFolioPendiente){
+        _hcarFolioPendiente = _folioTomar('hcar', 1, {
+          planId, planFolio: planFol, doc: 'HCAR',
+          omarId: ctxOmar.omarId, omarFolio: ctxOmar.omarFolio,
+          ya: ()=> omar.campo.hcar ? [omar.campo.hcar] : [],
+          aplicar: (out)=>{ omar.campo.hcar = out[0]; }
+        });
+      }
+      const nums = await _hcarFolioPendiente;
+      omar.campo.hcar = omar.campo.hcar || nums[0];
+      _hcarFolioPendiente = null;
+    }
+    if(!omar.campo.cciar){
+      if(!_cciarFolioPendiente){
+        _cciarFolioPendiente = _folioTomar('cciar', 1, {
+          planId, planFolio: planFol, doc: 'CCIAR',
+          omarId: ctxOmar.omarId, omarFolio: ctxOmar.omarFolio,
+          ya: ()=> omar.campo.cciar ? [omar.campo.cciar] : [],
+          aplicar: (out)=>{ omar.campo.cciar = out[0]; }
+        });
+      }
+      const nums = await _cciarFolioPendiente;
+      omar.campo.cciar = omar.campo.cciar || nums[0];
+      _cciarFolioPendiente = null;
+    }
+    _lote2aPintarCampo('h_hcar', omar.campo.hcar);
+    _lote2aPintarCampo('h_cciar', omar.campo.cciar);
+  }
   const entry={
     id:mid,
     folio:omar.folio||'',
     empresa:omar.empresa||'',
-    fecha:omar.fecha||new Date().toISOString().split('T')[0],
+    fecha:omar.fecha||_lote21HoyFecha(),
     tipo:omar.tipo||'',
     muestreador:omar.muestreador||'',
     ts:mid,
@@ -6652,7 +8475,8 @@ async function soloGuardar(){
 }
 
 function nuevoMuestreo(){
-  iniciarNuevoMuestreo();
+  // AARMS lote14a: el alta pasa por el plan
+  abrirModalNuevoMuestreo();
 }
 
 function verMuestreos(){
@@ -6745,7 +8569,7 @@ async function buildPDF(){
     loadLogo(LOGO_PDF_URI),
   ]);
   // Landscape US Letter: 792 x 612 pt
-  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'letter'});
+  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'letter',compress:true});
   const W=792,H=612,M=22;
   const CW=W-M*2; // 748
 
@@ -6868,8 +8692,10 @@ async function buildPDF(){
     const bg=idx%2===0?[248,250,252]:WHITE;
     x=M;
     if(t){
+      // AARMS lote11b: T.AMB y T.AGU = Report B y Report A del Machiote. Sin bitácora, en blanco.
+      const rep = _lote11TempHoja(idx + 1);
       const fixVals=[`T${idx+1}`,t.hora||'',t.pct?t.pct+'%':'',t.ls||'',
-        t.tamb?t.tamb+'°':'',t.tagua?t.tagua+'°':'',t.ph||'',t.mat||'',
+        rep.amb?rep.amb+'°':'',rep.agua?rep.agua+'°':'',t.ph||'',t.mat||'',
         t.cond||'',t.od||'',t.color||'',t.olor===true?'SI':t.olor===false?'NO':'',
         t.cloro===true?'SI':t.cloro===false?'NO':''];
       fixVals.forEach((v,i)=>{
@@ -7156,7 +8982,7 @@ async function buildPDF(){
   doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(10);
   doc.text('AARMS — Asesoría y Análisis S.C.',M+44,16);
   doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(180,200,230);
-  doc.text('Hoja de Campo / Informe de Muestreo  |  F-AA-45A-12 (Digital)',M+44,24);
+  doc.text('Hoja de Campo / Informe de Muestreo  |  F-AA-45A-12',M+44,24);
   doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(9);
   doc.text('OMAR: '+gv('h_omar')+'  |  '+gv('h_emp'),W-M,18,{align:'right'});
 
@@ -7253,17 +9079,17 @@ async function buildPDF(){
   doc.text('Fecha: '+nowStr+'    Hora: '+timeStr,mx2+8,ry+sigBoxH-8);
 
   // ── FOOTER ──
+  // AARMS lote8bb: se quitan «v1.0» y «Documento generado digitalmente — con valor de registro oficial»
   const footY=H-22;
   doc.setFillColor(...LGRAY);doc.rect(0,footY,W,22,'F');
   doc.setTextColor(...MGRAY);doc.setFont('helvetica','normal');doc.setFontSize(7);
-  doc.text('Asesoría y Análisis S.C.  |  AARMS Sistema de Registro y Monitoreo de Servicio  |  v1.0',M,footY+9);
-  doc.text('Documento generado digitalmente — con valor de registro oficial',M,footY+17);
+  doc.text('Asesoría y Análisis S.C.  |  AARMS Sistema de Registro y Monitoreo de Servicio',M,footY+13);
   doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);
-  doc.text('F-AA-45A-12 (Digital)  —  Pág. 2 de 2',W-M,footY+13,{align:'right'});
+  doc.text('F-AA-45A-12  —  Pág. 2 de 2',W-M,footY+13,{align:'right'});
 
   // ── SAVE ──
   const folio=gv('h_omar')||'000';
-  const fecha=now.toISOString().split('T')[0];
+  const fecha=_lote21HoyFecha();
   const empresa_lab=(omar.empresa||gv('h_emp')||'Cliente').substring(0,25).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
   const fileName=buildFileName(empresa_lab,'Hoja de Campo',fecha);
   
@@ -7286,7 +9112,7 @@ async function buildPDFCliente(){
     preloadImg(sigData2&&sigData2!=='p'?sigData2:null),
     loadLogo(LOGO_PDF_URI),
   ]);
-  const doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter'});
+  const doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter',compress:true});
   const PW=612,PH=792,ML=28,CW=556;
 
   const K={
@@ -7370,7 +9196,7 @@ async function buildPDFCliente(){
   y+=RH;
   dc(ML,y,qw,RH,'Muestreador',gv('mn_nom'));
   dc(ML+qw,y,qw,RH,'Recibido por',gv('fn_nom'));
-  dc(ML+qw*2,y,qw,RH,'Hora de arribo',gv('h_ini').replace('T',' ').substring(11,16)+' h');
+  dc(ML+qw*2,y,qw,RH,'Hora de arribo',(function(){ const a=gv('h_arribo'); return a ? (a+' h') : ''; })());
   dc(ML+qw*3,y,qw,RH,'Temp. ambiente',tomas.length>0&&tomas[0].tamb?tomas[0].tamb+' °C':'—',{bold:true});
   y+=RH;
   dc(ML,y,CW*0.2,RH,'Coord. N',gv('gps_n'));
@@ -7677,10 +9503,10 @@ async function buildPDFCliente(){
 
   // ════════ FIRMAS ════════
   if(y>PH-115){doc.addPage();y=20;}
-  y=secH('Conformidad y firma del cliente',y);
-  const SW=(CW-2)/2,SH=100;
+  // AARMS lote19c: el cliente firma en la Hoja de Campo. Este reporte ya no deja el recuadro vacío.
+  y=secH('Firma del muestreador',y);
+  const SW=CW,SH=100;
   outerBorder(ML,y,CW,SH);
-  innerLine(ML+SW,y,ML+SW,y+SH);
 
   // ── MUESTREADOR (LEFT) ──
   doc.setTextColor(...K.lbl);doc.setFont('helvetica','bold');doc.setFontSize(7);
@@ -7703,7 +9529,7 @@ async function buildPDFCliente(){
         || '';
     }catch(_){ }
     if(_mPng){
-      try{ doc.addImage(_mPng,'PNG',ML+4,mSY,mSW,mSH); }catch(e){ console.warn('[campo firma]', e); }
+      try{ doc.addImage(_mPng,'PNG',ML+4,mSY,mSW,mSH,'','FAST'); }catch(e){ console.warn('[campo firma]', e); }
       doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.3);doc.rect(ML+4,mSY,mSW,mSH,'S');
     } else if(sigData2&&sigData2!=='p'){
       drawSig(doc,sigData2,ML+4,mSY,mSW,mSH);
@@ -7719,29 +9545,6 @@ async function buildPDFCliente(){
   doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.3);doc.rect(ML+4,mSY,mSW,mSH,'S');
   doc.setTextColor(...K.lbl);doc.setFont('helvetica','normal');doc.setFontSize(7);
   doc.text('Fecha: '+dStr+'    Hora: '+tStr,ML+4,y+SH-4);
-
-  // ── CLIENTE (RIGHT) ──
-  const cSX=ML+SW+2;
-  doc.setTextColor(...K.lbl);doc.setFont('helvetica','bold');doc.setFontSize(7);
-  doc.text('FIRMA DE CONFORMIDAD DEL CLIENTE',cSX+4,y+9);
-  doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.line(cSX+4,y+11,cSX+SW-4,y+11);
-  doc.setTextColor(...K.blk);doc.setFont('helvetica','bold');doc.setFontSize(9);doc.text(gv('fn_nom'),cSX+4,y+21);
-  doc.setFont('helvetica','normal');doc.setTextColor(...K.lbl);doc.setFontSize(7.5);doc.text('Cargo: '+gv('fn_car'),cSX+4,y+30);
-  // Fixed sig box — teal border for client
-  const cSY=y+34,cSW=SW-8;
-  doc.setFillColor(240,250,247);doc.rect(cSX+4,cSY,cSW,mSH,'F');
-  doc.setDrawColor(0,184,148);doc.setLineWidth(0.4);doc.rect(cSX+4,cSY,cSW,mSH,'S');
-  if(sigData&&sigData!=='p'){
-    drawSig(doc,sigData,cSX+4,cSY,cSW,mSH);
-    doc.setDrawColor(0,184,148);doc.setLineWidth(0.4);doc.rect(cSX+4,cSY,cSW,mSH,'S');
-  }else{
-    doc.setTextColor(0,122,96);doc.setFont('helvetica','italic');doc.setFontSize(8);
-    doc.text('Pendiente de firma del cliente',cSX+4+cSW/2,cSY+mSH/2,{align:'center'});
-  }
-  // Redraw teal border on top
-  doc.setDrawColor(0,184,148);doc.setLineWidth(0.4);doc.rect(cSX+4,cSY,cSW,mSH,'S');
-  doc.setTextColor(...K.lbl);doc.setFont('helvetica','normal');doc.setFontSize(7);
-  doc.text('Fecha: '+dStr+'    Hora: '+tStr,cSX+4,y+SH-4);
   y+=SH;
 
   // ════════ FOOTER ════════
@@ -7755,7 +9558,7 @@ async function buildPDFCliente(){
 
   // ════════ SAVE ════════
   const folio=gv('h_omar')||'000';
-  const fecha=now.toISOString().split('T')[0];
+  const fecha=_lote21HoyFecha();
   const empresa_c=(omar.empresa||gv('h_emp')||'Cliente').substring(0,25).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
   const fname=buildFileName(empresa_c,'Reporte de Muestreo',fecha);
   const blob=doc.output('blob');
@@ -7796,7 +9599,7 @@ async function buildPDFCadena(){
   const {jsPDF}=window.jspdf;
   const logoPDF=await loadLogo(LOGO_PDF_URI);
   // Landscape US Letter
-  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'letter'});
+  const doc=new jsPDF({orientation:'landscape',unit:'pt',format:'letter',compress:true});
   const W=792,H=612,M=14,CW=W-M*2; // 764
 
   const NAVY=[10,22,40],BLUE=[26,58,107],ACCENT=[37,99,235];
@@ -7812,32 +9615,12 @@ async function buildPDFCadena(){
 
   // ── DATA ──
   const PARAMS=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','HELM','CLR','ECOL','TOX','CLOR','CrHx','OTRS'];
-  const SIMPLES=['GYA','CTYF','ENTE.','ECOL','TOX'];
-  const conCloro=tomas.some(t=>t.cloro===true);
-  const DATA={
-    'FQ'  :{pres:'4',     vol:'4000', env:'3',    ph:''},
-    'TOC' :{pres:'4/10',  vol:'1000', env:'8',    ph:'<2'},
-    'Hg'  :{pres:'4/9/3', vol:'500',  env:'4',    ph:'<2'},
-    'MP'  :{pres:'4/9',   vol:'500',  env:'4',    ph:'<2'},
-    'CIAN':{pres:'4/2',   vol:'1000', env:'2',    ph:'>12'},
-    'FOS.':{pres:'4',     vol:'500',  env:'4',    ph:''},
-    'SAAM':{pres:'4',     vol:'1000', env:'2',    ph:'<2'},
-    'GYA' :{pres:'4/1',   vol:'1000', env:'1',    ph:'<2'},
-    'DQO' :{pres:'4/1',   vol:'500',  env:'4',    ph:'<2'},
-    'DBO5':{pres:'4',     vol:'1000', env:'2',    ph:''},
-    'N.TOT':{pres:'4/1',  vol:'2000', env:'13',   ph:'<2'},
-    'CTYF':{pres:conCloro?'4/7':'4',  vol:'100',  env:conCloro?'9':'12',  ph:''},
-    'ENTE.':{pres:conCloro?'4/7':'4', vol:'250',  env:conCloro?'7':'6',   ph:''},
-    'NO2' :{pres:'4',     vol:'500',  env:'4',    ph:''},
-    'NO3' :{pres:'4',     vol:'500',  env:'4',    ph:''},
-    'HELM':{pres:'4',     vol:'5000', env:'5',    ph:''},
-    'CLR' :{pres:'4',     vol:'250',  env:'11',   ph:''},
-    'ECOL':{pres:conCloro?'4/7':'4',  vol:'100',  env:conCloro?'9':'12',  ph:''},
-    'TOX' :{pres:'4',     vol:'40',   env:'10',   ph:''},
-    'CLOR':{pres:'4',     vol:'500',  env:'4',    ph:''},
-    'CrHx':{pres:'4/12',  vol:'500',  env:'4',    ph:'9'},
-    'OTRS':{pres:'',      vol:'',     env:'',     ph:''},
-  };
+  // AARMS lote7c: una sola fuente. Volumen, envase y pH de CADENA_DATA; código traducido.
+  const DATA={};
+  PARAMS.forEach(p=>{
+    const base=CADENA_DATA[p]||{vol:'',env:'',ph:''};
+    DATA[p]={ pres:_lote7cPres(p), vol:base.vol||'', env:base.env||'', ph:base.ph||'' };
+  });
   // Parámetros cuyo número de frascos = número de tomas simples
   const DYNAMIC_FRASCOS=['GYA','CTYF','ENTE.','ECOL'];
   const nTomas=tomas.length||1;
@@ -7846,7 +9629,7 @@ async function buildPDFCadena(){
   const activeSet=new Set([...tomas.flatMap(t=>[...t.params])]);
 
   // ── LAYOUT ──
-  const LABEL_W=76;
+  const LABEL_W=108; // AARMS lote7a: cabe el rótulo oficial de la fila
   const N_PARAMS=PARAMS.length; // 22
   const PCOL=Math.floor((CW-LABEL_W)/N_PARAMS); // ~31pt per param
   const TABLE_W=LABEL_W+PCOL*N_PARAMS;
@@ -7869,7 +9652,8 @@ async function buildPDFCadena(){
   let y=M;
 
   // ── HEADER BOX ──
-  const HDR_H=50;
+  // AARMS lote8ba: tres franjas de folio; cada valor queda sobre su línea
+  const HDR_H=60;
   // Logo — proporcional dentro de espacio 58x46
   addLogoProportional(doc,logoPDF,M,y+2,58,46);
 
@@ -7879,26 +9663,33 @@ async function buildPDFCadena(){
   doc.text('Asesoría y Análisis, S.C.',compX,y+10);
   doc.setFont('helvetica','normal');doc.setFontSize(5.5);doc.setTextColor(...DGRAY);
   doc.text('Calle 12 Ave. Serdán Ext.465 Int.201, Edif. Puertas del Sol, Col. Centro C.P. 85400',compX,y+18);
-  doc.text('Tel: 622 224 0910',compX,y+25);
+  // AARMS lote8ba: FAX oficial en el encabezado propio de la Cadena
+  doc.text('Tel: 622 224 0910  FAX 622 222 4207',compX,y+25);
 
   // Title — center zone (avoid logo left and folios right)
   const titleX=W/2;
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(12);
   doc.text('CADENA DE CUSTODIA INTERNA AR',titleX,y+12,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(...MGRAY);
-  doc.text('F-AA-01A-15',titleX,y+20,{align:'center'});
+  doc.text('F-AA-01A-13',titleX,y+20,{align:'center'}); // AARMS lote7a
 
   // Folios — right column
   const fX=W-M-72;
   doc.setDrawColor(...MGRAY);doc.setLineWidth(0.4);
   doc.line(fX,y,fX,y+HDR_H);
-  [['FOLIO CCIAR:',gv('h_cciar')],['FOLIO OMAR:',gv('h_omar')],['FOLIO HCAR:',gv('h_hcar')]].forEach(([l,v],i)=>{
-    const fy=y+5+i*12;
+  // AARMS lote8ba: etiqueta, valor y línea con aire; el valor no toca la etiqueta de abajo
+  const folioSlots=[['FOLIO CCIAR:',gv('h_cciar')],['FOLIO OMAR:',gv('h_omar')],['FOLIO HCAR:',gv('h_hcar')]];
+  const slotH=19;
+  folioSlots.forEach(([l,v],i)=>{
+    const top=y+2+i*slotH;
     doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
-    doc.text(l,fX+3,fy);
+    doc.text(l,fX+3,top+5);
     doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(7);
-    doc.text(v||'__________',fX+3,fy+7);
-    if(i<2){doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.line(fX,fy+9,W-M,fy+9);}
+    doc.text(v||'__________',fX+3,top+13);
+    if(i<2){
+      doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
+      doc.line(fX, top+17, W-M, top+17);
+    }
   });
 
   // Header bottom border
@@ -7924,12 +9715,17 @@ async function buildPDFCadena(){
   doc.text('TIEMPOS:',M+385,y+9);
   doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6.5);
   doc.text(gv('h_int')||'______',M+410,y+9);
-  // TRANSPORTA — solo muestra lo seleccionado
+  // AARMS lote11a: texto plano. La paloma no existe en Helvetica y salía como apóstrofe.
   const transp=gv('c_transp');
-  if(transp){
+  let transpLbl='';
+  if(transp==='hielera') transpLbl='TRANSPORTA EN: HIELERA';
+  else if(transp==='otro'){
+    const cual=gv('c_otro');
+    transpLbl=cual ? ('TRANSPORTA EN: OTRO — '+cual) : 'TRANSPORTA EN: OTRO';
+  }
+  if(transpLbl){
     doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5);
-    const transpLbl=transp==='hielera'?'TRANSPORTA EN HIELERA: ✓':'TRANSPORTA EN: '+transp.toUpperCase();
-    doc.text(transpLbl,M+490,y+9);
+    doc.text(transpLbl,W-M-3,y+9,{align:'right'});
   }
   y+=13;
 
@@ -7942,11 +9738,11 @@ async function buildPDFCadena(){
 
   let px=M+LABEL_W;
   PARAMS.forEach(p=>{
-    const isS=SIMPLES.includes(p);
     const active=activeSet.has(p);
-    fillRect(px,y,PCOL,TH,isS?TEAL_L:LGRAY);
+    // AARMS lote8ba: sin fondo verde. Marcaba la muestra simple y no está en el oficial.
+    fillRect(px,y,PCOL,TH,LGRAY);
     doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(px,y,PCOL,TH,'S');
-    doc.setTextColor(...(active?(isS?TEAL:NAVY):[170,180,195]));
+    doc.setTextColor(...(active?NAVY:[170,180,195]));
     doc.setFont('helvetica','bold');doc.setFontSize(4.5);
     doc.text(p,px+PCOL/2,y+TH/2+1.5,{align:'center'});
     px+=PCOL;
@@ -7955,27 +9751,25 @@ async function buildPDFCadena(){
   y+=TH;
 
   // Data rows
+  // AARMS lote7a: sin fila de envase. Rótulos como la hoja ccustodia.
   const ROWS=[
-    ['COD. PRESERVACIÓN', p=>DATA[p]?.pres||'', AMBER2],
+    ['CODIFICACIÓN DE LA PRESERVACIÓN', p=>DATA[p]?.pres||'', AMBER2], // AARMS lote8ba
     ['VOLUMEN (mL)',       p=>DATA[p]?.vol||'',  LGRAY],
-    ['TIPO DE ENVASE',    p=>DATA[p]?.env||'',  LGRAY],
     ['No. DE FRASCOS',   p=>DATA[p]?.env?(DYNAMIC_FRASCOS.includes(p)?String(nTomas):'1'):'',LGRAY],
-    ['pH PRESERVACIÓN',  p=>DATA[p]?.ph||'',   LGRAY],
+    ['pH PRESERVACIÓN',  p=>DATA[p]?.ph||'',   LGRAY], // AARMS lote8ba
   ];
-  // Filas abiertas — se llenan en laboratorio
-  const OPEN_ROWS=['ANALIZO:','MUESTRA A SUCURSAL'];
+  const OPEN_ROWS=['ANALIZÓ:','MUESTRA ENVIADA A SUCURSAL']; // AARMS lote8ba
 
   ROWS.forEach(([lbl,fn,lblFill])=>{
     fillRect(M,y,CW,RH,[255,255,255]);
     fillRect(M,y,LABEL_W,RH,lblFill);
     doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,LABEL_W,RH,'S');
-    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
-    doc.text(lbl,M+3,y+7.5);
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(lbl.length>18?3.5:4.5);
+    doc.text(lbl,M+2,y+7.5);
 
     let px=M+LABEL_W;
     PARAMS.forEach(p=>{
       const val=fn(p);
-      const isS=SIMPLES.includes(p);
       const active=activeSet.has(p);
       if(active){
         // Para pH: si está vacío ('') = cancelado con diagonal aunque esté activo
@@ -7987,10 +9781,10 @@ async function buildPDFCadena(){
           doc.setDrawColor(195,204,216);doc.setLineWidth(0.3);
           doc.line(px+1,y+1,px+PCOL-1,y+RH-1);
         }else{
-          fillRect(px,y,PCOL,RH,isS?TEAL_L:[255,255,255]);
+          fillRect(px,y,PCOL,RH,[255,255,255]);
           doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(px,y,PCOL,RH,'S');
           if(val){
-            doc.setTextColor(...(isS?TEAL:DGRAY));doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+            doc.setTextColor(...DGRAY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
             doc.text(String(val),px+PCOL/2,y+7.5,{align:'center'});
           }
         }
@@ -8012,8 +9806,8 @@ async function buildPDFCadena(){
     fillRect(M,y,CW,RH,[255,255,255]);
     fillRect(M,y,LABEL_W,RH,LGRAY);
     doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);doc.rect(M,y,LABEL_W,RH,'S');
-    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
-    doc.text(lbl,M+3,y+7.5);
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(lbl.length>18?3.5:4.5);
+    doc.text(lbl,M+2,y+7.5);
     let px=M+LABEL_W;
     PARAMS.forEach(p=>{
       fillRect(px,y,PCOL,RH,[255,255,255]);
@@ -8024,50 +9818,15 @@ async function buildPDFCadena(){
     y+=RH;
   });
   y+=2;
-  const notaH=20;
+  // AARMS lote7a: leyenda tal cual de la hoja ccustodia. Sin leyenda de envases.
+  // AARMS lote8ba: tildes y fórmulas; el orden y los números no cambian
+  const LEYENDA_OFICIAL='CODIFICACIÓN DE LA PRESERVACIÓN:  1.- Hielo, 2.- HNO3, 3.- HCl, 4.- NaOH, 5.- Formaldehído al 10%, 6.- H2SO4, 7.- K2Cr2O7 al 25%,   8.- HNO3 Suprapuro,   9.- Bolsas Estériles con Tiosulfato 10.- Bolsas Estériles sin Tiosulfato,  11.-H2SO4 25%  12.- Disolución Buffer';
+  const notaH=22;
   fillRect(M,y,CW,notaH,AMBER);
   outerRect(M,y,CW,notaH);
-  doc.setTextColor(...AMBER_TXT);doc.setFont('helvetica','bold');doc.setFontSize(4.5);
-  doc.text('PRESERVACION:',M+3,y+7);
-
-  // Dibuja texto con subíndices reales — formato: partes alternas [normal, sub, normal, sub...]
-  // cada entrada: [texto, esSub]
-  function drawChem(parts, startX, baseY){
-    let cx=startX;
-    parts.forEach(([t,isSub])=>{
-      const sz=isSub?3.0:4.2;
-      const dy=isSub?1.2:0;
-      doc.setFontSize(sz);
-      doc.text(t,cx,baseY+dy);
-      cx+=doc.getTextWidth(t);
-    });
-    doc.setFontSize(4.2);
-    return cx;
-  }
-
-  doc.setFont('helvetica','normal');
-  const chemicals=[
-    [['1-H',false],['2',true],['SO',false],['4',true],['  ',false]],
-    [['2-NaOH  ',false]],
-    [['3-K',false],['2',true],['Cr',false],['2',true],['O',false],['7',true],[' 25%  ',false]],
-    [['4-Hielo 4°C  ',false]],
-    [['5-NA  ',false]],
-    [['6-HNO',false],['3',true],['  ',false]],
-    [['7-Tiosulfato  ',false]],
-    [['8-HCl  ',false]],
-    [['9-HNO',false],['3',true],[' Sup  ',false]],
-    [['10-H',false],['2',true],['SO',false],['4',true],[' 25%  ',false]],
-    [['12-Dil.Buffer  ',false]],
-    [['13-Formaldehido 10%  ',false]],
-    [['14-Otro:_____',false]],
-  ];
-  let cx=M+40;
-  chemicals.forEach(chem=>{ cx=drawChem(chem,cx,y+7); });
-
-  doc.setFont('helvetica','bold');doc.setFontSize(4.5);
-  doc.text('TIPO ENVASE:',M+3,y+16);
-  doc.setFont('helvetica','normal');doc.setFontSize(4.2);
-  doc.text('1-V.Ancho1L  2-Plast.1L  3-Plast.4L  4-Plast.500mL  5-Plast.5L  6-B.Est.300mL  8-V.Amb.1L  9-B.Est.100mL  10-V.Amb.40mL  11-V.Amb.250mL  13-Plast.2L',M+35,y+16);
+  doc.setTextColor(...AMBER_TXT);doc.setFont('helvetica','normal');doc.setFontSize(4.6);
+  const leyLines=doc.splitTextToSize(LEYENDA_OFICIAL, CW-8);
+  leyLines.slice(0,2).forEach((ln,i)=>doc.text(ln, M+4, y+8+i*7));
   y+=notaH+2;
 
   // ── FIRMAS MATRIZ — campos editables PDF ──
@@ -8111,6 +9870,10 @@ async function buildPDFCadena(){
     ltfir: labGet('c_ltfir')||labStored.ltfir||'',
     ltfec: labGet('c_ltfec')||labStored.ltfec||'',
     lthor: labGet('c_lthor')||labStored.lthor||'',
+    lrnom: labGet('c_lrnom')||labStored.lrnom||'',
+    lrfir: labGet('c_lrfir')||labStored.lrfir||'',
+    lrfec: labGet('c_lrfec')||labStored.lrfec||'',
+    lrhor: labGet('c_lrhor')||labStored.lrhor||'',
     sup:   labGet('c_sup')  ||labStored.sup  ||'',
   };
   // Debug temporal: si hay queja de campos vacíos, abrir consola para ver
@@ -8231,21 +9994,38 @@ async function buildPDFCadena(){
   y+=firmaH;
 
   // ── RESPONSABLE + OBSERVACIONES ──
-  const respH=32;
+  // AARMS lote7a: la firma es la misma imagen del muestreador. Observaciones solo de la Cadena.
+  const respH=48;
   const respW=CW*0.38;
-  // Bloque RESPONSABLE — franja navy arriba, cuerpo blanco abajo
   fillRect(M,y,respW,respH,WHITE);
   outerRect(M,y,respW,respH);
   fillRect(M,y,respW,11,NAVY);
   doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(6);
   doc.text('RESPONSABLE DE MUESTREO',M+respW/2,y+7.5,{align:'center'});
-  // Dos filas dentro: NOMBRE + FIRMA
   let ry = y + 13;
-  lineField(M+4, ry, respW-8, 9, 'NOMBRE', gv('mn_nom'), 7, LBL_W);
-  ry += 10;
-  lineField(M+4, ry, respW-8, 9, 'FIRMA',  '', 7, LBL_W);
+  // AARMS lote15d: el nombre impreso es el de Ajustes, el mismo de la firma.
+  let _lote15dNom = '';
+  try{
+    const _mm = typeof _muestreadorActual === 'function' ? _muestreadorActual() : null;
+    _lote15dNom = (_mm && _mm.nombre) ? String(_mm.nombre).trim() : '';
+  }catch(_){}
+  lineField(M+4, ry, respW-8, 10, 'NOMBRE', _lote15dNom, 7, LBL_W);
+  ry += 11;
+  lineField(M+4, ry, respW-8, 22, 'FIRMA', '', 7, LBL_W);
+  let firmaPng='';
+  try{
+    const pl = (typeof _planActivo==='function' && _planActivo())
+      || (omar && omar.ts && typeof getPlanDeMuestreo==='function' && getPlanDeMuestreo(omar.ts))
+      || null;
+    if(pl && typeof _firmaMuestreadorAuto==='function') _firmaMuestreadorAuto(pl);
+    firmaPng = (pl && pl.firmas && pl.firmas.muestreador && pl.firmas.muestreador.firmaPng)
+      || (typeof _muestreadorActual==='function' && _muestreadorActual().firmaPng)
+      || '';
+  }catch(_){}
+  if(firmaPng){
+    try{ doc.addImage(firmaPng,'PNG', M+4+LBL_W, ry+1, respW-12-LBL_W, 16, '', 'FAST'); }catch(e){ console.warn('[cadena firma]', e); }
+  }
 
-  // Bloque OBSERVACIONES
   const obsX=M+respW;
   const obsW=CW-respW;
   fillRect(obsX,y,obsW,respH,WHITE);
@@ -8253,40 +10033,38 @@ async function buildPDFCadena(){
   fillRect(obsX,y,obsW,11,[225,232,246]);
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
   doc.text('OBSERVACIONES',obsX+obsW/2,y+7.5,{align:'center'});
-  // Observaciones como texto libre sobre líneas horizontales
-  const obsVal = (gv('c_obs')||gv('h_obs')||'').trim();
-  const obsInnerY = y+12;
-  const obsInnerH = respH-13;
-  // Dibujar 2 líneas horizontales guía
-  doc.setDrawColor(130,145,165);doc.setLineWidth(0.35);
-  doc.line(obsX+4, obsInnerY+obsInnerH*0.5, obsX+obsW-4, obsInnerY+obsInnerH*0.5);
-  doc.line(obsX+4, obsInnerY+obsInnerH-1,    obsX+obsW-4, obsInnerY+obsInnerH-1);
-  if(obsVal){
+  const obsEl=document.getElementById('c_obs');
+  const obsVal=(obsEl ? obsEl.value : ((omar.lab&&omar.lab.obs)||'')).trim();
+  if(!obsVal){
+    doc.setDrawColor(195,204,216);doc.setLineWidth(0.4);
+    doc.line(obsX+1, y+12, obsX+obsW-1, y+respH-1);
+  }else{
     doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(...NAVY);
-    // Partir en dos líneas si es necesario
-    const maxW = obsW-10;
-    const lines = doc.splitTextToSize(obsVal, maxW);
-    if(lines[0]) doc.text(lines[0], obsX+6, obsInnerY+obsInnerH*0.5-1.5);
-    if(lines[1]) doc.text(lines[1], obsX+6, obsInnerY+obsInnerH-2.5);
+    const lines=doc.splitTextToSize(obsVal, obsW-10);
+    lines.slice(0,3).forEach((ln,i)=>doc.text(ln, obsX+6, y+20+i*8));
   }
   y+=respH;
 
   // ── SUCURSAL — tres bloques con mismo patrón que matriz ──
-  const sucTitleH = 11;
+  const sucTitleH = 22;
   const sucRowH   = 12;
   const sucH      = sucTitleH + sucRowH*3;
+  const _lote7aHueco=(plantilla, valores)=>{
+    let i=0;
+    return plantilla.replace(/_+/g, (m)=>{
+      const v=(valores[i++]||'').trim();
+      return v||m;
+    });
+  };
 
   [
-    {lbl:'TRANSPORTA Y ENTREGA A SUCURSAL',fill:[225,232,246],
-     nom:lab.snom,fir:lab.sfir,fec:fmtDate(lab.sfec),hor:fmtTime(lab.shor),
-     fotar:lab.fotar,showOtar:true,pfx:'st'},
+    {lbl:_lote7aHueco('TRANSPORTA Y ENTREGA DE MUESTRAS  Y OTAR CON FOLIO:___________ EN SUCURSAL:', [lab.fotar]),fill:[225,232,246],
+     nom:lab.snom,fir:lab.sfir,fec:fmtDate(lab.sfec),hor:fmtTime(lab.shor),pfx:'st'},
     {lbl:'INSPECCIONA EN SUCURSAL',fill:[235,240,250],
-     nom:lab.isnom,fir:lab.isfir,fec:fmtDate(lab.isfec),hor:fmtTime(lab.ishor),
-     fotar:'',showOtar:false,pfx:'is'},
+     nom:lab.isnom,fir:lab.isfir,fec:fmtDate(lab.isfec),hor:fmtTime(lab.ishor),pfx:'is'},
     {lbl:'RECIBIDO EN SUCURSAL',fill:[225,232,246],
-     nom:lab.rsnom,fir:lab.rsfir,fec:fmtDate(lab.rsfec),hor:fmtTime(lab.rshor),
-     fotar:'',showOtar:false,pfx:'rs'},
-  ].forEach(({lbl,fill,nom,fir,fec,hor,fotar,showOtar,pfx},i)=>{
+     nom:lab.rsnom,fir:lab.rsfir,fec:fmtDate(lab.rsfec),hor:fmtTime(lab.rshor),pfx:'rs'},
+  ].forEach(({lbl,fill,nom,fir,fec,hor,pfx},i)=>{
     const fx=M+i*FW;
     fillRect(fx,y,FW,sucH,WHITE);
     outerRect(fx,y,FW,sucH);
@@ -8294,20 +10072,14 @@ async function buildPDFCadena(){
     fillRect(fx,y,FW,sucTitleH,fill);
     doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
     doc.line(fx,y+sucTitleH,fx+FW,y+sucTitleH);
-    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
-    doc.text(lbl,fx+FW/2,y+sucTitleH/2+2,{align:'center'});
+    doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5);
+    const titLines=doc.splitTextToSize(lbl, FW-8).slice(0,3);
+    const titTop=y+(sucTitleH-titLines.length*5.5)/2+4;
+    titLines.forEach((ln,ti)=>doc.text(ln, fx+FW/2, titTop+ti*5.5, {align:'center'}));
 
     const rx = fx+4, rw = FW-8;
     let ry = y + sucTitleH + 1;
-    if(showOtar){
-      // Fila: NOMBRE + FOLIO OTAR (pequeño al final)
-      const nomW = rw*0.62;
-      const otarW = rw*0.38 - 4;
-      lineField(rx, ry, nomW, sucRowH-2, 'NOMBRE', nom, 7, LBL_W);
-      lineField(rx+nomW+4, ry, otarW, sucRowH-2, 'OTAR', fotar, 7, LBL_W_SHORT);
-    } else {
-      lineField(rx, ry, rw, sucRowH-2, 'NOMBRE', nom, 7, LBL_W);
-    }
+    lineField(rx, ry, rw, sucRowH-2, 'NOMBRE', nom, 7, LBL_W);
     ry += sucRowH;
     lineField(rx, ry, rw, sucRowH-2, 'FIRMA', fir, 7, LBL_W);
     ry += sucRowH;
@@ -8317,61 +10089,53 @@ async function buildPDFCadena(){
   });
   y+=sucH;
 
-  // ── PIE FINAL — envío a lab matriz ──
-  // Fila 1: título + folios OTAR/CCIAR
-  // Fila 2: persona que transporta (nombre/firma/fecha/hora)
-  // Fila 3: supervisó + código formato
-  const pieRowH = 13;
-  const pieH = pieRowH*3;
+  // AARMS lote7a: títulos del pie como la hoja ccustodia, más quien recibe en laboratorio matriz.
+  const pieRowH = 16;
+  const pieH = pieRowH*4;
   fillRect(M,y,CW,pieH,WHITE);
   outerRect(M,y,CW,pieH);
-
-  // Fila 1: ENVÍO + folios
+  const pintarPersona=(py, titulo, nom, fir, fec, hor)=>{
+    doc.setFillColor(...WHITE);doc.rect(M,py,CW,pieRowH,'F');
+    doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
+    doc.line(M,py+pieRowH,M+CW,py+pieRowH);
+    doc.setFont('helvetica','bold');doc.setFontSize(5);doc.setTextColor(...NAVY);
+    const tit=doc.splitTextToSize(titulo, 210);
+    doc.text(tit[0]||titulo, M+4, py+pieRowH/2+2);
+    const pFieldsX = M + 220;
+    const pFieldsW = CW - 220 - 4;
+    const cols = [
+      ['NOMBRE', nom, 0.36, LBL_W],
+      ['FIRMA', fir, 0.18, LBL_W],
+      ['FECHA', fec, 0.26, LBL_W_SHORT],
+      ['HORA', hor, 0.20, LBL_W_SHORT],
+    ];
+    let ccx = pFieldsX;
+    cols.forEach(([lb,val,frac,lw])=>{
+      const w = pFieldsW*frac - 3;
+      lineField(ccx, py+2, w, pieRowH-4, lb, val||'', 7, lw);
+      ccx += pFieldsW*frac;
+    });
+  };
   let py = y;
   fillRect(M,py,CW,pieRowH,[225,232,246]);
   doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
   doc.line(M,py+pieRowH,M+CW,py+pieRowH);
-  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
-  doc.text('ENVÍO DE OTAR Y CCIAR A LABORATORIO MATRIZ',M+4,py+pieRowH/2+2);
-  // Folios a la derecha como lineField
-  const folioW = 90;
-  lineField(M+CW-folioW-4,       py+2, folioW, pieRowH-4, 'CCIAR:', gv('h_cciar')||'', 7, 22);
-  lineField(M+CW-folioW*2-20,    py+2, folioW, pieRowH-4, 'OTAR:',  lab.fotar||'',     7, 20);
-
-  // Fila 2: persona que transporta
+  doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+  const envio=_lote7aHueco('ENVIÓ DE OTAR CON FOLIO:____________ Y CCIAR CON FOLIO:____________ A LABORATORIO MATRIZ', [lab.fotar, gv('h_cciar')]);
+  doc.text(envio, M+4, py+pieRowH/2+2);
   py += pieRowH;
-  doc.setFillColor(...WHITE);doc.rect(M,py,CW,pieRowH,'F');
-  doc.setDrawColor(...MGRAY);doc.setLineWidth(0.2);
-  doc.line(M,py+pieRowH,M+CW,py+pieRowH);
-  doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(...NAVY);
-  doc.text('PERSONA QUE TRANSPORTA EN LAB. MATRIZ',M+4,py+pieRowH/2+2);
-  // 4 campos a la derecha
-  const pFieldsX = M + 180;
-  const pFieldsW = CW - 180 - 4;
-  const cols = [
-    ['NOMBRE', lab.ltnom,  0.36, LBL_W],
-    ['FIRMA',  lab.ltfir,  0.18, LBL_W],
-    ['FECHA',  fmtDate(lab.ltfec), 0.26, LBL_W_SHORT],
-    ['HORA',   fmtTime(lab.lthor), 0.20, LBL_W_SHORT],
-  ];
-  let ccx = pFieldsX;
-  cols.forEach(([lb,val,frac,lw])=>{
-    const w = pFieldsW*frac - 3;
-    lineField(ccx, py+2, w, pieRowH-4, lb, val||'', 7, lw);
-    ccx += pFieldsW*frac;
-  });
-
-  // Fila 3: supervisó + código formato
+  pintarPersona(py, 'PERSONA QUE TRANSPORTA Y ENTREGA EN LABORATORIO MATRIZ', lab.ltnom, lab.ltfir, fmtDate(lab.ltfec), fmtTime(lab.lthor));
+  py += pieRowH;
+  pintarPersona(py, 'PERSONA QUE RECIBE EN LABORATORIO MATRIZ', lab.lrnom, lab.lrfir, fmtDate(lab.lrfec), fmtTime(lab.lrhor));
   py += pieRowH;
   fillRect(M,py,CW,pieRowH,[248,250,253]);
-  lineField(M+4, py+2, 220, pieRowH-4, 'SUPERVISÓ:', lab.sup||'', 7, 40);
-  // Código formato a la derecha
+  lineField(M+4, py+2, 280, pieRowH-4, 'SUPERVISÓ:', lab.sup||'', 7, 40); // AARMS lote8ba
   doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);doc.setFontSize(7);
-  doc.text('F-AA-01A-15', W-M-4, py+pieRowH/2+2.5, {align:'right'});
+  doc.text('F-AA-01A-13', W-M-4, py+pieRowH/2+2.5, {align:'right'});
 
   // ── SAVE ──
   const folio=gv('h_omar')||'000';
-  const fecha=now.toISOString().split('T')[0];
+  const fecha=_lote21HoyFecha();
   const empresa=(omar.empresa||gv('h_emp')||'').substring(0,20).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
   const fname=buildFileName(empresa,'Cadena de Custodia',fecha);
   const blob=doc.output('blob');
@@ -8458,9 +10222,15 @@ function fallbackShare(blob){
   toast('Abierto — comparte desde Safari ⬆','g');
 }
 
-function toast(msg,t=''){
-  const el=document.getElementById('toast');el.textContent=msg;el.className=t;el.classList.add('show');
-  clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),4000);
+function toast(msg,t='', opts){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.className=t||'';
+  if(opts && opts.faltan) el.classList.add('faltan');
+  el.classList.add('show');
+  el.onclick = (opts && typeof opts.onClick==='function') ? (()=>{ opts.onClick(); el.classList.remove('show'); }) : null;
+  clearTimeout(toastT);
+  toastT=setTimeout(()=>el.classList.remove('show'), (opts && opts.ms) || 4000);
 }
 
 // Modal de confirmación custom — reemplaza confirm() nativo para evitar
@@ -8677,62 +10447,712 @@ function cerrarPagInstrumento(){
   try{ renderPlanDocs(); }catch(_){}
 }
 
-function leerBlmpAlOmar(){
-  if(!omar) omar={};
-  const prev=omar.blmpLab||{};
-  const g=id=>{ const e=document.getElementById(id); if(!e) return undefined; if(e.type==='checkbox') return e.checked; return (e.value||'').trim(); };
-  const set=(k,id)=>{ const v=g(id); if(v!==undefined) prev[k]=v; };
-  set('fecha','blmp_fecha'); set('hora','blmp_hora'); set('aapt','blmp_aapt');
-  set('v_panel','blmp_v_panel'); set('v_cables','blmp_v_cables'); set('v_cuerpo','blmp_v_cuerpo');
-  set('v_error','blmp_v_error'); set('v_vida','blmp_v_vida'); set('v_eEnv','blmp_v_eenv');
-  set('v_eSuc','blmp_v_esuc'); set('v_eComp','blmp_v_ecomp'); set('v_calib','blmp_v_calib');
-  set('obs_v','blmp_obs_v'); set('act_txt','blmp_act_txt'); set('cod_act','blmp_cod_act');
-  set('l_enj','blmp_l_enj'); set('l_alc','blmp_l_alc'); set('l_grasa','blmp_l_grasa');
-  set('l_hcl','blmp_l_hcl'); set('l_det','blmp_l_det');
-  set('m_exp','blmp_m_exp'); set('obs','blmp_obs');
-  omar.blmpLab=prev;
+// ═══════════════════════════════════════════════════════════════
+// AARMS blmpfiel: BLMP por equipo (AA/PT) + folio propio LMP-XXXX
+// Plan/OMAR solo guarda referencia {hecho, folio, aapt} — no duplica datos
+// ═══════════════════════════════════════════════════════════════
+
+const _BLMP_VERIF_KEYS = [
+  // AARMS blmppulido: textos oficiales con tildes/ñ (fuente Roboto en PDF)
+  { key: 'v_panel', label: 'El panel del equipo se encuentra dañado' },
+  { key: 'v_cables', label: 'Los cables no se encuentran con daños visibles en sus uniones o cuerpo' },
+  { key: 'v_cuerpo', label: 'El cuerpo del equipo se encuentra sucio' },
+  { key: 'v_error', label: 'El equipo manda algún código de error en la pantalla principal' },
+  { key: 'v_vida', label: 'La batería cuenta con vida útil suficiente para realizar el muestreo' },
+  { key: 'v_eEnv', label: 'El electrodo presenta señales de envejecimiento' },
+  { key: 'v_eSuc', label: 'El electrodo presenta suciedad en su cuerpo' },
+  { key: 'v_eComp', label: 'El cuerpo del electrodo no presenta señales de daño y no le faltan partes' },
+  { key: 'v_calib', label: 'El pHmetro permite ser calibrado' }
+];
+
+let _blmpUi = { id: null, folio: '', actividades: [] };
+
+// AARMS lote2a: un contador por tipo, reinicio anual, sin reutilizar números
+const _FOLIO_TIPOS = ['bpm','lvar','buccvph','blmp','blmccvuc','hcar','cciar','od'];
+const _FOLIO_ETIQUETA = { bpm:'BPM', lvar:'LVAR', buccvph:'BUCCVpH', blmp:'BLMP', blmccvuc:'BLMCCVUC', hcar:'HCAR', cciar:'CCIAR', od:'OD' };
+let _folioChain = Promise.resolve();
+function _folioEnqueue(fn){
+  const run = _folioChain.then(fn, fn);
+  _folioChain = run.then(()=>{}, ()=>{});
+  return run;
+}
+function _folioFmt(n){ return String(Math.max(0, n|0)).padStart(4,'0'); }
+function _folioAnio(){ return new Date().getFullYear(); }
+function _folioLogGet(){
+  try{ return JSON.parse(localStorage.getItem('aarms_folios_log')||'[]'); }catch(e){ return []; }
+}
+function _folioLogSet(arr){
+  try{ localStorage.setItem('aarms_folios_log', JSON.stringify(arr)); }catch(e){}
+}
+function _folioCfg(){
+  const c = _appConfigGet();
+  const year = _folioAnio();
+  if(!c.folios || typeof c.folios !== 'object') c.folios = { types:{}, absorbed:false };
+  if(!c.folios.types || typeof c.folios.types !== 'object') c.folios.types = {};
+  if(!c.folios.absorbed){
+    const blmpNext = (c.blmp && typeof c.blmp.folioSeq === 'number') ? c.blmp.folioSeq : 1;
+    const condNext = (c.conductimetro && typeof c.conductimetro.folioSeq === 'number') ? c.conductimetro.folioSeq : 1;
+    c.folios.types.blmp = { inicio:1, year, next: blmpNext, high: Math.max(0, blmpNext-1) };
+    c.folios.types.blmccvuc = { inicio:1, year, next: condNext, high: Math.max(0, condNext-1) };
+    c.folios.absorbed = true;
+  }
+  _FOLIO_TIPOS.forEach(k=>{
+    if(!c.folios.types[k]) c.folios.types[k] = { inicio:1, year, next:1, high:0 };
+  });
+  try{ localStorage.setItem('aarms_config', JSON.stringify(c)); }catch(e){}
+  return c;
+}
+function _folioTomarSync(tipo, n, ctx){
+  ctx = ctx || {};
+  const c = _folioCfg();
+  const t = c.folios.types[tipo];
+  const year = _folioAnio();
+  if(t.year !== year){
+    t.year = year;
+    t.next = t.inicio || 1;
+    t.high = 0;
+  }
+  const ya = typeof ctx.ya === 'function' ? ctx.ya() : null;
+  if(ya && ya.length >= n && ya.every(Boolean)) return ya.slice(0, n);
+  const out = [];
+  const count = Math.max(1, n|0);
+  for(let i=0;i<count;i++){
+    const num = t.next || 1;
+    out.push(_folioFmt(num));
+    t.high = Math.max(t.high||0, num);
+    t.next = num + 1;
+  }
+  if(tipo==='blmp'){ c.blmp = c.blmp || {}; c.blmp.folioSeq = t.next; }
+  if(tipo==='blmccvuc'){ c.conductimetro = c.conductimetro || {}; c.conductimetro.folioSeq = t.next; }
+  try{ localStorage.setItem('aarms_config', JSON.stringify(c)); }catch(e){}
+  const log = _folioLogGet();
+  const hoy = _lote21HoyFecha();
+  out.forEach(fmt=>{
+    log.push({
+      tipo, numero: fmt, doc: ctx.doc || _FOLIO_ETIQUETA[tipo] || tipo,
+      planId: ctx.planId || '', planFolio: ctx.planFolio || '',
+      omarId: ctx.omarId || '', omarFolio: ctx.omarFolio || '',
+      fecha: hoy, estado: 'vigente'
+    });
+  });
+  _folioLogSet(log);
+  if(typeof ctx.aplicar === 'function') ctx.aplicar(out);
+  return out;
+}
+function _folioTomar(tipo, n, ctx){
+  return _folioEnqueue(()=>_folioTomarSync(tipo, n, ctx));
+}
+function _lote2aMarcarPlanEliminado(planId){
+  const log = _folioLogGet();
+  let ch = false;
+  log.forEach(r=>{
+    if(String(r.planId)===String(planId) && r.estado==='vigente'){
+      r.estado = 'plan eliminado';
+      ch = true;
+    }
+  });
+  if(ch) _folioLogSet(log);
+}
+function _lote2aSetInicio(tipo, valor, confirmado){
+  const n = parseInt(String(valor||'').trim(), 10);
+  if(!Number.isFinite(n) || n < 1) return { ok:false, motivo:'El inicio tiene que ser un número mayor a 0' };
+  const c = _folioCfg();
+  const t = c.folios.types[tipo];
+  if(!t) return { ok:false, motivo:'Tipo desconocido' };
+  const year = _folioAnio();
+  if(t.year !== year){ t.year = year; t.high = 0; t.next = t.inicio || 1; }
+  const emitidos = (t.high||0) > 0;
+  if(emitidos && n <= t.high){
+    return { ok:false, motivo:'Ya se emitió '+_folioFmt(t.high)+' este año. El inicio tiene que ser mayor.' };
+  }
+  if(emitidos && !confirmado){
+    return { ok:false, necesitaConfirmacion:true, motivo:'Ya hay folios emitidos este año. El inicio nuevo vale para el reinicio del año siguiente.' };
+  }
+  t.inicio = n;
+  if(!emitidos) t.next = n;
+  try{ localStorage.setItem('aarms_config', JSON.stringify(c)); }catch(e){}
+  return { ok:true, siguiente:_folioFmt(t.next), inicio:_folioFmt(t.inicio) };
+}
+function _lote2aRango(nums){
+  const xs = (nums||[]).filter(Boolean);
+  return xs.length ? xs.join('-') : '—';
+}
+function _lote2aPintarCampo(id, valor){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.value = valor && String(valor).trim() ? String(valor).trim() : '—';
+}
+async function _lote2aAsegurarPh(planOpt){
+  let pl = (planOpt && planOpt.id) ? (((_cachedPlanes || []).find(p => p.id === planOpt.id)) || planOpt) : null;
+  if(!pl) pl = (typeof _bitPhPlan === 'function') ? _bitPhPlan() : null;
+  if(!pl && typeof _currentPlanId !== 'undefined' && _currentPlanId){
+    pl = (_cachedPlanes || []).find(p => p.id === _currentPlanId) || null;
+  }
+  if(!pl) return '';
+  const abierto = (typeof _bitPhPlan === 'function') && _bitPhPlan() && _bitPhPlan().id === pl.id;
+  if(pl.bitPhFolioDoc && String(pl.bitPhFolioDoc).trim()){
+    if(planOpt && planOpt !== pl) planOpt.bitPhFolioDoc = pl.bitPhFolioDoc;
+    if(abierto) _lote2aPintarCampo('bitPhFolioDocInp', pl.bitPhFolioDoc);
+    return pl.bitPhFolioDoc;
+  }
+  let legado = String((pl.ph2644h1 && pl.ph2644h1.folio) || '').trim();
+  if(!legado){
+    const ids = (pl.omarIds || []).map(String);
+    if(typeof omar !== 'undefined' && omar && omar.ts && ids.includes(String(omar.ts)) && omar.ph2644h1 && omar.ph2644h1.folio){
+      legado = String(omar.ph2644h1.folio).trim();
+    }
+  }
+  if(!legado){
+    for(const mid of (pl.omarIds || [])){
+      const m = (_cachedMuestreos || []).find(x => String(x.id) === String(mid));
+      if(!m || !m.omar) continue;
+      try{
+        const o = JSON.parse(m.omar);
+        if(o && o.ph2644h1 && o.ph2644h1.folio){ legado = String(o.ph2644h1.folio).trim(); break; }
+      }catch(_){}
+    }
+  }
+  if(legado) return '';
+  const nums = await _folioTomar('buccvph', 2, {
+    planId: pl.id, planFolio: pl.folio || '', doc: 'BUCCVpH',
+    ya: ()=>{
+      const s = String(pl.bitPhFolioDoc||'').trim();
+      if(!s) return [];
+      const parts = s.split(/\s*[-–—/]\s*/).filter(Boolean);
+      return parts.length >= 2 ? parts.slice(0,2) : [s, s];
+    },
+    aplicar: (out)=>{ pl.bitPhFolioDoc = out[0]===out[1] ? out[0] : out.join('-'); }
+  });
+  if(!pl.bitPhFolioDoc) pl.bitPhFolioDoc = nums[0]===nums[1] ? nums[0] : nums.join('-');
+  if(planOpt && planOpt !== pl) planOpt.bitPhFolioDoc = pl.bitPhFolioDoc;
+  if(abierto) _lote2aPintarCampo('bitPhFolioDocInp', pl.bitPhFolioDoc);
+  try{
+    if(abierto && typeof _persistPlanBitPh === 'function') await _persistPlanBitPh();
+    else {
+      pl.ts = Date.now();
+      await idbPlanPut(pl);
+      if(typeof refreshCache === 'function') await refreshCache();
+    }
+  }catch(e){}
+  return pl.bitPhFolioDoc;
+}
+function _lote2aPintarAdmin(){
+  const host = document.getElementById('adminFolios');
+  if(!host) return;
+  const sesion = typeof _cartasAdminSesionValida === 'function' && _cartasAdminSesionValida();
+  if(!sesion){ host.style.display = 'none'; host.innerHTML = ''; return; }
+  const c = _folioCfg();
+  const year = _folioAnio();
+  host.style.display = 'block';
+  const filas = _FOLIO_TIPOS.map(k=>{
+    const t = c.folios.types[k];
+    const anio = t.year === year ? t.year : year;
+    const sig = t.year === year ? t.next : (t.inicio||1);
+    return `<tr>
+      <td style="padding:8px">${_FOLIO_ETIQUETA[k]}</td>
+      <td style="padding:8px">${anio}</td>
+      <td style="padding:8px;font-family:var(--mono)">${_folioFmt(sig)}</td>
+      <td style="padding:8px"><input data-folio-inicio="${k}" value="${t.inicio||1}" inputmode="numeric" style="width:72px;background:var(--bg2);border:1px solid var(--ln);border-radius:6px;color:var(--w);padding:6px"></td>
+    </tr>`;
+  }).join('');
+  host.innerHTML = `<div style="font-family:var(--syne);font-weight:800;font-size:14px;margin-bottom:8px">Folios</div>
+    <div style="overflow:auto;border:1px solid var(--ln);border-radius:12px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr style="background:var(--bg3);text-align:left">
+          <th style="padding:8px">Tipo</th><th style="padding:8px">Año</th><th style="padding:8px">Siguiente</th><th style="padding:8px">Inicio</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button type="button" class="btn btn-p" style="width:auto;font-size:12px" id="folioBtnInicio">Guardar inicios</button>
+      <button type="button" class="btn btn-g" style="width:auto;font-size:12px" id="folioBtnEmitidos">Ver folios emitidos</button>
+    </div>
+    <div id="folioEmitidos" style="display:none;margin-top:10px;font-size:12px"></div>
+    <div id="folioAdminMsg" style="margin-top:8px;font-size:12px;color:var(--amber)"></div>`;
+  const msg = document.getElementById('folioAdminMsg');
+  document.getElementById('folioBtnInicio').onclick = async ()=>{
+    const inputs = host.querySelectorAll('[data-folio-inicio]');
+    const cfg = _folioCfg();
+    for(const inp of inputs){
+      const tipo = inp.getAttribute('data-folio-inicio');
+      const actual = cfg.folios.types[tipo] ? (cfg.folios.types[tipo].inicio || 1) : 1;
+      if(parseInt(String(inp.value||'').trim(), 10) === actual) continue;
+      let r = _lote2aSetInicio(tipo, inp.value, false);
+      if(r.necesitaConfirmacion){
+        const ok = await confirmAction({
+          title:'Cambiar inicio de '+_FOLIO_ETIQUETA[tipo],
+          message:r.motivo,
+          okText:'Cambiar inicio',
+          okDanger:false,
+          cancelText:'Cancelar'
+        });
+        if(!ok){ if(msg) msg.textContent = _FOLIO_ETIQUETA[tipo]+': sin cambio'; continue; }
+        r = _lote2aSetInicio(tipo, inp.value, true);
+      }
+      if(!r.ok){
+        const motivo = _FOLIO_ETIQUETA[tipo]+': '+r.motivo;
+        _lote2aPintarAdmin();
+        const msg2 = document.getElementById('folioAdminMsg');
+        if(msg2) msg2.textContent = motivo;
+        return;
+      }
+    }
+    if(msg) msg.textContent = '';
+    toast('Inicios guardados','g');
+    _lote2aPintarAdmin();
+  };
+  document.getElementById('folioBtnEmitidos').onclick = ()=>{
+    const box = document.getElementById('folioEmitidos');
+    if(!box) return;
+    const abierto = box.style.display !== 'none';
+    if(abierto){ box.style.display = 'none'; return; }
+    const log = _folioLogGet().slice().reverse();
+    box.style.display = 'block';
+    if(!log.length){ box.textContent = 'Sin folios emitidos'; return; }
+    box.innerHTML = `<table style="width:100%;border-collapse:collapse">
+      <thead><tr style="text-align:left"><th style="padding:4px">Tipo</th><th>Número</th><th>Documento</th><th>Plan</th><th>OMAR</th><th>Fecha</th><th>Estado</th></tr></thead>
+      <tbody>${log.map(r=>`<tr>
+        <td style="padding:4px">${_FOLIO_ETIQUETA[r.tipo]||r.tipo}</td>
+        <td>${r.numero}</td><td>${r.doc||''}</td><td>${r.planFolio||r.planId||'—'}</td>
+        <td>${r.omarFolio||r.omarId||'—'}</td>
+        <td>${r.fecha||''}</td><td>${r.estado||''}</td>
+      </tr>`).join('')}</tbody></table>`;
+  };
+}
+window._folioTomar = _folioTomar;
+window._lote2aAsegurarPh = _lote2aAsegurarPh;
+window._lote2aSetInicio = _lote2aSetInicio;
+window._lote2aPintarAdmin = _lote2aPintarAdmin;
+window._lote2aMarcarPlanEliminado = _lote2aMarcarPlanEliminado;
+
+function _blmpMetaGet(){
+  const c = _appConfigGet();
+  if(!c.blmp || typeof c.blmp !== 'object'){
+    c.blmp = { folioSeq: 1 };
+    try{ localStorage.setItem('aarms_config', JSON.stringify(c)); }catch(_){}
+  }
+  if(typeof c.blmp.folioSeq !== 'number' || c.blmp.folioSeq < 1) c.blmp.folioSeq = 1;
+  return c.blmp;
+}
+async function _blmpMetaSave(meta){
+  const c = _appConfigGet();
+  c.blmp = meta;
+  await _appConfigSave(c);
+}
+function _blmpFolioFormat(n){
+  // AARMS blmppulido2: folio = solo número (0001); el código de formato LMP-1 va aparte
+  return String(Math.max(1, n|0)).padStart(4, '0');
+}
+function _blmpFolioDisplay(folio){
+  const s = String(folio || '').trim();
+  const m = s.match(/^(?:LMP-)?(\d+)$/i);
+  return m ? m[1].padStart(4, '0') : (s.replace(/^LMP-/i, '') || s);
+}
+window._blmpFolioDisplay = _blmpFolioDisplay;
+async function _blmpAsignarFolio(){
+  const pair = await _blmpAsignarFolios(1);
+  return pair[0];
+}
+// AARMS blmpfolio2: reserva N folios consecutivos de la serie (ej. 2 = una por página PDF)
+async function _blmpAsignarFolios(n){
+  // AARMS lote2a: la serie BLMP sigue en el contador común, desde el último emitido
+  const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+  return _folioTomar('blmp', n, {
+    planId: plan && plan.id, planFolio: plan && plan.folio || '', doc: 'BLMP',
+    ya: ()=>{
+      if(_blmpUi && _blmpUi._par && _blmpUi._par.length >= n) return _blmpUi._par.slice(0, n);
+      return [];
+    },
+    aplicar: (out)=>{ if(_blmpUi) _blmpUi._par = out.slice(); }
+  });
+}
+window._blmpAsignarFolios = _blmpAsignarFolios;
+
+function idbBlmpGetAll(){
+  return openDB().then(db => new Promise((res, rej) => {
+    if(!db.objectStoreNames.contains(STORE_BLMP)){ res([]); return; }
+    const tx = db.transaction(STORE_BLMP, 'readonly');
+    const req = tx.objectStore(STORE_BLMP).getAll();
+    req.onsuccess = e => res(e.target.result || []);
+    req.onerror = e => rej(e);
+  }));
+}
+function idbBlmpGet(id){
+  return openDB().then(db => new Promise((res, rej) => {
+    if(!db.objectStoreNames.contains(STORE_BLMP)){ res(null); return; }
+    const tx = db.transaction(STORE_BLMP, 'readonly');
+    const req = tx.objectStore(STORE_BLMP).get(id);
+    req.onsuccess = e => res(e.target.result || null);
+    req.onerror = e => rej(e);
+  }));
+}
+function idbBlmpGetByFolio(folio){
+  return openDB().then(db => new Promise((res, rej) => {
+    if(!db.objectStoreNames.contains(STORE_BLMP)){ res(null); return; }
+    const tx = db.transaction(STORE_BLMP, 'readonly');
+    const idx = tx.objectStore(STORE_BLMP).index('folio');
+    const req = idx.get(String(folio||''));
+    req.onsuccess = e => res(e.target.result || null);
+    req.onerror = e => rej(e);
+  }));
+}
+function idbBlmpPut(record){
+  return openDB().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(STORE_BLMP, 'readwrite');
+    const req = tx.objectStore(STORE_BLMP).put(record);
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = e => rej(e);
+  }));
 }
 
+function _blmpNormSiNo(v){
+  const s = String(v||'').trim().toUpperCase();
+  if(s === 'SI' || s === 'SÍ' || s === 'S') return 'SI';
+  if(s === 'NO' || s === 'N') return 'NO';
+  return '';
+}
+
+function _blmpLeerForm(){
+  const g = id => {
+    const e = document.getElementById(id);
+    if(!e) return '';
+    if(e.type === 'checkbox') return e.checked;
+    return (e.value||'').trim();
+  };
+  const verif = {};
+  _BLMP_VERIF_KEYS.forEach(r => { verif[r.key] = _blmpNormSiNo(g('blmp_' + r.key)); });
+  // aliases DOM ids (eenv/esuc/ecomp)
+  verif.v_eEnv = _blmpNormSiNo(g('blmp_v_eenv') || verif.v_eEnv);
+  verif.v_eSuc = _blmpNormSiNo(g('blmp_v_esuc') || verif.v_eSuc);
+  verif.v_eComp = _blmpNormSiNo(g('blmp_v_ecomp') || verif.v_eComp);
+  const acts = [];
+  document.querySelectorAll('#blmpActList .blmp-act-row').forEach(row => {
+    const hora = (row.querySelector('[data-f="hora"]')?.value||'').trim();
+    const fecha = (row.querySelector('[data-f="fecha"]')?.value||'').trim();
+    const codigo = (row.querySelector('[data-f="codigo"]')?.value||'').trim();
+    const justificacion = (row.querySelector('[data-f="just"]')?.value||'').trim();
+    if(hora || fecha || codigo || justificacion){
+      acts.push({ hora, fecha, codigo, justificacion });
+    }
+  });
+  return {
+    id: _blmpUi.id || null,
+    folio: (()=>{
+      const ui = (_blmpUi.folio || '').trim();
+      if(ui && ui !== '—') return ui;
+      const vis = (g('blmp_folio') || '').trim();
+      if(!vis || vis === '—' || vis.indexOf('-') >= 0) return '';
+      return vis;
+    })(),
+    aapt: g('blmp_aapt'),
+    fecha: g('blmp_fecha'),
+    hora: g('blmp_hora'),
+    verificacion: verif,
+    obs_v: g('blmp_obs_v'),
+    actividades: acts,
+    mantenimiento: {
+      folioCee: g('blmp_m_cee'),
+      folioApartado: g('blmp_m_apt'),
+      folioFaa22: g('blmp_m_faa22')
+    },
+    obs: g('blmp_obs')
+  };
+}
+
+function _blmpPoblarForm(rec){
+  const r = rec || {};
+  const set = (id, v) => { const e = document.getElementById(id); if(e) e.value = v == null ? '' : String(v); };
+  set('blmp_folio', r.folio ? (r.folioP2 ? (r.folio+'-'+r.folioP2) : r.folio) : '—');
+  set('blmp_aapt', r.aapt || '');
+  set('blmp_fecha', r.fecha || '');
+  set('blmp_hora', r.hora || '');
+  const m0 = r.mantenimiento || {};
+  // AARMS lote8c: clave AA/PT desde el catálogo; un registro ya guardado conserva su texto
+  _lote8cClaveInput('blmp_aapt', 'potenciometros', r.aapt || '', false);
+  _lote8cClaveInput('blmp_m_apt', 'potenciometros', m0.folioApartado || '', true);
+  const v = r.verificacion || {};
+  set('blmp_v_panel', v.v_panel || '');
+  set('blmp_v_cables', v.v_cables || '');
+  set('blmp_v_cuerpo', v.v_cuerpo || '');
+  set('blmp_v_error', v.v_error || '');
+  set('blmp_v_vida', v.v_vida || '');
+  set('blmp_v_eenv', v.v_eEnv || '');
+  set('blmp_v_esuc', v.v_eSuc || '');
+  set('blmp_v_ecomp', v.v_eComp || '');
+  set('blmp_v_calib', v.v_calib || '');
+  set('blmp_obs_v', r.obs_v || '');
+  const m = r.mantenimiento || {};
+  set('blmp_m_cee', m.folioCee || '');
+  set('blmp_m_faa22', m.folioFaa22 || '');
+  set('blmp_obs', r.obs || '');
+  _blmpUi.id = r.id || null;
+  _blmpUi.folio = r.folio || '';
+  _blmpUi.actividades = Array.isArray(r.actividades) ? r.actividades.slice() : [];
+  _blmpRenderActividades();
+  const pill = document.getElementById('blmpPill');
+  if(pill){
+    pill.textContent = r.folio
+      ? r.folio
+      : (omar && omar.folio ? ('OMAR ' + omar.folio) : 'Equipo');
+  }
+}
+
+function _blmpRenderActividades(){
+  const list = document.getElementById('blmpActList');
+  if(!list) return;
+  const rows = (_blmpUi.actividades && _blmpUi.actividades.length)
+    ? _blmpUi.actividades
+    : [{ hora:'', fecha:'', codigo:'', justificacion:'' }];
+  list.innerHTML = rows.map((a, i) => `
+    <div class="blmp-act-row" data-ix="${i}" style="background:var(--bg2);border:1px solid var(--ln);border-radius:10px;padding:10px;margin-bottom:8px">
+      <div class="g2">
+        <div class="f"><label>Hora</label><input type="time" data-f="hora" value="${(a.hora||'').replace(/"/g,'&quot;')}"></div>
+        <div class="f"><label>Fecha</label><input type="date" data-f="fecha" value="${(a.fecha||'').replace(/"/g,'&quot;')}"></div>
+        <div class="f"><label>Codigo</label>
+          <select data-f="codigo" style="width:100%;background:var(--bg3);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px">
+            <option value="">—</option>
+            <option value="1" ${a.codigo==='1'?'selected':''}>1 — Enjuague agua</option>
+            <option value="2" ${a.codigo==='2'?'selected':''}>2 — Alcohol</option>
+            <option value="3" ${a.codigo==='3'?'selected':''}>3 — Detergente</option>
+            <option value="4" ${a.codigo==='4'?'selected':''}>4 — HCl 1:1</option>
+          </select>
+        </div>
+        <div class="f" style="grid-column:span 2"><label>Justificacion</label><input type="text" data-f="just" value="${(a.justificacion||'').replace(/"/g,'&quot;')}" placeholder="Motivo de la actividad"></div>
+      </div>
+      <button type="button" class="btn btn-g" style="margin-top:8px;font-size:11px;padding:6px 10px;width:auto" onclick="_blmpQuitarActividad(${i})">Quitar</button>
+    </div>
+  `).join('');
+}
+
+function _blmpSyncActsFromDom(){
+  const acts = [];
+  document.querySelectorAll('#blmpActList .blmp-act-row').forEach(row => {
+    acts.push({
+      hora: (row.querySelector('[data-f="hora"]')?.value||'').trim(),
+      fecha: (row.querySelector('[data-f="fecha"]')?.value||'').trim(),
+      codigo: (row.querySelector('[data-f="codigo"]')?.value||'').trim(),
+      justificacion: (row.querySelector('[data-f="just"]')?.value||'').trim()
+    });
+  });
+  _blmpUi.actividades = acts;
+}
+function _blmpAgregarActividad(){
+  _blmpSyncActsFromDom();
+  const baseFecha = document.getElementById('blmp_fecha')?.value || '';
+  _blmpUi.actividades.push({ hora:'', fecha: baseFecha, codigo:'', justificacion:'' });
+  _blmpRenderActividades();
+}
+function _blmpQuitarActividad(ix){
+  _blmpSyncActsFromDom();
+  _blmpUi.actividades.splice(ix, 1);
+  if(!_blmpUi.actividades.length) _blmpUi.actividades.push({ hora:'', fecha:'', codigo:'', justificacion:'' });
+  _blmpRenderActividades();
+}
+window._blmpAgregarActividad = _blmpAgregarActividad;
+window._blmpQuitarActividad = _blmpQuitarActividad;
+
+async function _blmpVincularPlanRef(rec){
+  const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+  if(!plan) return;
+  // AARMS blmpfolio2: referencia usa folio de pág. 1 como principal (+ folioP2 informativo)
+  plan.blmpRef = {
+    hecho: true,
+    folio: rec.folio || '',
+    folioP2: rec.folioP2 || '',
+    aapt: rec.aapt || '',
+    id: rec.id || null,
+    updatedAt: Date.now()
+  };
+  // AARMS blmpfiel: OMAR solo referencia — sin duplicar verificacion/limpieza
+  if(omar && omar.ts){
+    omar.blmpRef = {
+      hecho: true,
+      folio: rec.folio || '',
+      folioP2: rec.folioP2 || '',
+      aapt: rec.aapt || '',
+      id: rec.id || null
+    };
+    if(omar.blmpLab) delete omar.blmpLab;
+    try{ await saveMuestreoActual(); }catch(_){}
+  }
+  try{ await guardarPlan(plan); }catch(_){}
+  try{ await marcarPlanDocDone('blmp', plan.id); }catch(_){}
+}
+
+async function _blmpGuardarRegistro(){
+  const data = _blmpLeerForm();
+  if(!data.aapt){ toast('Captura el equipo AA/PT','w'); return null; }
+  if(!data.fecha){ toast('Captura la fecha de verificacion','w'); return null; }
+  let folio = data.folio;
+  let folioP2 = '';
+  const prev = data.id ? await idbBlmpGet(data.id).catch(() => null) : null;
+  if(prev && prev.folioP2) folioP2 = String(prev.folioP2);
+  // AARMS blmpfolio2: documento nuevo = 2 folios (pág1 + pág2); legado con solo folio → asignar folioP2
+  if(!folio){
+    // AARMS lote2a: doble toque comparte la misma reserva
+    if(!_blmpUi._pendiente) _blmpUi._pendiente = _blmpAsignarFolios(2);
+    const pair = await _blmpUi._pendiente;
+    folio = pair[0];
+    folioP2 = pair[1];
+    _blmpUi.folio = folio;
+    const folElNow = document.getElementById('blmp_folio');
+    if(folElNow) folElNow.value = folio + '-' + folioP2;
+    _blmpUi._pendiente = null;
+  } else if(!folioP2){
+    folioP2 = (await _blmpAsignarFolios(1))[0];
+  }
+  const id = data.id || ('blmp_' + folio.replace(/\W+/g,'_') + '_' + Date.now());
+  const rec = {
+    id,
+    folio,
+    folioP2,
+    aapt: data.aapt,
+    fecha: data.fecha,
+    hora: data.hora,
+    verificacion: data.verificacion || {},
+    obs_v: data.obs_v || '',
+    actividades: data.actividades || [],
+    mantenimiento: data.mantenimiento || {},
+    obs: data.obs || '',
+    updatedAt: Date.now(),
+    createdAt: prev && prev.createdAt ? prev.createdAt : Date.now()
+  };
+  await idbBlmpPut(rec);
+  _blmpUi.id = rec.id;
+  _blmpUi.folio = rec.folio;
+  const folEl = document.getElementById('blmp_folio');
+  if(folEl) folEl.value = rec.folioP2 ? (rec.folio+'-'+rec.folioP2) : (rec.folio || '—');
+  await _blmpVincularPlanRef(rec);
+  return rec;
+}
+
+// Compat: nombres legacy usados por flujo lab
+function leerBlmpAlOmar(){
+  // AARMS blmpfiel: ya no escribe datos en omar.blmpLab
+  try{ _blmpSyncActsFromDom(); }catch(_){}
+}
 function poblarBlmpForm(){
-  const b=omar.blmpLab||{};
-  _instS('blmp_fecha', b.fecha||''); _instS('blmp_hora', b.hora||''); _instS('blmp_aapt', b.aapt||'');
-  _instS('blmp_v_panel', b.v_panel||''); _instS('blmp_v_cables', b.v_cables||''); _instS('blmp_v_cuerpo', b.v_cuerpo||'');
-  _instS('blmp_v_error', b.v_error||''); _instS('blmp_v_vida', b.v_vida||''); _instS('blmp_v_eenv', b.v_eEnv||'');
-  _instS('blmp_v_esuc', b.v_eSuc||''); _instS('blmp_v_ecomp', b.v_eComp||''); _instS('blmp_v_calib', b.v_calib||'');
-  _instS('blmp_obs_v', b.obs_v||''); _instS('blmp_act_txt', b.act_txt||''); _instS('blmp_cod_act', b.cod_act||'');
-  _instS('blmp_l_enj', b.l_enj); _instS('blmp_l_alc', b.l_alc); _instS('blmp_l_grasa', b.l_grasa);
-  _instS('blmp_l_hcl', b.l_hcl); _instS('blmp_l_det', b.l_det);
-  _instS('blmp_m_exp', b.m_exp||''); _instS('blmp_obs', b.obs||'');
+  // no-op si ya se cargo registro; mantener por callers legacy
 }
 
 async function abrirPagBlmp(){
-  if(!omar.ts){ toast('Primero captura el OMAR','w'); return; }
-  poblarBlmpForm();
-  const p=document.getElementById('blmpPill');
-  if(p) p.textContent = (omar.folio?'OMAR '+omar.folio:'OMAR');
+  // AARMS blmpfiel: abrir formulario por equipo; plan solo referencia
+  let rec = null;
+  const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+  const ref = (plan && plan.blmpRef) || (omar && omar.blmpRef) || null;
+  if(ref && ref.id){
+    try{ rec = await idbBlmpGet(ref.id); }catch(_){}
+  }
+  if(!rec && ref && ref.folio){
+    try{ rec = await idbBlmpGetByFolio(ref.folio); }catch(_){}
+  }
+  const pgBlmp = document.getElementById('pgBlmp');
+  if(pgBlmp && plan) pgBlmp.setAttribute('data-lote21-plan', plan.id);
+  if(!rec){
+    const today = _lote21HoyFecha();
+    rec = {
+      id: null,
+      folio: '',
+      aapt: '',
+      fecha: today,
+      hora: '',
+      verificacion: {},
+      obs_v: '',
+      actividades: [{ hora:'', fecha: today, codigo:'', justificacion:'' }],
+      mantenimiento: { folioCee:'', folioApartado:'', folioFaa22:'' },
+      obs: ''
+    };
+  }
+  if(typeof _catalogoCargar === 'function'){ try{ await _catalogoCargar(); }catch(_){} }
+  _blmpPoblarForm(rec);
   _aplicarDocEstadoBadge('blmp');
   goPage('pgBlmp');
-  // AARMS lvarfix
   _refreshBotonesContinuarLab();
 }
 
-function leerColabAlOmar(){
+async function generarPDFBlmpForm(){
+  // AARMS lote21d: el PDF sale del registro. Los cuadros solo se guardan si esta pantalla es el plan abierto.
+  const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+  const ref = (plan && plan.blmpRef) || (typeof omar !== 'undefined' && omar && omar.blmpRef) || null;
+  const pg = document.getElementById('pgBlmp');
+  const misma = !!(pg && pg.classList.contains('on') && plan && String(pg.getAttribute('data-lote21-plan') || '') === String(plan.id));
+  let rec = null;
+  if(misma) rec = await _blmpGuardarRegistro();
+  if(!rec && ref && ref.id && typeof idbBlmpGet === 'function'){
+    try{ rec = await idbBlmpGet(ref.id); }catch(_){}
+  }
+  if(!rec && ref && ref.folio && typeof idbBlmpGetByFolio === 'function'){
+    try{ rec = await idbBlmpGetByFolio(ref.folio); }catch(_){}
+  }
+  if(!rec){ toast('Sin BLMP para el PDF','w'); return; }
+  if(typeof window._blmpGenerarPdfFiel === 'function'){
+    await window._blmpGenerarPdfFiel(rec);
+  } else {
+    toast('Motor PDF BLMP no cargado','w');
+  }
+}
+window.generarPDFBlmpForm = generarPDFBlmpForm;
+window._blmpGuardarRegistro = _blmpGuardarRegistro;
+window.idbBlmpGetByFolio = idbBlmpGetByFolio;
+window.idbBlmpGet = idbBlmpGet;
+window._BLMP_VERIF_KEYS = _BLMP_VERIF_KEYS;
+
+function leerColabAlOmar(conservar){
   if(!omar) omar={};
   const prev=omar.colabLab||{};
   const g=id=>{ const e=document.getElementById(id); if(!e) return undefined; if(e.type==='checkbox') return e.checked; return (e.value||'').trim(); };
-  const set=(k,id)=>{ const v=g(id); if(v!==undefined) prev[k]=v; };
+  const set=(k,id)=>{
+    const v=g(id);
+    if(v===undefined) return;
+    // AARMS lote21d: al generar, un cuadro vacío no borra el dato guardado.
+    if(conservar && typeof v === 'string' && !v && prev[k]) return;
+    prev[k]=v;
+  };
   set('fecha','colab_fecha'); set('hora','colab_hora'); set('marca','colab_marca'); set('clave','colab_clave');
-  set('folio','colab_folio'); // AARMS simfix: folio multi texto libre
+  // AARMS lote2a: el input muestra el rango; no pisar folio/folioP2/folioP3
+  const folDisp=g('colab_folio');
+  if(folDisp && folDisp !== '—' && folDisp.indexOf('-') < 0 && !prev.folio) prev.folio = folDisp;
   set('v1','colab_v1'); set('v2','colab_v2'); set('v3','colab_v3'); set('v4','colab_v4');
   set('v5','colab_v5'); set('v6','colab_v6'); set('v7','colab_v7');
   set('l_enj','colab_l_enj'); set('l_alc','colab_l_alc'); set('l_grasa','colab_l_grasa');
   set('l_hcl','colab_l_hcl'); set('l_det','colab_l_det');
-  set('m_bat','colab_m_bat'); set('m_cel','colab_m_cel'); set('m_ext','colab_m_ext'); // AARMS sub3fix4: 3 campos mant
-  set('mrc_nom','colab_mrc_nom'); set('mrc_lote','colab_mrc_lote');
-  set('mrc_l1','colab_mrc_l1'); set('mrc_l2','colab_mrc_l2'); set('mrc_l3','colab_mrc_l3');
-  set('ctrl_nom','colab_ctrl_nom'); set('ctrl_lote','colab_ctrl_lote');
-  set('ctrl_l1','colab_ctrl_l1'); set('ctrl_l2','colab_ctrl_l2'); set('ctrl_l3','colab_ctrl_l3');
+  set('limp_donde','colab_limp_donde'); set('l_efectiva','colab_l_efectiva');
+  set('m_bat','colab_m_bat'); set('m_cel','colab_m_cel'); set('m_rep','colab_m_rep'); set('m_ext','colab_m_ext');
+  // AARMS condfiel: 6 bloques Lab/Campo
+  set('cal_fecha','colab_cal_fecha'); set('cal_hora','colab_cal_hora'); set('cal_lote','colab_cal_lote');
+  set('cal_marca','colab_cal_marca'); set('cal_vn','colab_cal_vn'); set('cal_inc','colab_cal_inc');
+  set('cal_lect','colab_cal_lect'); set('cal_acep','colab_cal_acep');
+  set('comp_fecha','colab_comp_fecha'); set('comp_hora','colab_comp_hora'); set('comp_lote','colab_comp_lote');
+  set('comp_marca','colab_comp_marca'); set('comp_vn','colab_comp_vn');
+  set('comp_l1','colab_comp_l1'); set('comp_l2','colab_comp_l2'); set('comp_l3','colab_comp_l3');
+  set('ver_fecha','colab_ver_fecha'); set('ver_hora','colab_ver_hora'); set('ver_lote','colab_ver_lote');
+  set('ver_marca','colab_ver_marca'); set('ver_vn','colab_ver_vn');
+  set('ver_l1','colab_ver_l1'); set('ver_l2','colab_ver_l2'); set('ver_l3','colab_ver_l3');
+  set('campo_cal_fecha','colab_campo_cal_fecha'); set('campo_cal_hora','colab_campo_cal_hora');
+  set('campo_cal_lote','colab_campo_cal_lote'); set('campo_cal_marca','colab_campo_cal_marca');
+  set('campo_cal_vn','colab_campo_cal_vn'); set('campo_cal_inc','colab_campo_cal_inc');
+  set('campo_cal_lect','colab_campo_cal_lect'); set('campo_cal_acep','colab_campo_cal_acep');
+  set('campo_comp_fecha','colab_campo_comp_fecha'); set('campo_comp_hora','colab_campo_comp_hora');
+  set('campo_comp_lote','colab_campo_comp_lote'); set('campo_comp_marca','colab_campo_comp_marca');
+  set('campo_comp_vn','colab_campo_comp_vn');
+  set('campo_comp_l1','colab_campo_comp_l1'); set('campo_comp_l2','colab_campo_comp_l2'); set('campo_comp_l3','colab_campo_comp_l3');
+  set('campo_ver_fecha','colab_campo_ver_fecha'); set('campo_ver_hora','colab_campo_ver_hora');
+  set('campo_ver_lote','colab_campo_ver_lote'); set('campo_ver_marca','colab_campo_ver_marca');
+  set('campo_ver_vn','colab_campo_ver_vn');
+  set('campo_ver_l1','colab_campo_ver_l1'); set('campo_ver_l2','colab_campo_ver_l2'); set('campo_ver_l3','colab_campo_ver_l3');
   set('obs','colab_obs');
+  // AARMS condfiel: espejo legado mrc/ctrl para mínimo listo / BM
+  prev.mrc_nom = prev.cal_vn || prev.mrc_nom || '';
+  prev.mrc_lote = prev.cal_lote || prev.comp_lote || prev.mrc_lote || '';
+  prev.mrc_l1 = prev.comp_l1 || prev.mrc_l1 || '';
+  prev.mrc_l2 = prev.comp_l2 || prev.mrc_l2 || '';
+  prev.mrc_l3 = prev.comp_l3 || prev.mrc_l3 || '';
+  prev.ctrl_nom = prev.ver_vn || prev.ctrl_nom || '';
+  prev.ctrl_lote = prev.ver_lote || prev.ctrl_lote || '';
+  prev.ctrl_l1 = prev.ver_l1 || prev.ctrl_l1 || '';
+  prev.ctrl_l2 = prev.ver_l2 || prev.ctrl_l2 || '';
+  prev.ctrl_l3 = prev.ver_l3 || prev.ctrl_l3 || '';
   const mant_na={...(prev.mant_na||{})};
   document.querySelectorAll('[data-mant-na]').forEach(cb=>{
     const k=cb.getAttribute('data-mant-na');
@@ -8742,10 +11162,95 @@ function leerColabAlOmar(){
   omar.colabLab=prev;
 }
 
+// AARMS condfiel: VN±I automático (Valor Nominal ± Incertidumbre)
+function _condParseNum(v){
+  if(v==null || v==='') return NaN;
+  const n = parseFloat(String(v).replace(',', '.').replace(/[^\d.\-]/g, ''));
+  return isNaN(n) ? NaN : n;
+}
+function _condVnPm(vn, inc){
+  const a = _condParseNum(vn), b = Math.abs(_condParseNum(inc));
+  if(isNaN(a) || isNaN(b)) return { plus: '', minus: '' };
+  const p = a + b, m = a - b;
+  const fmt = (x) => {
+    const s = String(Math.round(x * 100) / 100);
+    return s;
+  };
+  return { plus: fmt(p), minus: fmt(m) };
+}
+function _condRecalcVnPm(which){
+  const lab = which !== 'campo';
+  const vnId = lab ? 'colab_cal_vn' : 'colab_campo_cal_vn';
+  const incId = lab ? 'colab_cal_inc' : 'colab_campo_cal_inc';
+  const pId = lab ? 'colab_cal_vnp' : 'colab_campo_cal_vnp';
+  const mId = lab ? 'colab_cal_vnm' : 'colab_campo_cal_vnm';
+  const vnEl = document.getElementById(vnId);
+  const incEl = document.getElementById(incId);
+  const r = _condVnPm(vnEl && vnEl.value, incEl && incEl.value);
+  const pEl = document.getElementById(pId);
+  const mEl = document.getElementById(mId);
+  if(pEl) pEl.value = r.plus;
+  if(mEl) mEl.value = r.minus;
+}
+window._condRecalcVnPm = _condRecalcVnPm;
+window._condVnPm = _condVnPm;
+
+// AARMS condfiel: folioSeq propio conductímetro (3 págs)
+function _condMetaGet(){
+  const c = _appConfigGet();
+  if(!c.conductimetro || typeof c.conductimetro !== 'object'){
+    c.conductimetro = { folioSeq: 1 };
+    try{ localStorage.setItem('aarms_config', JSON.stringify(c)); }catch(_){}
+  }
+  if(typeof c.conductimetro.folioSeq !== 'number' || c.conductimetro.folioSeq < 1) c.conductimetro.folioSeq = 1;
+  return c.conductimetro;
+}
+async function _condMetaSave(meta){
+  const c = _appConfigGet();
+  c.conductimetro = meta;
+  await _appConfigSave(c);
+}
+function _condFolioFormat(n){
+  return String(Math.max(1, n|0)).padStart(4, '0');
+}
+async function _condAsignarFolios(n){
+  // AARMS lote2a: la serie del conductímetro sigue en el contador común
+  const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+  return _folioTomar('blmccvuc', n, {
+    planId: plan && plan.id, planFolio: plan && plan.folio || '', doc: 'BLMCCVUC'
+  });
+}
+window._condAsignarFolios = _condAsignarFolios;
+window._condFolioFormat = _condFolioFormat;
+
+let _condPendiente = null;
+/** AARMS condfiel: reutilizar folios del doc o asignar 3 nuevos; legado "0001-0002-0003". */
+async function _condResolverFoliosPaginas(colab, plan){
+  const c = colab || {};
+  const ref = (plan && plan.condRef) || {};
+  if(c.folio && c.folioP2 && c.folioP3){
+    return [String(c.folio), String(c.folioP2), String(c.folioP3)];
+  }
+  if(ref.folio && ref.folioP2 && ref.folioP3){
+    return [String(ref.folio), String(ref.folioP2), String(ref.folioP3)];
+  }
+  const leg = String(c.folio || ref.folio || '').trim();
+  const parts = leg.split(/\s*[-–—/]\s*/).map(x => x.trim()).filter(Boolean);
+  if(parts.length >= 3){
+    return [parts[0], parts[1], parts[2]];
+  }
+  // AARMS lote2a: un solo bloque de 3 aunque se pulse dos veces
+  if(!_condPendiente) _condPendiente = _condAsignarFolios(3);
+  const out = await _condPendiente;
+  _condPendiente = null;
+  return out;
+}
+window._condResolverFoliosPaginas = _condResolverFoliosPaginas;
+
 // AARMS sub3fix2: marcar campo mantenimiento como No Aplica
-// AARMS sub3fix4: mantenimiento con 3 campos (Baterías, Celdas, Envío técnico)
-const _MANT_KEY_TO_COLAB={ baterias:'m_bat', celdas:'m_cel', envio_tecnico:'m_ext' };
-const _MANT_KEY_TO_ID={ baterias:'colab_m_bat', celdas:'colab_m_cel', envio_tecnico:'colab_m_ext' };
+// AARMS condfiel: 4 campos mant (Baterías, Celdas, Replatinización, Envío)
+const _MANT_KEY_TO_COLAB={ baterias:'m_bat', celdas:'m_cel', replatinizacion:'m_rep', envio_tecnico:'m_ext' };
+const _MANT_KEY_TO_ID={ baterias:'colab_m_bat', celdas:'colab_m_cel', replatinizacion:'colab_m_rep', envio_tecnico:'colab_m_ext' };
 
 function _campoMantValido(colabLab, campo){
   if(colabLab?.mant_na?.[campo]) return true;
@@ -8754,7 +11259,7 @@ function _campoMantValido(colabLab, campo){
 }
 
 function _colabMantCompleto(colabLab){
-  return ['baterias','celdas','envio_tecnico'].every(c=>_campoMantValido(colabLab,c)); // AARMS sub3fix4: 3 campos mant
+  return ['baterias','celdas','replatinizacion','envio_tecnico'].every(c=>_campoMantValido(colabLab,c));
 }
 
 async function mantSetNA(campo, esNA, opts){
@@ -8781,18 +11286,56 @@ window.mantSetNA = mantSetNA;
 
 function poblarColabForm(){
   const c=omar.colabLab||{};
+  // AARMS condfiel: migrar legado mrc/ctrl → bloques Lab si vacíos
+  const calVn = c.cal_vn || c.mrc_nom || '';
+  const calLote = c.cal_lote || c.mrc_lote || '';
+  const compL1 = c.comp_l1 || c.mrc_l1 || '';
+  const compL2 = c.comp_l2 || c.mrc_l2 || '';
+  const compL3 = c.comp_l3 || c.mrc_l3 || '';
+  const verVn = c.ver_vn || c.ctrl_nom || '';
+  const verLote = c.ver_lote || c.ctrl_lote || '';
+  const verL1 = c.ver_l1 || c.ctrl_l1 || '';
+  const verL2 = c.ver_l2 || c.ctrl_l2 || '';
+  const verL3 = c.ver_l3 || c.ctrl_l3 || '';
   _instS('colab_fecha', c.fecha||''); _instS('colab_hora', c.hora||''); _instS('colab_marca', c.marca||''); _instS('colab_clave', c.clave||'');
-  _instS('colab_folio', c.folio||''); // AARMS simfix
+  // AARMS lote8c: la misma clave AA/CO del catálogo que el LVAR
+  _lote8cClaveInput('colab_clave', 'conductimetros', c.clave || '', false);
+  const folShow = (c.folio && c.folioP2 && c.folioP3)
+    ? (c.folio + '-' + c.folioP2 + '-' + c.folioP3)
+    : (c.folio || '');
+  _instS('colab_folio', folShow);
   _instS('colab_v1', c.v1||''); _instS('colab_v2', c.v2||''); _instS('colab_v3', c.v3||''); _instS('colab_v4', c.v4||'');
   _instS('colab_v5', c.v5||''); _instS('colab_v6', c.v6||''); _instS('colab_v7', c.v7||'');
   _instS('colab_l_enj', c.l_enj); _instS('colab_l_alc', c.l_alc); _instS('colab_l_grasa', c.l_grasa);
   _instS('colab_l_hcl', c.l_hcl); _instS('colab_l_det', c.l_det);
-  _instS('colab_m_bat', c.m_bat); _instS('colab_m_cel', c.m_cel); _instS('colab_m_ext', c.m_ext); // AARMS sub3fix4: 3 campos mant
-  _instS('colab_mrc_nom', c.mrc_nom||''); _instS('colab_mrc_lote', c.mrc_lote||'');
-  _instS('colab_mrc_l1', c.mrc_l1||''); _instS('colab_mrc_l2', c.mrc_l2||''); _instS('colab_mrc_l3', c.mrc_l3||'');
-  _instS('colab_ctrl_nom', c.ctrl_nom||''); _instS('colab_ctrl_lote', c.ctrl_lote||'');
-  _instS('colab_ctrl_l1', c.ctrl_l1||''); _instS('colab_ctrl_l2', c.ctrl_l2||''); _instS('colab_ctrl_l3', c.ctrl_l3||'');
+  _instS('colab_limp_donde', c.limp_donde||''); _instS('colab_l_efectiva', c.l_efectiva||'');
+  _instS('colab_m_bat', c.m_bat); _instS('colab_m_cel', c.m_cel); _instS('colab_m_rep', c.m_rep); _instS('colab_m_ext', c.m_ext);
+  _instS('colab_cal_fecha', c.cal_fecha||c.fecha||''); _instS('colab_cal_hora', c.cal_hora||'');
+  _instS('colab_cal_lote', calLote); _instS('colab_cal_marca', c.cal_marca||'');
+  _instS('colab_cal_vn', calVn); _instS('colab_cal_inc', c.cal_inc||'');
+  _instS('colab_cal_lect', c.cal_lect||''); _instS('colab_cal_acep', c.cal_acep||'');
+  _instS('colab_comp_fecha', c.comp_fecha||c.fecha||''); _instS('colab_comp_hora', c.comp_hora||'');
+  _instS('colab_comp_lote', c.comp_lote||calLote); _instS('colab_comp_marca', c.comp_marca||c.cal_marca||'');
+  _instS('colab_comp_vn', c.comp_vn||calVn);
+  _instS('colab_comp_l1', compL1); _instS('colab_comp_l2', compL2); _instS('colab_comp_l3', compL3);
+  _instS('colab_ver_fecha', c.ver_fecha||c.fecha||''); _instS('colab_ver_hora', c.ver_hora||'');
+  _instS('colab_ver_lote', verLote); _instS('colab_ver_marca', c.ver_marca||'');
+  _instS('colab_ver_vn', verVn);
+  _instS('colab_ver_l1', verL1); _instS('colab_ver_l2', verL2); _instS('colab_ver_l3', verL3);
+  _instS('colab_campo_cal_fecha', c.campo_cal_fecha||''); _instS('colab_campo_cal_hora', c.campo_cal_hora||'');
+  _instS('colab_campo_cal_lote', c.campo_cal_lote||''); _instS('colab_campo_cal_marca', c.campo_cal_marca||'');
+  _instS('colab_campo_cal_vn', c.campo_cal_vn||''); _instS('colab_campo_cal_inc', c.campo_cal_inc||'');
+  _instS('colab_campo_cal_lect', c.campo_cal_lect||''); _instS('colab_campo_cal_acep', c.campo_cal_acep||'');
+  _instS('colab_campo_comp_fecha', c.campo_comp_fecha||''); _instS('colab_campo_comp_hora', c.campo_comp_hora||'');
+  _instS('colab_campo_comp_lote', c.campo_comp_lote||''); _instS('colab_campo_comp_marca', c.campo_comp_marca||'');
+  _instS('colab_campo_comp_vn', c.campo_comp_vn||'');
+  _instS('colab_campo_comp_l1', c.campo_comp_l1||''); _instS('colab_campo_comp_l2', c.campo_comp_l2||''); _instS('colab_campo_comp_l3', c.campo_comp_l3||'');
+  _instS('colab_campo_ver_fecha', c.campo_ver_fecha||''); _instS('colab_campo_ver_hora', c.campo_ver_hora||'');
+  _instS('colab_campo_ver_lote', c.campo_ver_lote||''); _instS('colab_campo_ver_marca', c.campo_ver_marca||'');
+  _instS('colab_campo_ver_vn', c.campo_ver_vn||'');
+  _instS('colab_campo_ver_l1', c.campo_ver_l1||''); _instS('colab_campo_ver_l2', c.campo_ver_l2||''); _instS('colab_campo_ver_l3', c.campo_ver_l3||'');
   _instS('colab_obs', c.obs||'');
+  if(typeof _condRecalcVnPm === 'function'){ _condRecalcVnPm('lab'); _condRecalcVnPm('campo'); }
 }
 
 let _condFlujoActivo = false;
@@ -8801,8 +11344,9 @@ let _condFlujoOrigen = 'plan';
 function _colabLabMinimoListo(){
   const c = omar?.colabLab || {};
   const hasId = !!(String(c.fecha||'').trim() && (String(c.marca||'').trim() || String(c.clave||'').trim()));
-  const hasMrc = !!(String(c.mrc_l1||'').trim() && String(c.mrc_l2||'').trim() && String(c.mrc_l3||'').trim());
-  return hasId && hasMrc && _colabMantCompleto(c);
+  // AARMS condfiel: mínimo = ID + (cal lectura o comprobación L1–L3 legado) + mant 4
+  const hasCal = !!(String(c.cal_lect||'').trim() || (String(c.comp_l1||c.mrc_l1||'').trim() && String(c.comp_l2||c.mrc_l2||'').trim() && String(c.comp_l3||c.mrc_l3||'').trim()));
+  return hasId && hasCal && _colabMantCompleto(c);
 }
 
 function _renderCondFlujoStepper(pasoActivo){
@@ -8877,6 +11421,7 @@ function cerrarFlujoConductimetroDesdeLab(){
 
 async function abrirPagColab(){
   if(!omar.ts){ toast('Primero captura el OMAR','w'); return; }
+  if(typeof _catalogoCargar === 'function'){ try{ await _catalogoCargar(); }catch(_){} }
   poblarColabForm();
   // AARMS sub3fix2: restaurar estado NA al abrir
   if(omar.colabLab?.mant_na){
@@ -8895,12 +11440,21 @@ async function abrirPagColab(){
   goPage('pgColab');
   // AARMS lvarfix
   _refreshBotonesContinuarLab();
+  // AARMS lote1b: se quitó el aviso que mandaba a la hoja de campo
   if(_condFlujoActivo) toast('Paso 1 · Laboratorio','');
-  else toast('Parte laboratorio aquí. Las lecturas entre tomas van en Hoja de campo > Bitácora Conductímetro.','');
 }
 
 async function guardarInstrumentLab(which){
-  if(which==='blmp') leerBlmpAlOmar();
+  if(which==='blmp'){
+    // AARMS blmpfiel: guarda registro por equipo + referencia en plan
+    const rec = await _blmpGuardarRegistro();
+    if(!rec) return;
+    toast('BLMP guardado · ' + rec.folio, 'g');
+    _refreshBotonesContinuarLab();
+    if(typeof _actualizarGatePlanUI === 'function') _actualizarGatePlanUI();
+    _aplicarDocEstadoBadge('blmp');
+    return;
+  }
   if(which==='colab') leerColabAlOmar();
   try{ await saveMuestreoActual(); }catch(e){ console.warn(e); }
   toast('Datos guardados en el OMAR','g');
@@ -8944,7 +11498,8 @@ function _pdfStdHeader(doc, logo, W, M, HDR, tit1, tit2, cod){
   doc.text('Laboratorio de Alimentos y Aguas', W/2, 30, {align:'center'});
   doc.setTextColor(100,110,130); doc.setFontSize(7);
   doc.text('Calle 12 Ave. Serdán Ext. 465 Int. 201  |  Edif. Puertas del Sol  |  Col. Centro C.P. 85400', W/2, 40, {align:'center'});
-  doc.text('Tel: 622 224 0910  FAX 622 224 207', W/2, 49, {align:'center'});
+  // AARMS lote8a: FAX oficial (faltaba un dígito: 622 224 207)
+  doc.text('Tel: 622 224 0910  FAX 622 222 4207', W/2, 49, {align:'center'});
   doc.setFillColor(...NAVY); doc.rect(W-150, 2, 122, HDR-2, 'F');
   doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
   doc.text(tit1, W-89, 18, {align:'center'});
@@ -8962,192 +11517,90 @@ window._pdfStdHeader = _pdfStdHeader;
 // AARMS phhoja1: Hoja 1 estructura oficial 3/3/2/3/3/2
 // AARMS phverif1: Verificación Lab/Campo = 1 fila (3/3/1/3/3/1)
 // AARMS adminaccess: acceso admin oculto (hash SHA-256, sin texto plano)
-// AARMS cartacontrol: Cartas Control por equipo (IDB + vista admin)
+// AARMS phslopeaccept: CA Entre Tomas — SLOPE grande + ACEPTA real (_phAceptaRechaza)
+// AARMS phslopeaesthetic: SLOPE centrado/tamaño/color = datos de tabla (ACCENT)
+// AARMS cartacontrol: Cartas Control por equipo (IDB + vista)
+// AARMS cartaspublic: lectura/descarga pública; cierre solo con sesión admin (PIN)
 // AARMS phbadge: badge visual Acepta/Rechaza en PDF bitácora pH
 // AARMS phfolio2: folio por hoja + SLOPE/PENDIENTE merge en CA
 // AARMS phslopefix: celda normal rowspan2 CA "PENDIENTE SLOPE XX% PENDIENTE"
 
-async function generarPDFBlmpForm(){
-  if(!omar.ts){ toast('Sin OMAR activa','w'); return; }
-  leerBlmpAlOmar();
-  const b=omar.blmpLab||{};
-  const {jsPDF}=window.jspdf;
-  const logo=await loadLogo(LOGO_PDF_URI);
-  const doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter'});
-  const W=612,M=28,CW=W-M*2,HDR=72,H=792;
-  const MGRAY=[208,216,228], LGRAY=[232,238,245], DGRAY=[51,65,85], WHITE=[255,255,255], NAVY=[10,22,40], ACCENT=[37,99,235];
-  // AARMS v66-est: helper de estilo condicional para valores
-  const valStyle = (txt) => {
-    const isEmpty = !txt || String(txt).trim() === '' || String(txt).trim() === '-';
-    if(isEmpty){
-      doc.setTextColor(170, 178, 191);
-      doc.setFont('helvetica','normal');
-    } else {
-      doc.setTextColor(...ACCENT);
-      doc.setFont('helvetica','bold');
-    }
-    return isEmpty ? '-' : String(txt);
-  };
-  // AARMS sub10-std
-  _pdfStdHeader(doc, logo, W, M, HDR, 'BITACORA LIMPIEZA', 'pH-metro (laboratorio)', 'BLMP');
-  let y=HDR+6;
-  const row=(label,val,yy)=>{ doc.setFillColor(...LGRAY); doc.rect(M,yy,CW,16,'F'); doc.setDrawColor(...MGRAY); doc.rect(M,yy,CW,16,'S'); doc.setTextColor(...NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.text(label, M+4, yy+6); doc.setFontSize(8); doc.text(jsPdfAscii(valStyle(val)).substring(0,110), M+4, yy+13); return yy+17; };
-  y=row('Fecha / Hora / Equipo AA/PT', [b.fecha,b.hora,b.aapt].filter(Boolean).join('  |  '), y);
-  // AARMS sub10-std: barras de sección unificadas
-  const sec=(t,yy)=> (typeof window._pdfBarraSeccion==='function')
-    ? window._pdfBarraSeccion(doc, t, M, yy, CW, 'helvetica') + 2
-    : (doc.setFillColor(...NAVY), doc.rect(M,yy,CW,10,'F'), doc.setTextColor(...WHITE), doc.setFont('helvetica','bold'), doc.setFontSize(8), doc.text(t, M+4, yy+7), yy+12);
-  y=sec('1. Verificacion visual', y);
-  [['Panel danado',b.v_panel],['Cables',b.v_cables],['Cuerpo sucio',b.v_cuerpo],['Error en pantalla',b.v_error],['Vida util electrodo',b.v_vida],['Envejecimiento electrodo',b.v_eEnv],['Suciedad electrodo',b.v_eSuc],['Electrodo completo',b.v_eComp],['Permite calibrar',b.v_calib]].forEach(([l,v])=>{ y=row(l, v, y); if(y>H-60){ doc.addPage(); y=M+10; }});
-  y=row('Observaciones (1)', b.obs_v, y);
-  y=sec('2. Limpieza', y);
-  y=row('Actividad / Codigo', [b.act_txt,b.cod_act].join(' | '), y);
-  const yn=v=>v?'SI':'NO';
-  y=row('Pasos (SI marca)', ['Enjuagar:'+yn(b.l_enj),'Alcohol:'+yn(b.l_alc),'Grasa:'+yn(b.l_grasa),'HCl:'+yn(b.l_hcl),'Detergente:'+yn(b.l_det)].join('  '), y);
-  y=sec('3. Mantenimiento', y);
-  y=row('Expediente CEE/AA/N-3', b.m_exp, y);
-  y=row('Observaciones finales', b.obs, y);
-  const LeyB=window.AARMS_DOC_LEYENDAS||{};
-  if(y>H-85){ doc.addPage(); y=M+10; _pdfStdHeader(doc, logo, W, M, HDR, 'BITACORA LIMPIEZA', 'pH-metro (laboratorio)', 'BLMP'); y=HDR+8; }
-  else y+=10;
-  // AARMS sub10-std: leyenda en caja (sin italic tirado)
-  const pieB=[LeyB.limpiezaCod,LeyB.actControl].filter(Boolean).join(' ');
-  if(typeof window._pdfCajaLeyenda === 'function'){
-    y = window._pdfCajaLeyenda(doc, pieB || 'Leyendas de limpieza pH-metro.', M, y, CW, 'helvetica', { fontSize:6.8 });
-  } else {
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.8); doc.setTextColor(51,65,85);
-    (doc.splitTextToSize?doc.splitTextToSize(jsPdfAscii(pieB||''),CW-8):[pieB]).forEach((ln,i)=>{ doc.text(ln,M+4,y+i*9); });
-  }
-  await saveMuestreoActual();
-  doc.save(`Bitacora_Limpieza_pH_OMAR-${omar.folio||omar.ts}.pdf`);
-  toast('PDF limpieza pH generado','g');
-  await _maybeMarcarPlanDoc('blmp');
-}
-
+// AARMS condfiel + condpulido + condcancelado + condcanceladofix: 1 PDF por plan · F-AA-289-2 · 3 págs
 async function generarPDFColabCompleto(){
-  if(!omar.ts){ toast('Sin OMAR activa','w'); return; }
-  leerColabAlOmar();
-  const c=omar.colabLab||{};
-  const {jsPDF}=window.jspdf;
-  const logo=await loadLogo(LOGO_PDF_URI);
-  // AARMS sub8-pdfs: tablas/firma premium (helpers Machiote, Helvetica); condhora intacta
-  const doc=new jsPDF({orientation:'portrait',unit:'pt',format:'letter'});
-  const W=612,M=28,CW=W-M*2,HDR=72,H=792;
-  const FONT='helvetica';
-  const _hdrPrem=window._pdfHeaderTablaPremium;
-  const _filaPrem=window._pdfFilaTablaPremium;
-  const _firmaPrem=window._pdfFirmaPremium;
-  const MGRAY=[208,216,228], LGRAY=[232,238,245], DGRAY=[51,65,85], NAVY=[10,22,40], ACCENT=[37,99,235], WHITE=[255,255,255];
-  // AARMS v66-est: helper de estilo condicional para valores
-  const valStyle = (txt) => {
-    const isEmpty = !txt || String(txt).trim() === '' || String(txt).trim() === '-';
-    if(isEmpty){
-      doc.setTextColor(170, 178, 191);
-      doc.setFont(FONT,'normal');
-    } else {
-      doc.setTextColor(...ACCENT);
-      doc.setFont(FONT,'bold');
+  // AARMS condfiel: no leer formulario vacío si la página no está abierta (evita borrar lab)
+  // AARMS lote21d: los cuadros solo entran si el conductímetro en pantalla es este plan. No se reescribe el muestreo desde otra página.
+  const pgCol = document.getElementById('pgColab');
+  if(pgCol && pgCol.classList.contains('on') && typeof leerColabAlOmar === 'function'){
+    leerColabAlOmar(true);
+  }
+
+  let plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+  if(!plan && typeof omar !== 'undefined' && omar?.ts && typeof getPlanDeMuestreo === 'function'){
+    plan = getPlanDeMuestreo(omar.ts);
+  }
+  if(!plan && !(typeof omar !== 'undefined' && omar?.ts)){
+    toast('Abre un plan u OMAR para generar la bitácora de conductímetro','w');
+    return;
+  }
+
+  // Lab data: OMAR actual, o primer OMAR del plan con colabLab
+  let c = (typeof omar !== 'undefined' && omar) ? Object.assign({}, omar.colabLab || {}) : {};
+  if((!c.clave && !c.cal_vn && !c.mrc_nom && !c.cal_lect) && plan && (plan.omarIds || []).length && typeof _cachedMuestreos !== 'undefined'){
+    for(const mid of plan.omarIds){
+      const m = _cachedMuestreos.find(x => x.id === mid);
+      if(!m || !m.omar) continue;
+      try{
+        const o = JSON.parse(m.omar);
+        if(o.colabLab && (o.colabLab.clave || o.colabLab.cal_lect || o.colabLab.mrc_nom || o.colabLab.fecha)){
+          c = Object.assign({}, o.colabLab);
+          break;
+        }
+      }catch(_){}
     }
-    return isEmpty ? '-' : String(txt);
-  };
-  // AARMS sub10-std
-  _pdfStdHeader(doc, logo, W, M, HDR, 'CONDUCTIMETRO', 'Limpieza, calibracion, uso', 'BLMCCVUC');
-  let y=HDR+6;
-  const row=(label,val,yy)=>{ doc.setFillColor(...LGRAY); doc.rect(M,yy,CW,15,'F'); doc.setDrawColor(...MGRAY); doc.rect(M,yy,CW,15,'S'); doc.setTextColor(...NAVY); doc.setFont(FONT,'bold'); doc.setFontSize(6.8); doc.text(label, M+3, yy+6); doc.setFontSize(7.5); doc.text(jsPdfAscii(valStyle(val)).substring(0,118), M+3, yy+12); return yy+16; };
-  y=row('Identificacion (marca / clave)', (c.marca||'')+'  |  '+(c.clave||''), y);
-  const sec=(t,yy)=>{ doc.setFillColor(...NAVY); doc.rect(M,yy,CW,10,'F'); doc.setTextColor(...WHITE); doc.setFont(FONT,'bold'); doc.setFontSize(8); doc.text(t, M+3, yy+7); return yy+12; };
-  y=sec('ACTIVIDAD EN LABORATORIO - Verificacion visual (SI/NO)', y);
-  [['Panel danado',c.v1],['Cables danados',c.v2],['Cuerpo sucio',c.v3],['Celda envejecida',c.v4],['Celda sucia',c.v5],['Sin partes faltantes',c.v6],['Codigo error',c.v7]].forEach(([l,v])=>{ y=row(l, v, y); if(y>H-90){ doc.addPage(); y=M+10; }});
-  y=sec('Limpieza / Mantenimiento (laboratorio)', y);
-  const mk=x=>x?'SI':'NO';
-  const mantVal=(campo,key)=>c.mant_na?.[campo]?'NA':mk(c[key]);
-  y=row('Limpieza', ['Enjuagar:'+mk(c.l_enj),'Alcohol:'+mk(c.l_alc),'Grasa:'+mk(c.l_grasa),'HCl:'+mk(c.l_hcl),'Det.:'+mk(c.l_det)].join('  '), y);
-  y=row('Mantenimiento', ['Baterias:'+mantVal('baterias','m_bat'),'Celdas:'+mantVal('celdas','m_cel'),'Envio ext.:'+mantVal('envio_tecnico','m_ext')].join('  '), y); // AARMS sub3fix4: 3 campos mant
-  y=row('Patrón KCl nominal / lote / L1-L3', [c.mrc_nom,c.mrc_lote,c.mrc_l1,c.mrc_l2,c.mrc_l3].join(' | '), y);
-  y=row('Control nominal / lote / L1-L3', [c.ctrl_nom,c.ctrl_lote,c.ctrl_l1,c.ctrl_l2,c.ctrl_l3].join(' | '), y);
-  y=row('Observaciones laboratorio', c.obs, y);
-  if(typeof _firmaPrem==='function'){
-    _firmaPrem(doc, 'Pag. 1', 'BLMCCVUC', { font:FONT, W, H, yOffset:70 });
   }
-  doc.addPage();
-  _pdfStdHeader(doc, logo, W, M, HDR, 'CONDUCTIMETRO', 'Actividad en campo (entre tomas)', 'BLMCCVUC');
-  y=HDR+8;
-  const folioCond=(typeof _bitCondFolioDocGet==='function')?_bitCondFolioDocGet():(omar.bitCondFolioDoc||'');
-  if(folioCond){
-    doc.setFont(FONT,'normal'); doc.setFontSize(7);
-    doc.setTextColor(...DGRAY);
-    doc.text('Folio documento (bitácora campo): ', M, y);
-    doc.text(jsPdfAscii(valStyle(String(folioCond))).substring(0,90), M+doc.getTextWidth('Folio documento (bitácora campo): '), y);
-    y+=12;
-  }
-  doc.setFillColor(...NAVY); doc.rect(M,y,CW,11,'F'); doc.setTextColor(...WHITE); doc.setFont(FONT,'bold'); doc.setFontSize(8);
-  doc.text('Registros entre tomas (promedio va a hoja de campo)', M+4, y+7.5); y+=13;
-  const regs=(typeof _bitCondRegs==='function')?(_bitCondRegs()||[]):(omar.bitCond||[]);
-  const LeyC=window.AARMS_DOC_LEYENDAS||{};
-  if(!regs.length){
-    doc.setFont(FONT,'italic'); doc.setFontSize(8); doc.setTextColor(140,150,165); doc.text('Sin registros de bitácora de conductividad en este OMAR.', M, y);
-  }else{
-    // AARMS sub8-pdfs: header/filas premium; columnas oficiales intactas
-    const cols=[16,40,40,26,26,26,38,38,38,34];
-    const heads=['#','Fecha','Hora','Toma','Act','Limp','L1','L2','L3','<=3%'];
-    if(typeof _hdrPrem==='function'){
-      y=_hdrPrem(doc, heads, M, y, cols, 12, FONT);
-    } else {
-      let x=M; heads.forEach((h,i)=>{ doc.setFillColor(...MGRAY); doc.rect(x,y,cols[i],12,'F'); doc.setDrawColor(...MGRAY); doc.rect(x,y,cols[i],12,'S'); doc.setTextColor(...NAVY); doc.setFont(FONT,'bold'); doc.setFontSize(5.5); doc.text(h,x+cols[i]/2,y+8,{align:'center'}); x+=cols[i]; });
-      y+=12;
+
+  const yaFolios = !!(c.folio && c.folioP2 && c.folioP3);
+  const folios = yaFolios ? [c.folio, c.folioP2, c.folioP3] : await _condResolverFoliosPaginas(c, plan);
+  c.folio = folios[0];
+  c.folioP2 = folios[1];
+  c.folioP3 = folios[2];
+  // AARMS lote21d: si los folios ya están, no se reescribe el muestreo ni el plan.
+  if(!yaFolios && typeof omar !== 'undefined' && omar && omar.ts){
+    omar.colabLab = Object.assign({}, omar.colabLab || {}, { folio: c.folio, folioP2: c.folioP2, folioP3: c.folioP3 });
+    const mFol = (_cachedMuestreos || []).find(x => String(x.id) === String(omar.ts));
+    if(mFol && typeof idbPut === 'function'){
+      let oFol = {};
+      try{ oFol = JSON.parse(mFol.omar || '{}'); }catch(e){ oFol = {}; }
+      oFol.colabLab = Object.assign({}, oFol.colabLab || {}, { folio: c.folio, folioP2: c.folioP2, folioP3: c.folioP3 });
+      mFol.omar = JSON.stringify(oFol);
+      try{ await idbPut(mFol); }catch(e){ console.warn('[condfiel folio]', e); }
     }
-    regs.forEach((r,ix)=>{
-      const Ls=[r.l1,r.l2,r.l3].map(v=>parseFloat(v)).filter(n=>!isNaN(n));
-      let okTxt='-';
-      if(Ls.length===3){ const p=Ls.reduce((a,b)=>a+b,0)/Ls.length; const d=Math.max(...Ls)-Math.min(...Ls); const pct=p>0?(d/p)*100:0; okTxt=pct<=3?'SI':'NO'; }
-      const fd=(s)=>{ if(!s) return ''; const p=String(s).split('-'); return p.length===3?`${p[2]}/${p[1]}`:String(s).substring(0,8); };
-      // AARMS condhora: V/toma → hora de toma; CA/CO → hora real de la actividad
-      const actU = String(r.act || '').toUpperCase();
-      const esCalib = actU === 'CA' || actU === 'CO' || !!r.calibGrupo;
-      let horaPdf = r.hora || '';
-      if(!esCalib){
-        const omarRef = { ts: r.omarId || r.omarTs || omar.ts, id: r.omarId || r.omarTs || omar.id };
-        horaPdf = (typeof _pdfBmHoraDeToma === 'function')
-          ? (_pdfBmHoraDeToma(omarRef, r) || r.hora || '')
-          : (omar.tomas && r.toma ? (omar.tomas[Number(r.toma)-1]?.hora || r.hora || '') : (r.hora || ''));
-      }
-      const vals=[String(ix+1),fd(r.fecha),horaPdf,String(r.toma||''),r.act||'',r.limp||'',r.l1||'',r.l2||'',r.l3||'',okTxt].map(v=>jsPdfAscii(String(v??'')));
-      if(y>H-90){
-        if(typeof _firmaPrem==='function') _firmaPrem(doc, 'Pag. campo', 'BLMCCVUC', { font:FONT, W, H, yOffset:70 });
-        doc.addPage(); _pdfStdHeader(doc, logo, W, M, HDR, 'CONDUCTIMETRO', 'Campo (cont.)', 'BLMCCVUC'); y=HDR+20;
-        if(typeof _hdrPrem==='function') y=_hdrPrem(doc, heads, M, y, cols, 12, FONT);
-      }
-      if(typeof _filaPrem==='function'){
-        y=_filaPrem(doc, vals, M, y, cols, 11, ix, {
-          firstAccent:true, fontSize:6.5, maxChars:12, font:FONT
-        });
-      } else {
-        let x=M;
-        vals.forEach((v,i)=>{ doc.setFillColor(...(i===0?ACCENT:(ix%2?WHITE:LGRAY))); doc.rect(x,y,cols[i],11,'F'); doc.setDrawColor(...MGRAY); doc.rect(x,y,cols[i],11,'S'); doc.setFontSize(6.5); if(i===0){ doc.setTextColor(...WHITE); doc.setFont(FONT,'bold'); doc.text(String(v).substring(0,12),x+cols[i]/2,y+7.5,{align:'center'}); } else { doc.text(jsPdfAscii(valStyle(v)).substring(0,12),x+cols[i]/2,y+7.5,{align:'center'}); } x+=cols[i]; });
-        y+=11;
-      }
-    });
   }
-  y+=12;
-  // AARMS sub10-std: leyendas en caja
-  if(y>H-110){ doc.addPage(); _pdfStdHeader(doc, logo, W, M, HDR, 'CONDUCTIMETRO', 'Notas (leyendas)', 'BLMCCVUC'); y=HDR+14; }
-  const pie=[LeyC.actControl,LeyC.limpiezaCod,LeyC.condDispersion].filter(Boolean).join(' ');
-  if(typeof window._pdfCajaLeyenda === 'function'){
-    y = window._pdfCajaLeyenda(doc, pie || 'Act/Limp: ver instructivo.', M, y, CW, FONT, { fontSize:6.8 });
-  } else {
-    doc.setFont(FONT,'normal'); doc.setFontSize(6.8); doc.setTextColor(51,65,85);
-    const pieLines=(typeof doc.splitTextToSize==='function')?doc.splitTextToSize(jsPdfAscii(pie||''),CW-8):[pie];
-    pieLines.forEach(ln=>{ doc.text(ln,M+4,y); y+=8; });
+  if(!yaFolios && plan && plan.id){
+    plan.condRef = {
+      hecho: true,
+      folio: c.folio,
+      folioP2: c.folioP2,
+      folioP3: c.folioP3,
+      clave: c.clave || '',
+      ts: Date.now()
+    };
+    try{ await guardarPlan(plan); }catch(e){ console.warn('[condfiel plan]', e); }
   }
-  if(typeof _firmaPrem==='function'){
-    _firmaPrem(doc, 'Pag. 2', 'BLMCCVUC', { font:FONT, W, H, yOffset:70 });
+  const folEl = document.getElementById('colab_folio');
+  if(folEl) folEl.value = c.folio + '-' + c.folioP2 + '-' + c.folioP3;
+
+  if(typeof window._condGenerarPdfFiel !== 'function'){
+    toast('Motor PDF conductímetro no cargado','w');
+    return;
   }
-  await saveMuestreoActual();
-  doc.save(`Bitacora_Conductimetro_OMAR-${omar.folio||omar.ts}.pdf`);
-  toast('PDF conductimetro (lab+campo) generado','g');
-  await _maybeMarcarPlanDoc('colab');
-  if(regs.length) await _maybeMarcarPlanDoc('condcamp');
+  await window._condGenerarPdfFiel({ plan, colab: c, folios });
+  try{ await _maybeMarcarPlanDoc('colab'); }catch(_){}
+  const regs = (typeof _bitCondRegs === 'function') ? (_bitCondRegs() || []) : [];
+  if(regs.length){ try{ await _maybeMarcarPlanDoc('condcamp'); }catch(_){} }
 }
+window.generarPDFColabCompleto = generarPDFColabCompleto;
+
 
 // ═══════════════════════════════════════════════════════════════
 // BITÁCORAS DE CAMPO ENTRE TOMAS — pH-METRO + CONDUCTÍMETRO
@@ -9251,7 +11704,9 @@ window.AARMS_DOC_LEYENDAS = {
   phCriterioOficial: 'CRITERIO DE ACEPTACIÓN O RECHAZO: la medición no debe desviarse por más de ±0,05 UpH del valor nominal del patrón de referencia. No deberá haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas.',
   phNotaBlmp: 'Nota: la limpieza entre lecturas debe registrarse en la bitácora BLMP (pH-metro laboratorio).',
   phFormCodigo: 'F-AA-264-4 · Formato uso, calibración, comprobación y verificación del pH-metro (entre tomas).',
-  condDispersion: 'Conductímetro (digital): dispersión entre L1–L3 ≤ 3% respecto al promedio; si el instructivo del equipo exige otro criterio, documéntalo en observaciones.',
+  condDispersion: 'No debe haber una diferencia mayor a ±5% entre lecturas independientes.',
+  actControlCond: 'Código de actividad de control: Ca= Calibración. Co= Comprobación. V= Verificación.',
+  limpiezaCodCond: 'Código de Limpieza: 1.- Agua Tridestilada 2.- Detergente Suave 3.- Disolución de HCl 1:1',
 };
 
 /** Plan activo del muestreo actual (si existe en IndexedDB). */
@@ -9646,12 +12101,12 @@ async function _migrarBitTempSub2(plan, omarObj){
     const tomaNum = idx + 1;
     const existe = plan.bitTemp.find(r => String(r.omarTs) === String(omarTs) && Number(r.toma) === tomaNum);
     if(existe) return;
-    const hayDatos = (t.temp_agua_l1 || t.temp_agua_l2 || t.temp_agua_l3 ||
-                      t.temp_amb_l1 || t.temp_amb_l2 || t.temp_amb_l3 ||
-                      t.tagua || t.tamb);
+    // AARMS lote11b: solo lecturas ya capturadas. t.tagua y t.tamb no fabrican un registro.
+    const hayDatos = [t.temp_agua_l1, t.temp_agua_l2, t.temp_agua_l3, t.temp_amb_l1, t.temp_amb_l2, t.temp_amb_l3]
+      .some(v => String(v || '').trim() !== '');
     if(!hayDatos) return;
-    const agua1 = t.temp_agua_l1 != null ? String(t.temp_agua_l1) : String(t.tagua || '');
-    const amb1 = t.temp_amb_l1 != null ? String(t.temp_amb_l1) : String(t.tamb || '');
+    const agua1 = String(t.temp_agua_l1 || '');
+    const amb1 = String(t.temp_amb_l1 || '');
     plan.bitTemp.push({
       id: Date.now() + idx + Math.random(),
       omarTs,
@@ -9828,9 +12283,6 @@ function _bitTempRender(){
       <span style="font-family:var(--syne);font-weight:800;color:#f59e0b;font-size:12px">Termómetro:</span>
       <span style="color:var(--w);font-family:var(--mono);font-size:12px">${termoLabel}</span>
       <span style="margin-left:auto;font-family:var(--mono);color:var(--g1);font-size:11px"><span style="color:var(--g2)">FC:</span> ${fcDisplay}</span>
-    </div>
-    <div style="margin-top:8px;padding:8px 10px;background:rgba(74,158,255,.04);border-left:2px solid var(--acc);border-radius:5px;font-size:10.5px;color:var(--g1)">
-      <b style="color:var(--acc)">Criterio automático:</b> Δ ≤ 5°C → Procedimiento 2 (polietileno) · Δ &gt; 5°C → Procedimiento 3 (Dewar)
     </div>`;
   }
   if(regs.length===0){
@@ -9930,7 +12382,10 @@ async function abrirBitacoraTemp(opts){
   }
   const fol=document.getElementById('bitTempFolioDocInp');
   if(fol) fol.value=_bitTempFolioDocGet()||'';
-  if(pl && omar && typeof _migrarBitTempSub2==='function') await _migrarBitTempSub2(pl, omar);
+  if(pl && omar && typeof _migrarBitTempSub2==='function'){
+    const omarMig = Array.isArray(omar.tomas) ? omar : Object.assign({}, omar, { tomas: tomas || [] });
+    await _migrarBitTempSub2(pl, omarMig);
+  }
   _bitTempSyncAllTomasFromCampo();
   _bitTempRender();
   try{ await _persistPlanBitTemp(); }catch(e){}
@@ -10169,9 +12624,6 @@ function _bitFlujosRender(){
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16a4 4 0 0 1-.88-7.9 5 5 0 0 1 9.76 0A4 4 0 0 1 15 16"/><path d="M12 12v9"/><path d="M16 16l-4 5-4-5"/></svg>
       <span style="font-family:var(--syne);font-weight:800;color:#60a5fa;font-size:12px">Bitácora de Flujos</span>
-    </div>
-    <div style="margin-top:8px;padding:8px 10px;background:rgba(74,158,255,.04);border-left:2px solid var(--acc);border-radius:5px;font-size:10.5px;color:var(--g1)">
-      <b style="color:var(--acc)">Cálculo automático:</b> Promedio L1/L2/L3 por toma · % ponderado sobre la suma del OMAR
     </div>`;
   }
   if(omarsTodos.length===0){
@@ -10308,7 +12760,225 @@ window.volverDeBitFlujos = cerrarBitacoraFlujos;
 // ═══════════════════════════════════════════════════════════════
 // AARMS sub7-od: Bitácora de Oxígeno Disuelto (NMX-AA-012-SCFI-2001)
 // ═══════════════════════════════════════════════════════════════
+// AARMS lote17: criterio fijo 0 a 1.6. Nunca se escribe a mano.
+function _lote17OdDictamen(prom){
+  const n = typeof prom === 'number' ? prom : parseFloat(String(prom == null ? '' : prom).replace(',', '.'));
+  if(!Number.isFinite(n)) return '';
+  return (n >= 0 && n <= 1.6) ? 'Se acepta' : 'Se rechaza';
+}
+function _lote17OdProm(l1, l2){
+  const a = parseFloat(String(l1 == null ? '' : l1).replace(',', '.'));
+  const b = parseFloat(String(l2 == null ? '' : l2).replace(',', '.'));
+  if(!Number.isFinite(a) || !Number.isFinite(b)) return NaN;
+  return (a + b) / 2;
+}
+window._lote17OdDictamen = _lote17OdDictamen;
+window._lote17OdProm = _lote17OdProm;
+
+function _lote17OdDisolOk(i){
+  const d = _catalogoCache && _catalogoCache.odDisoluciones && _catalogoCache.odDisoluciones[i];
+  return !!(d && _lote10Lleno(d.lote) && _lote10Lleno(d.caducidad) && _lote10Lleno(d.recipiente) && _lote10Lleno(d.folioBdbo));
+}
+function catalogoRenderOdDisol(){
+  const c = document.getElementById('catOdDisolLista');
+  if(!c || !_catalogoCache) return;
+  const lista = _catalogoCache.odDisoluciones || [];
+  c.innerHTML = lista.map((d, idx) => `
+    <div style="background:var(--bg2);border:1px solid var(--ln);border-radius:9px;padding:10px;margin-bottom:8px">
+      <div style="font-family:var(--syne);font-weight:800;font-size:12px;color:var(--w);margin-bottom:8px">${_odEsc(d.nombre || '')}</div>
+      <div class="g2">
+        <div class="f" style="margin:0"><label>Lote</label><input type="text" value="${_odEsc(d.lote)}" oninput="catalogoUpOdDisol(${idx},'lote',this.value)"></div>
+        <div class="f" style="margin:0"><label>Caducidad</label><input type="date" value="${_odEsc(d.caducidad)}" oninput="catalogoUpOdDisol(${idx},'caducidad',this.value)"></div>
+        <div class="f" style="margin:0"><label>Recipiente No.</label><input type="text" value="${_odEsc(d.recipiente)}" oninput="catalogoUpOdDisol(${idx},'recipiente',this.value)"></div>
+        <div class="f" style="margin:0"><label>Folio BDBO5D</label><input type="text" value="${_odEsc(d.folioBdbo)}" oninput="catalogoUpOdDisol(${idx},'folioBdbo',this.value)"></div>
+      </div>
+    </div>`).join('');
+}
+function catalogoUpOdDisol(idx, field, value){
+  if(!_catalogoCache || !_catalogoCache.odDisoluciones || !_catalogoCache.odDisoluciones[idx]) return;
+  _catalogoCache.odDisoluciones[idx][field] = value;
+  clearTimeout(window._odCatSave);
+  window._odCatSave = setTimeout(() => { void _catalogoGuardar(); try{ _lote10PintarArranque(); }catch(e){} }, 250);
+}
+window.catalogoUpOdDisol = catalogoUpOdDisol;
+window.catalogoRenderOdDisol = catalogoRenderOdDisol;
+
+function _lote17OdOmarJson(m){
+  if(!m) return {};
+  try{ return typeof m.omar === 'string' ? JSON.parse(m.omar || '{}') : (m.omar || {}); }
+  catch(e){ return {}; }
+}
+function _lote17OdPide(m){
+  const o = _lote17OdOmarJson(m);
+  const arr = [].concat(o.analitos || [], m && m.analitos || []);
+  return arr.some(a => /ox[ií]geno disuelto/i.test(String(a || '')));
+}
+function _lote17OdAplica(plan){
+  if(!plan) return false;
+  const lista = (typeof getMuestreos === 'function') ? getMuestreos() : (_cachedMuestreos || []);
+  return (plan.omarIds || []).some(id => _lote17OdPide(lista.find(x => String(x.id) === String(id))));
+}
+function _lote17OdEsViejo(plan){
+  const b = plan && plan.bitOD;
+  if(!b || b.v === 'lote17') return false;
+  const R = b.reactivos || {};
+  const lect = (b.lecturas || []).some(r => String(r.lectura1 || '').trim() || String(r.lectura2 || '').trim());
+  return !!(R.lote_zero || R.lote_sat || R.agua_reactivo_lote || b.folio
+    || (b.verifLab && b.verifLab.length) || (b.verifCampo && b.verifCampo.length)
+    || (b.calibLab && b.calibLab.zero && b.calibLab.zero.lectura)
+    || (b.calibLab && b.calibLab.sat100 && b.calibLab.sat100.lectura)
+    || (b.calibCampo && b.calibCampo.zero && b.calibCampo.zero.lectura)
+    || (b.calibCampo && b.calibCampo.sat100 && b.calibCampo.sat100.lectura)
+    || lect);
+}
+function _lote17FilaCal(){ return { fecha:'', hora:'', ini:'', ajuste:'', fin:'' }; }
+function _lote17OdAsegurar(plan){
+  if(!plan) return null;
+  if(_lote17OdEsViejo(plan)) return plan.bitOD;
+  const prev = plan.bitOD && plan.bitOD.v === 'lote17' ? plan.bitOD : {};
+  const cal = (b) => ({
+    zero: Object.assign(_lote17FilaCal(), b && b.zero),
+    sat: Object.assign(_lote17FilaCal(), b && b.sat)
+  });
+  plan.bitOD = {
+    v: 'lote17',
+    folios: Array.isArray(prev.folios) ? prev.folios : [],
+    proc: prev.proc || '',
+    bpaDesde: prev.bpaDesde || '',
+    bpaHasta: prev.bpaHasta || '',
+    horaAtemp: prev.horaAtemp || '',
+    horaFin: prev.horaFin || '',
+    calibLab: cal(prev.calibLab),
+    calibCampo: cal(prev.calibCampo),
+    verifLab: Object.assign({ fecha:'', hora:'', l1:'', l2:'' }, prev.verifLab),
+    verifCampo: Object.assign({ fecha:'', hora:'', l1:'', l2:'' }, prev.verifCampo),
+    histLab: Array.isArray(prev.histLab) ? prev.histLab : [],
+    histCampo: Array.isArray(prev.histCampo) ? prev.histCampo : [],
+    lecturas: Array.isArray(prev.lecturas) ? prev.lecturas : []
+  };
+  return plan.bitOD;
+}
+function _lote17OdVerifRechazada(plan, lado){
+  const b = plan && plan.bitOD;
+  if(!b || b.v !== 'lote17') return false;
+  const v = lado === 'campo' ? b.verifCampo : b.verifLab;
+  if(!v || String(v.l1 || '').trim() === '' || String(v.l2 || '').trim() === '') return false;
+  return _lote17OdDictamen(_lote17OdProm(v.l1, v.l2)) === 'Se rechaza';
+}
+function _lote17EstadoLab(plan){
+  const b = plan && plan.bitOD;
+  if(!b || b.v !== 'lote17') return 'vacio';
+  const z = b.calibLab && b.calibLab.zero;
+  const s = b.calibLab && b.calibLab.sat;
+  const tocado = !!(b.proc || b.bpaDesde || b.bpaHasta || b.horaAtemp || (z && (z.ini || z.fin)) || (s && (s.ini || s.fin)) || (b.verifLab && (b.verifLab.l1 || b.verifLab.l2)));
+  if(!tocado) return 'vacio';
+  const ver = b.verifLab || {};
+  const ok = !!(b.horaAtemp && z && z.fin && s && s.fin && ver.l1 && ver.l2 && _lote17OdDictamen(_lote17OdProm(ver.l1, ver.l2)) === 'Se acepta');
+  return ok ? 'completo' : 'progreso';
+}
+function _lote17EstadoCampo(plan){
+  const b = plan && plan.bitOD;
+  if(!b || b.v !== 'lote17') return 'vacio';
+  const rows = b.lecturas || [];
+  const v = b.verifCampo || {};
+  const tocado = rows.some(r => r.l1 || r.l2) || v.l1 || v.l2 || (b.calibCampo && ((b.calibCampo.zero && b.calibCampo.zero.fin) || (b.calibCampo.sat && b.calibCampo.sat.fin)));
+  if(!tocado) return 'vacio';
+  const lectOk = rows.length > 0 && rows.every(r => String(r.l1 || '').trim() && String(r.l2 || '').trim());
+  const calOk = b.calibCampo && b.calibCampo.zero && b.calibCampo.zero.fin && b.calibCampo.sat && b.calibCampo.sat.fin;
+  const verOk = v.l1 && v.l2 && _lote17OdDictamen(_lote17OdProm(v.l1, v.l2)) === 'Se acepta';
+  return (lectOk && calOk && verOk) ? 'completo' : 'progreso';
+}
+function _lote17OdNumPaginas(plan){
+  const n = (plan && plan.bitOD && plan.bitOD.lecturas && plan.bitOD.lecturas.length) || 0;
+  return 4 + Math.max(0, Math.ceil(n / 14) - 1);
+}
+async function _lote17OdAsegurarFolios(plan){
+  const b = _lote17OdAsegurar(plan);
+  if(!b) return [];
+  const n = _lote17OdNumPaginas(plan);
+  const have = (b.folios || []).filter(Boolean);
+  const need = n - have.length;
+  if(need <= 0) return have.slice(0, n);
+  const nums = await _folioTomar('od', need, {
+    planId: plan.id, planFolio: plan.folio || '', doc: 'OD',
+    ya: () => []
+  });
+  b.folios = have.concat(nums || []);
+  return b.folios.slice(0, n);
+}
+function _lote17OdTieneDatos(b){
+  if(!b) return false;
+  const z = b.calibLab && b.calibLab.zero;
+  return !!(b.proc || b.bpaDesde || b.bpaHasta || b.horaAtemp || b.horaFin
+    || (z && (z.ini || z.ajuste || z.fin))
+    || (b.verifLab && (b.verifLab.l1 || b.verifLab.l2))
+    || (b.verifCampo && (b.verifCampo.l1 || b.verifCampo.l2))
+    || (b.lecturas || []).some(r => r.l1 || r.l2)
+    || (b.calibCampo && b.calibCampo.zero && (b.calibCampo.zero.ini || b.calibCampo.zero.fin)));
+}
+function _lote17OdSyncLecturas(plan){
+  const b = _lote17OdAsegurar(plan);
+  if(!b) return;
+  const lista = (typeof getMuestreos === 'function') ? getMuestreos() : (_cachedMuestreos || []);
+  const want = [];
+  (plan.omarIds || []).forEach(id => {
+    const m = lista.find(x => String(x.id) === String(id));
+    if(!_lote17OdPide(m)) return;
+    const o = _lote17OdOmarJson(m);
+    const tomasM = (m && Array.isArray(m.tomas) && m.tomas.length) ? m.tomas : (Array.isArray(o.tomas) ? o.tomas : []);
+    const fecha = (plan.fecha || o.fecha || '').toString().slice(0, 10);
+    tomasM.forEach((t, i) => {
+      const hora = (typeof _horaNormalizada === 'function') ? _horaNormalizada(t.hora || '') : (t.hora || '');
+      const prev = (b.lecturas || []).find(r => String(r.omarTs) === String(id) && Number(r.toma) === i + 1) || {};
+      want.push({
+        omarTs: String(id),
+        toma: i + 1,
+        fecha: fecha,
+        hora: hora,
+        folioOmar: (m && m.folio) || o.folio || '',
+        idMuestra: (m && m.idmuestra) || o.idmuestra || o.sitio || '',
+        tiempo: hora,
+        l1: prev.l1 || '',
+        l2: prev.l2 || ''
+      });
+    });
+  });
+  b.lecturas = want;
+}
+function _lote17Sellar(fila){
+  if(!fila) return;
+  if(!fila.fecha){
+    const plan = _bitODPlan();
+    fila.fecha = (plan && plan.fecha) ? String(plan.fecha).slice(0, 10) : _lote21HoyFecha();
+  }
+  if(!fila.hora){
+    const d = new Date();
+    fila.hora = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+}
+function _lote17Anio2(plan){
+  const f = String((plan && plan.fecha) || '');
+  const y = f.slice(0, 4);
+  if(/^\d{4}$/.test(y)) return y.slice(2);
+  return String(new Date().getFullYear()).slice(2);
+}
+window._lote17OdAplica = _lote17OdAplica;
+window._lote17OdEsViejo = _lote17OdEsViejo;
+window._lote17OdAsegurar = _lote17OdAsegurar;
+window._lote17OdVerifRechazada = _lote17OdVerifRechazada;
+window._lote17EstadoLab = _lote17EstadoLab;
+window._lote17EstadoCampo = _lote17EstadoCampo;
+window._lote17OdNumPaginas = _lote17OdNumPaginas;
+window._lote17OdAsegurarFolios = _lote17OdAsegurarFolios;
+window._lote17OdSyncLecturas = _lote17OdSyncLecturas;
+window._lote17Anio2 = _lote17Anio2;
+function _lote17OdDisoluciones(){
+  return (_catalogoCache && _catalogoCache.odDisoluciones) || [{}, {}];
+}
+window._lote17OdDisoluciones = _lote17OdDisoluciones;
+
 let _bitODOrigen = 'hoja';
+let _bitODModo = 'lab';
 
 function _bitODPlan(){
   if(typeof _planActivoParaOmar === 'function') return _planActivoParaOmar();
@@ -10319,6 +12989,7 @@ function _bitODPlan(){
 // AARMS sub7-od: inicializar plan.bitOD
 function _bitODInicializar(plan){
   if(!plan) return null;
+  if(plan.bitOD && plan.bitOD.v === 'lote17') return plan.bitOD;
   if(!plan.bitOD){
     plan.bitOD = {
       folio: '',
@@ -10347,7 +13018,11 @@ window._bitODInicializar = _bitODInicializar;
 async function _persistPlanBitOD(){
   const pl = _bitODPlan();
   if(!pl || !pl.id) return;
-  _bitODInicializar(pl);
+  if(pl.bitOD && pl.bitOD.v === 'lote17'){
+    if(_lote17OdTieneDatos(pl.bitOD)) await _lote17OdAsegurarFolios(pl);
+  }else{
+    _bitODInicializar(pl);
+  }
   pl.ts = Date.now();
   try{
     await idbPlanPut(pl);
@@ -10400,6 +13075,11 @@ window._bitODAsegurarLectura = _bitODAsegurarLectura;
 function _bitODSyncAllTomasFromCampo(){
   const plan = _bitODPlan();
   if(!plan) return;
+  if(!_lote17OdEsViejo(plan)){
+    _lote17OdSyncLecturas(plan);
+    if(document.getElementById('pgBitOD')?.classList.contains('on') && typeof _bitODRender === 'function') _bitODRender();
+    return;
+  }
   _bitODInicializar(plan);
   const ids = (plan.omarIds && plan.omarIds.length) ? plan.omarIds : (omar?.ts ? [omar.ts] : []);
   const want = new Set();
@@ -10566,11 +13246,145 @@ function _htmlODTabla5_Lecturas(plan){
 window._htmlODTabla5_Lecturas = _htmlODTabla5_Lecturas;
 
 // AARMS sub7-od: render bitácora OD
+function _lote17Inp(val){ return _odEsc(val); }
+function _lote17Pintar(plan, contInfo, contSec){
+  const b = plan.bitOD;
+  const modo = _bitODModo === 'campo' ? 'campo' : 'lab';
+  const anio = _lote17Anio2(plan);
+  const eq = typeof _equipoActivo === 'function' ? _equipoActivo('oximetros') : null;
+  const clave = eq && typeof _equipoClave === 'function' ? _equipoClave('oximetros', eq) : '';
+  const dis = (_catalogoCache && _catalogoCache.odDisoluciones) || [];
+  const folios = (b.lecturas || []).map(r => r.folioOmar).filter(Boolean);
+  const uniq = [...new Set(folios)];
+  contInfo.innerHTML = `
+    <div style="font-size:12px;color:var(--g1);line-height:1.6">
+      <div>Fecha del plan: <b style="color:var(--w)">${_lote17Inp(plan.fecha || '')}</b></div>
+      <div>Folios OMAR: <b style="color:var(--w)">${_lote17Inp(uniq.join(', '))}</b></div>
+      <div>Oxímetro: <b style="color:var(--w)">${clave ? _lote17Inp(clave) : 'Registra el oxímetro en Inventario'}</b></div>
+      <div>Año de bitácoras: <b style="color:var(--w)">${anio}</b></div>
+      ${dis.map(d => `<div>${_lote17Inp(d.nombre)}: lote ${_lote17Inp(d.lote)} · recipiente ${_lote17Inp(d.recipiente)} · BDBO5D ${anio} folio ${_lote17Inp(d.folioBdbo)}</div>`).join('')}
+      ${(!dis[0] || !dis[0].lote || !dis[1] || !dis[1].lote) ? '<div style="color:#fbbf24;margin-top:6px">Falta lote, recipiente o folio de las disoluciones de OD en Inventario. Esos huecos salen en blanco.</div>' : ''}
+    </div>`;
+  if(modo === 'campo' && _planDocGateLocked(plan, 'bitod')){
+    contSec.innerHTML = '<div style="padding:14px;color:#fbbf24">La entrada de campo está bloqueada hasta completar el laboratorio' + (_lote17OdVerifRechazada(plan, 'lab') ? ' y repetir la verificación rechazada.' : '.') + '</div>';
+    return;
+  }
+  const cal = modo === 'campo' ? b.calibCampo : b.calibLab;
+  const ver = modo === 'campo' ? b.verifCampo : b.verifLab;
+  const prom = _lote17OdProm(ver.l1, ver.l2);
+  const dic = (String(ver.l1||'').trim() && String(ver.l2||'').trim()) ? _lote17OdDictamen(prom) : '';
+  const fila = (punto, titulo) => {
+    const r = cal[punto] || {};
+    return `<div style="border:1px solid var(--ln);border-radius:8px;padding:8px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px">${titulo}</div>
+      <div class="g3">
+        <div class="f" style="margin:0"><label>Lectura inicial</label><input type="number" step="0.01" value="${_lote17Inp(r.ini)}" oninput="lote17Cal('${modo}','${punto}','ini',this.value)"></div>
+        <div class="f" style="margin:0"><label>Ajuste</label><input type="text" value="${_lote17Inp(r.ajuste)}" oninput="lote17Cal('${modo}','${punto}','ajuste',this.value)"></div>
+        <div class="f" style="margin:0"><label>Lectura final</label><input type="number" step="0.01" value="${_lote17Inp(r.fin)}" oninput="lote17Cal('${modo}','${punto}','fin',this.value)"></div>
+      </div>
+      <div style="font-size:11px;color:var(--g2);margin-top:4px">Fecha ${ _lote17Inp(r.fecha) } · Hora ${ _lote17Inp(r.hora) } · Unidades %</div>
+    </div>`;
+  };
+  let html = '';
+  if(modo === 'lab'){
+    html += `<div class="g2">
+      <div class="f"><label>Código del procedimiento</label><input id="lote17Proc" type="text" value="${_lote17Inp(b.proc)}" oninput="lote17Up('proc',this.value)"></div>
+      <div class="f"><label>Hora de atemperar</label><input id="lote17Atemp" type="time" value="${_lote17Inp(b.horaAtemp)}" oninput="lote17Up('horaAtemp',this.value)"></div>
+      <div class="f"><label>Folio BPA desde</label><input id="lote17Bpa1" type="text" value="${_lote17Inp(b.bpaDesde)}" oninput="lote17Up('bpaDesde',this.value)"></div>
+      <div class="f"><label>Folio BPA hasta</label><input id="lote17Bpa2" type="text" value="${_lote17Inp(b.bpaHasta)}" oninput="lote17Up('bpaHasta',this.value)"></div>
+    </div>`;
+  }
+  html += `<div style="font-family:var(--syne);font-weight:800;margin:10px 0 6px">Tabla ${modo==='lab'?'1':'3'} — calibración</div>`;
+  html += fila('zero', 'Calibración a 0 mg/L ó concentración nula');
+  html += fila('sat', 'Calibración / Concentración al 100%');
+  html += `<div style="font-family:var(--syne);font-weight:800;margin:10px 0 6px">Tabla ${modo==='lab'?'2':'4'} — verificación</div>
+    <div class="g3">
+      <div class="f" style="margin:0"><label>Lectura 1</label><input id="lote17L1" type="number" step="0.01" value="${_lote17Inp(ver.l1)}" oninput="lote17Ver('${modo}','l1',this.value)"></div>
+      <div class="f" style="margin:0"><label>Lectura 2</label><input id="lote17L2" type="number" step="0.01" value="${_lote17Inp(ver.l2)}" oninput="lote17Ver('${modo}','l2',this.value)"></div>
+      <div class="f" style="margin:0"><label>Promedio</label><input id="lote17Prom" type="text" readonly value="${Number.isFinite(prom) ? prom.toFixed(2) : ''}"></div>
+    </div>
+    <div style="margin-top:6px;font-size:13px">Criterio 0 – 1.6 · <b id="lote17Dic" style="color:${dic==='Se rechaza'?'#f87171':'#86efac'}">${dic}</b></div>`;
+  if(modo === 'campo'){
+    html += `<div style="font-family:var(--syne);font-weight:800;margin:14px 0 6px">Tabla 5</div>`;
+    html += (b.lecturas || []).map((r, i) => {
+      const p = _lote17OdProm(r.l1, r.l2);
+      return `<div style="border-bottom:1px solid var(--ln);padding:6px 0;font-size:12px">
+        <div>${_lote17Inp(r.fecha)} ${_lote17Inp(r.hora)} · OMAR ${_lote17Inp(r.folioOmar)} · ${_lote17Inp(r.idMuestra)} · tiempo ${_lote17Inp(r.tiempo)}</div>
+        <div class="g3" style="margin-top:4px">
+          <div class="f" style="margin:0"><label>Lectura 1</label><input type="number" step="0.01" value="${_lote17Inp(r.l1)}" oninput="lote17Lect(${i},'l1',this.value)"></div>
+          <div class="f" style="margin:0"><label>Lectura 2</label><input type="number" step="0.01" value="${_lote17Inp(r.l2)}" oninput="lote17Lect(${i},'l2',this.value)"></div>
+          <div class="f" style="margin:0"><label>Promedio</label><input type="text" readonly value="${Number.isFinite(p)?p.toFixed(2):''}"></div>
+        </div>
+      </div>`;
+    }).join('') || '<div style="color:var(--g2)">Sin tomas de oxígeno disuelto.</div>';
+    html += `<div class="f" style="margin-top:10px"><label>Hora de término</label><input type="time" value="${_lote17Inp(b.horaFin)}" oninput="lote17Up('horaFin',this.value)"></div>`;
+  }
+  contSec.innerHTML = html;
+}
+function lote17Up(field, value){
+  const plan = _bitODPlan();
+  const b = _lote17OdAsegurar(plan);
+  if(!b) return;
+  b[field] = value;
+  clearTimeout(window._odSave);
+  window._odSave = setTimeout(() => { void _persistPlanBitOD(); try{ renderPlanDocs(); }catch(e){} }, 300);
+}
+function lote17Cal(modo, punto, field, value){
+  const plan = _bitODPlan();
+  const b = _lote17OdAsegurar(plan);
+  const bloque = modo === 'campo' ? b.calibCampo : b.calibLab;
+  const fila = bloque[punto];
+  if((field === 'ini' || field === 'ajuste' || field === 'fin') && value && !fila.fecha) _lote17Sellar(fila);
+  fila[field] = value;
+  clearTimeout(window._odSave);
+  window._odSave = setTimeout(() => { void _persistPlanBitOD(); try{ renderPlanDocs(); }catch(e){} }, 300);
+}
+function lote17Ver(modo, field, value){
+  const plan = _bitODPlan();
+  const b = _lote17OdAsegurar(plan);
+  const v = modo === 'campo' ? b.verifCampo : b.verifLab;
+  const hist = modo === 'campo' ? b.histCampo : b.histLab;
+  const completo = String(v.l1||'').trim() && String(v.l2||'').trim();
+  if(completo && _lote17OdDictamen(_lote17OdProm(v.l1, v.l2)) === 'Se rechaza'){
+    const snap = v.l1 + '|' + v.l2;
+    const last = hist[hist.length - 1];
+    if(!last || (last.l1 + '|' + last.l2) !== snap) hist.push({ fecha:v.fecha, hora:v.hora, l1:v.l1, l2:v.l2 });
+  }
+  if((field === 'l1' || field === 'l2') && value && !v.fecha) _lote17Sellar(v);
+  v[field] = value;
+  const prom = _lote17OdProm(v.l1, v.l2);
+  const dic = (String(v.l1||'').trim() && String(v.l2||'').trim()) ? _lote17OdDictamen(prom) : '';
+  const pe = document.getElementById('lote17Prom');
+  const de = document.getElementById('lote17Dic');
+  if(pe) pe.value = Number.isFinite(prom) ? prom.toFixed(2) : '';
+  if(de){ de.textContent = dic; de.style.color = dic === 'Se rechaza' ? '#f87171' : '#86efac'; }
+  clearTimeout(window._odSave);
+  window._odSave = setTimeout(() => { void _persistPlanBitOD(); try{ renderPlanDocs(); }catch(e){} }, 300);
+}
+function lote17Lect(i, field, value){
+  const plan = _bitODPlan();
+  const b = _lote17OdAsegurar(plan);
+  const r = b.lecturas[i];
+  if(!r) return;
+  r[field] = value;
+  clearTimeout(window._odSave);
+  window._odSave = setTimeout(() => { void _persistPlanBitOD(); try{ renderPlanDocs(); }catch(e){} }, 300);
+}
+window.lote17Up = lote17Up;
+window.lote17Cal = lote17Cal;
+window.lote17Ver = lote17Ver;
+window.lote17Lect = lote17Lect;
+
 function _bitODRender(){
   const plan = _bitODPlan();
   const contInfo = document.getElementById('odInfo');
   const contSec = document.getElementById('odSecciones');
   if(!plan || !contInfo || !contSec) return;
+  if(!_lote17OdEsViejo(plan)){
+    _lote17OdAsegurar(plan);
+    _lote17Pintar(plan, contInfo, contSec);
+    return;
+  }
   _bitODInicializar(plan);
 
   const eqOx = typeof _equipoActivo === 'function' ? _equipoActivo('oximetros') : null;
@@ -10688,19 +13502,21 @@ window.bitODLectUp = bitODLectUp;
 async function abrirBitacoraOD(opts){
   opts = opts || {};
   _bitODOrigen = opts.origen || 'hoja';
+  _bitODModo = opts.modo || _bitODModo || 'lab';
   if(!omar || !omar.ts){ toast('Primero captura el OMAR','w'); return; }
   _flushTomasDesdeDOM();
   try{ await saveMuestreoActual(); }catch(e){ console.warn('[bitOD open save]', e); }
   if(typeof _catalogoCargar === 'function') await _catalogoCargar();
   const plan = _bitODPlan();
-  if(plan) _bitODInicializar(plan);
+  if(plan && _lote17OdEsViejo(plan)) _bitODInicializar(plan);
+  else if(plan) _lote17OdAsegurar(plan);
   _bitODSyncAllTomasFromCampo();
   const pill = document.getElementById('bitODPill');
   if(pill){
     if(plan && plan.id){
-      pill.textContent = 'Plan · ' + ((plan.omarIds||[]).length) + ' OMAR(s) · OD';
+      pill.textContent = (_bitODModo === 'campo' ? 'Campo' : 'Laboratorio') + ' · Folio ' + (plan.folio || '');
     }else{
-      pill.textContent = (omar.folio ? 'OMAR '+omar.folio : 'OMAR') + ' · ' + (tomas?.length||0) + ' tomas';
+      pill.textContent = (omar.folio ? 'OMAR '+omar.folio : 'OMAR');
     }
   }
   _bitODRender();
@@ -10727,7 +13543,7 @@ window.volverDeBitOD = cerrarBitacoraOD;
 
 function _defaultBitRegistroFecha(){
   if(typeof omar!=='undefined' && omar && omar.fecha) return String(omar.fecha).substring(0,10);
-  return new Date().toISOString().split('T')[0];
+  return _lote21HoyFecha();
 }
 
 function _bitPhParseHoraAMin(h){
@@ -11241,6 +14057,7 @@ async function abrirBitacoraPH(){
   _bitPhRender();
   try{ await _persistPlanBitPh(); }catch(e){}
   _aplicarDocEstadoBadge('bitPh');
+  if(typeof _lote4bPintar === 'function') _lote4bPintar();
   goPage('pgBitPH');
 }
 async function cerrarBitacoraPH(){
@@ -11664,7 +14481,7 @@ function _bitPhRefreshResumen(idx){
     <div style="text-align:right">
       ${acepta===true?`<div style="color:var(--green);font-weight:800;font-size:12px">✓ ACEPTA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
       ${acepta===false?`<div style="color:#f87171;font-weight:800;font-size:12px">✗ RECHAZA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
-      ${acepta===null?`<div style="color:var(--g2);font-size:10.5px">Captura las 3 lecturas</div>`:''}
+      ${acepta===null?'':''}
     </div>
   `;
 }
@@ -11814,7 +14631,7 @@ function _renderBitCondCard(r, idx){
         <div style="text-align:right">
           ${acepta===true?`<div style="color:var(--green);font-weight:800;font-size:12px">✓ ACEPTA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
           ${acepta===false?`<div style="color:#f87171;font-weight:800;font-size:12px">✗ RECHAZA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
-          ${acepta===null?`<div style="color:var(--g2);font-size:10.5px">Captura las 3 lecturas</div>`:''}
+          ${acepta===null?'':''}
         </div>
       </div>
     </div>
@@ -11951,7 +14768,7 @@ function _bitCondRefreshResumen(idx){
     <div style="text-align:right">
       ${acepta===true?`<div style="color:var(--green);font-weight:800;font-size:12px">✓ ACEPTA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
       ${acepta===false?`<div style="color:#f87171;font-weight:800;font-size:12px">✗ RECHAZA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
-      ${acepta===null?`<div style="color:var(--g2);font-size:10.5px">Captura las 3 lecturas</div>`:''}
+      ${acepta===null?'':''}
     </div>
   `;
 }
@@ -12088,6 +14905,7 @@ function catalogoRender(){
     if(_catalogoCache.otros){
       catalogoRenderOtros();
     }
+    catalogoRenderOdDisol();
     // AARMS sub1-equipos: render equipos
     if(_catalogoCache.equipos){
       catalogoRenderEquipos();
@@ -12106,11 +14924,12 @@ function catalogoRenderBuffers(containerId, lista, tipo){
   if(!c) return;
   c.innerHTML = lista.map((b, idx) => {
     const venc = _catalogoLoteVencido(b);
+    const borde = venc ? 'rgba(248,113,113,.5)' : (_lote10PorVencer(b) ? 'rgba(245,158,11,.55)' : 'var(--ln)');
     return `
-    <div style="background:var(--bg2);border:1px solid ${venc?'rgba(248,113,113,.5)':'var(--ln)'};border-radius:9px;padding:10px;margin-bottom:8px">
+    <div style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <div style="font-family:var(--syne);font-weight:800;font-size:14px;color:var(--w)">pH ${b.ph.toFixed(2)}</div>
-        ${venc?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:#f87171;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">VENCIDO</span>':''}
+        ${_lote10InsigniaCad(b)}
       </div>
       <div class="g2" style="margin-bottom:6px">
         <div class="f" style="margin:0"><label>Lote</label><input type="text" value="${(b.lote||'').replace(/"/g,'&quot;')}" oninput="catalogoUpBuffer('${tipo}',${idx},'lote',this.value)"></div>
@@ -12132,14 +14951,15 @@ function catalogoRenderDisoluciones(){
   if(!c || !_catalogoCache) return;
   c.innerHTML = _catalogoCache.disoluciones.map((d, idx) => {
     const venc = _catalogoLoteVencido(d);
+    const borde = venc ? 'rgba(248,113,113,.5)' : (_lote10PorVencer(d) ? 'rgba(245,158,11,.55)' : 'var(--ln)');
     // AARMS v66-p2: badge ALTERNO para lotes de respaldo en catálogo
     const esAlterno = /\(lote alterno\)/i.test(d.nombre || '');
     return `
-    <div style="background:var(--bg2);border:1px solid ${venc?'rgba(248,113,113,.5)':'var(--ln)'};border-radius:9px;padding:10px;margin-bottom:8px">
+    <div style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <input type="text" value="${(d.nombre||'').replace(/"/g,'&quot;')}" oninput="catalogoUpDisolucion(${idx},'nombre',this.value)" style="font-family:var(--syne);font-weight:800;background:transparent;border:none;color:var(--w);font-size:13px;flex:1;outline:none">
         ${esAlterno ? '<span style="background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3);color:#94a3b8;padding:2px 8px;border-radius:20px;font-size:9.5px;font-weight:700;letter-spacing:.04em">ALTERNO</span>' : ''}
-        ${venc?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:#f87171;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">VENCIDO</span>':''}
+        ${_lote10InsigniaCad(d)}
         <button onclick="catalogoBorrarDisolucion(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">✕</button>
       </div>
       <div class="g3">
@@ -12158,11 +14978,12 @@ function catalogoRenderConductividad(){
   if(!c || !_catalogoCache) return;
   c.innerHTML = _catalogoCache.conductividad.map((d, idx) => {
     const venc = _catalogoLoteVencido(d);
+    const borde = venc ? 'rgba(248,113,113,.5)' : (_lote10PorVencer(d) ? 'rgba(245,158,11,.55)' : 'var(--ln)');
     return `
-    <div style="background:var(--bg2);border:1px solid ${venc?'rgba(248,113,113,.5)':'var(--ln)'};border-radius:9px;padding:10px;margin-bottom:8px">
+    <div style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <input type="text" value="${(d.nombre||'').replace(/"/g,'&quot;')}" oninput="catalogoUpConductividad(${idx},'nombre',this.value)" style="font-family:var(--syne);font-weight:800;background:transparent;border:none;color:var(--w);font-size:13px;flex:1;outline:none">
-        ${venc?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:#f87171;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">VENCIDO</span>':''}
+        ${_lote10InsigniaCad(d)}
         <button onclick="catalogoBorrarConductividad(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">✕</button>
       </div>
       <div class="g2" style="margin-bottom:6px">
@@ -12187,11 +15008,12 @@ function catalogoRenderOtros(){
   if(!_catalogoCache.otros) _catalogoCache.otros = [];
   c.innerHTML = _catalogoCache.otros.map((d, idx) => {
     const venc = _catalogoLoteVencido(d);
+    const borde = venc ? 'rgba(248,113,113,.5)' : (_lote10PorVencer(d) ? 'rgba(245,158,11,.55)' : 'var(--ln)');
     return `
-    <div style="background:var(--bg2);border:1px solid ${venc?'rgba(248,113,113,.5)':'var(--ln)'};border-radius:9px;padding:10px;margin-bottom:8px">
+    <div style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <input type="text" value="${(d.nombre||'').replace(/"/g,'&quot;')}" oninput="catalogoUpOtro(${idx},'nombre',this.value)" style="font-family:var(--syne);font-weight:800;background:transparent;border:none;color:var(--w);font-size:13px;flex:1;outline:none">
-        ${venc?'<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:#f87171;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">VENCIDO</span>':''}
+        ${_lote10InsigniaCad(d)}
         <button onclick="catalogoBorrarOtro(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">✕</button>
       </div>
       <div class="g3">
@@ -12264,7 +15086,7 @@ function catalogoRenderEquipos(){
     }).join('');
 
     return `
-    <div style="margin-bottom:14px">
+    <div id="invEq_${tipoKey}" style="margin-bottom:14px">
       <div style="font-size:11px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono);margin-bottom:6px;display:flex;align-items:center;gap:6px">${_invEqIcon(tipoKey)}<span>${label}</span></div>
       ${cards || '<div style="padding:8px;color:var(--g2);font-size:11px;font-style:italic">Sin equipos. Toca + para agregar.</div>'}
       <button onclick="catalogoAgregarEquipo('${tipoKey}')" style="margin-top:6px;background:rgba(245,158,11,.08);border:1px dashed rgba(245,158,11,.3);color:#f59e0b;padding:6px 10px;border-radius:7px;font-size:11px;cursor:pointer;width:100%">+ Agregar ${label.toLowerCase()}</button>
@@ -12581,7 +15403,7 @@ async function _catalogoPrefillLvarDOM(){
   LVAR_REACTIVOS.forEach(it=>{
     const d = _catalogoMatchPorNombre(it.pdfLabel || it.label || it.key);
     if(!d) return;
-    // AARMS v65-fix: la marca está embebida en el nombre como "HNO3 ACS (Fermont)"
+    // AARMS v65-fix: la marca puede venir en el campo marca o entre paréntesis en el nombre
     const marcaExtraida = d.marca || _catalogoMarcaDesdeNombre(d.nombre);
     fill(document.querySelector(`[data-lvar-disol="react-${it.key}"][data-campo="lote"]`), d.lote || '');
     fill(document.querySelector(`[data-lvar-disol="react-${it.key}"][data-campo="marca"]`), marcaExtraida);
@@ -12737,10 +15559,10 @@ function _colabLabEstadoFromPlan(plan){
   const om = _planOmarData(plan)[0];
   const lab = (om && om.o && om.o.colabLab) || {};
   const hasId = !!(String(lab.fecha||'').trim() && (String(lab.marca||'').trim() || String(lab.clave||'').trim()));
-  const hasMrc = !!(String(lab.mrc_l1||'').trim() && String(lab.mrc_l2||'').trim() && String(lab.mrc_l3||'').trim());
+  const hasCal = !!(String(lab.cal_lect||'').trim() || (String(lab.comp_l1||lab.mrc_l1||'').trim() && String(lab.comp_l2||lab.mrc_l2||'').trim() && String(lab.comp_l3||lab.mrc_l3||'').trim()));
   const mantOk = _colabMantCompleto(lab);
-  if(hasId && hasMrc && mantOk) return 'completo';
-  if(lab.fecha || lab.marca || lab.mrc_l1 || lab.m_bat || lab.mant_na) return 'progreso';
+  if(hasId && hasCal && mantOk) return 'completo';
+  if(lab.fecha || lab.marca || lab.cal_lect || lab.mrc_l1 || lab.m_bat || lab.mant_na) return 'progreso';
   return 'vacio';
 }
 
@@ -12756,15 +15578,15 @@ function _planEstadoDoc(plan, docKey){
       return 'progreso';
     }
     case 'bpm': {
-      const om = _planOmarData(plan)[0];
-      const b = (om && om.o && om.o.bpm) || plan.bpm || {};
-      const camposCriticos = ['f1_blvm','f2_bucc','f4_fol'];
-      const llenos = camposCriticos.filter(k => b[k] && String(b[k]).trim()).length;
-      if(llenos === 0) return 'vacio';
-      if(llenos >= 2) return 'completo';
-      return 'progreso';
+      // AARMS lote16: completo cuando el punto 3 tiene texto. f1_blvm, f2_bucc y f4_fol se quedan guardados y ya no cierran el candado.
+      const t = String(plan.bpmPunto3 || '').trim();
+      if(t) return 'completo';
+      if(String(plan.bpmObs || '').trim()) return 'progreso';
+      return 'vacio';
     }
     case 'phlab': {
+      // AARMS lote4a: filas 1-3 capturadas y badges en acepta. Sin estructura nueva, el registro viejo.
+      if(typeof _lote4EstadoDocLab === 'function') return _lote4EstadoDocLab(plan);
       const om = _planOmarData(plan)[0];
       const p = om && om.o ? (om.o.ph2644h1||{}) : {};
       const labOk = p.cal_l1 && p.comp_l1 && p.ver_l1;
@@ -12790,11 +15612,16 @@ function _planEstadoDoc(plan, docKey){
       return _planEstadoDoc(plan, 'bitCond');
     }
     case 'blmp': {
+      // AARMS blmpfiel: completo si el plan tiene referencia a folio LMP
+      const ref = plan.blmpRef || {};
+      if(ref.hecho && ref.folio) return 'completo';
+      if(ref.folio || ref.aapt) return 'progreso';
+      // legado: omar.blmpLab (migracion suave de estado)
       const om = _planOmarData(plan)[0];
       const b = om && om.o ? (om.o.blmpLab||{}) : {};
-      if(!b.fecha) return 'vacio';
       if(b.fecha && b.aapt) return 'completo';
-      return 'progreso';
+      if(b.fecha || b.aapt) return 'progreso';
+      return 'vacio';
     }
     case 'bitPh': {
       const arr = plan.bitPh || [];
@@ -12837,7 +15664,16 @@ function _planEstadoDoc(plan, docKey){
       return 'progreso';
     }
     // AARMS sub7-od: estado card Bitácora OD (opcional)
+    case 'odlab': {
+      if(typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan)) return _planEstadoDoc(plan, 'bitod');
+      if(typeof _lote17OdAplica === 'function' && !_lote17OdAplica(plan)) return 'completo';
+      return (typeof _lote17EstadoLab === 'function') ? _lote17EstadoLab(plan) : 'vacio';
+    }
     case 'bitod': {
+      if(typeof _lote17OdEsViejo === 'function' && !_lote17OdEsViejo(plan)){
+        if(typeof _lote17OdAplica === 'function' && !_lote17OdAplica(plan)) return 'completo';
+        return (typeof _lote17EstadoCampo === 'function') ? _lote17EstadoCampo(plan) : 'vacio';
+      }
       const p = plan.bitOD;
       if(!p) return 'vacio';
       const tienelab = !!(p.calibLab?.zero?.lectura || p.calibLab?.sat100?.lectura);
@@ -12877,15 +15713,27 @@ function _planEstadoDoc(plan, docKey){
   return 'vacio';
 }
 
+function _lote19ClavesContadas(plan){
+  return _PLAN_ORDEN_OFICIAL.filter(key => {
+    if(key === 'odlab') return _lote19OdCuenta(plan);
+    if(key === 'bitod'){
+      if(plan && typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan)) return true;
+      return _lote19OdCuenta(plan);
+    }
+    return true;
+  });
+}
 function _planPorcentajeCompletitud(plan){
   if(!plan) return 0;
-  const completos = _PLAN_ORDEN_OFICIAL.filter(d => _planEstadoDoc(plan, d) === 'completo').length;
-  return Math.round((completos / _PLAN_ORDEN_OFICIAL.length) * 100);
+  const claves = _lote19ClavesContadas(plan);
+  if(!claves.length) return 0;
+  const completos = claves.filter(d => _planEstadoDoc(plan, d) === 'completo').length;
+  return Math.round((completos / claves.length) * 100);
 }
 
 function _planSiguientePaso(plan){
   if(!plan) return null;
-  for(const key of _PLAN_ORDEN_OFICIAL){
+  for(const key of _lote19ClavesContadas(plan)){
     if(_planEstadoDoc(plan, key) !== 'completo'){
       return {
         key,
@@ -12946,27 +15794,20 @@ function _aplicarDocEstadoBadge(docKey){
   if(['bpm','lvar','blmp','phlab','colab'].includes(docKey)) _actualizarGatePlanUI();
 }
 
-let _confirmacionBorrarPlan = false;
-let _timeoutBorrarPlan = null;
-
-function confirmarBorrarPlan(btn){
-  if(_confirmacionBorrarPlan){
-    clearTimeout(_timeoutBorrarPlan);
-    _confirmacionBorrarPlan = false;
-    borrarPlanActual();
-    return;
-  }
-  _confirmacionBorrarPlan = true;
-  const txtOriginal = btn.textContent;
-  btn.textContent = '⚠ Toca otra vez en 3s para borrar';
-  btn.style.background = 'rgba(248,113,113,.25)';
-  btn.style.borderColor = 'rgba(248,113,113,.6)';
-  _timeoutBorrarPlan = setTimeout(() => {
-    _confirmacionBorrarPlan = false;
-    btn.textContent = txtOriginal;
-    btn.style.background = 'rgba(248,113,113,.08)';
-    btn.style.borderColor = 'rgba(248,113,113,.3)';
-  }, 3000);
+async function confirmarBorrarPlan(){
+  // AARMS lote3c: el mismo diálogo que el bote de la portada
+  const plan = (_cachedPlanes || []).find(p => p.id === _currentPlanId);
+  if(!plan) return;
+  const n = (plan.omarIds || []).length;
+  const tit = plan.folio ? ('Plan #' + plan.folio) : 'Plan sin folio';
+  const mensajeConf = await _lote6aMensajeBorrarPlan(plan, n, tit);
+  confirmAction({
+    title: 'Eliminar plan de muestreo',
+    message: mensajeConf,
+    okText: 'Eliminar plan',
+    okDanger: true,
+    cancelText: 'Cancelar',
+  }).then(ok => { if(ok) borrarPlanActual(); });
 }
 
 async function borrarPlanActual(){
@@ -13084,7 +15925,25 @@ async function generarPDFLVARBlob(){
 }
 
 async function generarPDFBlmpFormBlob(){
-  return _pdfCaptureOutput(() => generarPDFBlmpForm());
+  // AARMS blmpfiel: PDF desde registro equipo (plan.blmpRef), sin depender de omar.blmpLab
+  return _pdfCaptureOutput(async () => {
+    let rec = null;
+    const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+    const ref = (plan && plan.blmpRef) || (typeof omar !== 'undefined' && omar && omar.blmpRef) || null;
+    if(ref && ref.id && typeof idbBlmpGet === 'function'){
+      try{ rec = await idbBlmpGet(ref.id); }catch(_){}
+    }
+    if(!rec && ref && ref.folio && typeof idbBlmpGetByFolio === 'function'){
+      try{ rec = await idbBlmpGetByFolio(ref.folio); }catch(_){}
+    }
+    if(!rec && typeof _blmpGuardarRegistro === 'function'){
+      // Si el formulario está abierto con datos, guardar primero
+      const aaptEl = document.getElementById('blmp_aapt');
+      if(aaptEl && aaptEl.value) rec = await _blmpGuardarRegistro();
+    }
+    if(!rec){ toast('Sin BLMP para incluir en ZIP','w'); return; }
+    if(typeof window._blmpGenerarPdfFiel === 'function') await window._blmpGenerarPdfFiel(rec);
+  });
 }
 
 async function generarPDFColabCompletoBlob(){
@@ -13126,13 +15985,18 @@ async function _pdfABlob(tipo, omarId){
   switch(tipo){
     case 'lvar': if(typeof generarPDFLVARBlob === 'function') return await generarPDFLVARBlob(); break;
     case 'bpm': if(typeof generarPDFBpmBlob === 'function') return await generarPDFBpmBlob(); break;
-    case 'phlab': if(typeof generarPDFPh2644H1Blob === 'function') return await generarPDFPh2644H1Blob(); break;
+    case 'phlab': {
+      // AARMS lote21c: con plan.ph2644 solo el formato de dos páginas. El viejo queda para un plan sin esa estructura.
+      const planPh = (typeof _curPlan === 'function') ? _curPlan() : null;
+      if(planPh && planPh.ph2644 && typeof generarPDFBitacoraPHOficialBlob === 'function') return await generarPDFBitacoraPHOficialBlob();
+      if(typeof generarPDFPh2644H1Blob === 'function') return await generarPDFPh2644H1Blob();
+      break;
+    }
     case 'colab': if(typeof generarPDFColabCompletoBlob === 'function') return await generarPDFColabCompletoBlob(); break;
     case 'blmp': if(typeof generarPDFBlmpFormBlob === 'function') return await generarPDFBlmpFormBlob(); break;
     case 'bitPh': if(typeof generarPDFBitacoraPHOficialBlob === 'function') return await generarPDFBitacoraPHOficialBlob(); break;
-    case 'bitTemp': if(typeof generarPDFBitTempBlob === 'function') return await generarPDFBitTempBlob(); break;
-    case 'bitflujos': if(typeof generarPDFBitFlujosBlob === 'function') return await generarPDFBitFlujosBlob(); break;
     case 'bm': if(typeof generarPDFBmBlob === 'function') return await generarPDFBmBlob(); break;
+    case 'bitod': if(typeof generarPDFBitODBlob === 'function') return await generarPDFBitODBlob(); break;
     case 'omar': if(typeof generarPDFOmarBlob === 'function') return await generarPDFOmarBlob(omarId); break;
   }
   return null;
@@ -13144,7 +16008,7 @@ async function generarTodosLosPDFs(){
     return;
   }
   const plan = _curPlan();
-  if(!plan){ toast('No hay plan activo', 'w'); return; }
+  if(!plan || _lote21EsOculto(plan.id)){ toast('No hay plan activo', 'w'); return; }
   const prevOmarId = omar && omar.ts ? String(omar.ts) : null;
   toast('Generando todos los PDFs...', '');
   const zip = new JSZip();
@@ -13155,15 +16019,29 @@ async function generarTodosLosPDFs(){
     {key:'colab', nombre:'Conductimetro.pdf', fn: () => _pdfABlob('colab')},
     {key:'blmp', nombre:'BLMP_LimpiezaPHmetro.pdf', fn: () => _pdfABlob('blmp')},
     {key:'bitPh', nombre:'pH_Hoja2_EntreTomas.pdf', fn: () => _pdfABlob('bitPh')},
-    {key:'bm', nombre:'BM_BitacoraMuestreo.pdf', fn: () => _pdfABlob('bm')}
+    {key:'bm', nombre:'BM_BitacoraMuestreo.pdf', fn: () => _pdfABlob('bm')},
+    {key:'bitod', nombre:'OD_Bitacora.pdf', fn: () => _pdfABlob('bitod')}
   ];
   for(const gen of generadores){
+    if(gen.key === 'bitPh' && plan.ph2644) continue;
+    if(gen.key === 'bitod' && typeof _lote17OdAplica === 'function' && !_lote17OdAplica(plan) && !(typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan))) continue;
     try{
       const blob = await gen.fn();
       if(blob) zip.file(gen.nombre, blob);
     }catch(e){ console.warn('[zip]', gen.key, e); }
   }
   for(const omarId of (plan.omarIds || [])){
+    if(_lote21EsOculto(omarId)) continue;
+    try{
+      if(typeof _lote5cUltima === 'function'){
+        const ver = await _lote5cUltima(plan.id, omarId, 'bm');
+        if(ver && ver.pdf){
+          const mVer = (_cachedMuestreos||[]).find(x => String(x.id) === String(omarId));
+          const folVer = mVer ? (mVer.folio || omarId) : omarId;
+          zip.file(`Machiote_${folVer}.pdf`, ver.pdf);
+        }
+      }
+    }catch(e){ console.warn('[zip machiote]', e); }
     try{
       const blob = await _pdfABlob('omar', omarId);
       if(blob){
@@ -13177,7 +16055,7 @@ async function generarTodosLosPDFs(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const folio = plan.folio || plan.id;
-  const fecha = new Date().toISOString().split('T')[0];
+  const fecha = _lote21HoyFecha();
   a.href = url;
   a.download = `AARMS_Plan_${folio}_${fecha}.zip`;
   a.click();
@@ -13261,7 +16139,10 @@ async function _supervisorValidarPin(pin){
   const h = await _hashPin(pin);
   return sups.find(s => s.pinHash === h) || null;
 }
-function _supervisorConfigurado(){ return (_appConfigGet().supervisores||[]).length > 0; }
+function _supervisorConfigurado(){
+  const s = _supervisorActual();
+  return !!(s && s.pinHash);
+}
 function _supervisorActual(){
   const s = (_appConfigGet().supervisores||[])[0];
   return s || null;
@@ -13388,13 +16269,26 @@ window._abrirModalFirma = _abrirModalFirma;
 
 // AARMS sub9-firma: modal PIN
 let _pinOnConfirm = null;
+let _lote15aFallos = 0;
+let _lote15aHasta = 0;
+function _lote15aPinBloqueado(){ return Date.now() < _lote15aHasta; }
+function _lote15aPintarAvisoPin(){
+  const el = document.getElementById('modalPinAviso');
+  const inp = document.getElementById('modalPinInput');
+  const btn = document.getElementById('modalPinOk');
+  const bloqueado = _lote15aPinBloqueado();
+  if(el) el.textContent = bloqueado ? 'Demasiados intentos. Espera 60 segundos.' : '';
+  if(inp) inp.disabled = bloqueado;
+  if(btn) btn.disabled = bloqueado;
+}
 function _abrirModalPin(onConfirm){
   const inp = document.getElementById('modalPinInput');
   const m = document.getElementById('modalPin');
   if(inp) inp.value = '';
+  _lote15aPintarAvisoPin();
   if(m) m.style.display = 'flex';
   _pinOnConfirm = onConfirm;
-  setTimeout(() => { if(inp) inp.focus(); }, 60);
+  if(!_lote15aPinBloqueado()) setTimeout(() => { if(inp) inp.focus(); }, 60);
 }
 function _cerrarModalPin(){
   const m = document.getElementById('modalPin');
@@ -13402,8 +16296,10 @@ function _cerrarModalPin(){
   _pinOnConfirm = null;
 }
 function _confirmarPin(){
+  if(_lote15aPinBloqueado()){ _lote15aPintarAvisoPin(); return; }
   const inp = document.getElementById('modalPinInput');
   const pin = inp ? inp.value.trim() : '';
+  if(inp) inp.value = '';
   const m = document.getElementById('modalPin');
   if(m) m.style.display = 'none';
   if(typeof _pinOnConfirm === 'function') _pinOnConfirm(pin);
@@ -13445,12 +16341,23 @@ window._estamparFirmaSupervisor = _estamparFirmaSupervisor;
 
 // AARMS sub9-firma: iniciar firma de supervisor
 function firmarComoSupervisor(){
-  if(!_supervisorConfigurado()){ toast('Configura el supervisor en Ajustes','w'); return; }
+  if(!_supervisorConfigurado()){ toast('Pide al administrador que configure el supervisor','w'); return; }
   const plan = typeof _planActivo === 'function' ? _planActivo() : null;
   if(!plan){ toast('Abre un plan primero','w'); return; }
   _abrirModalPin(async (pin) => {
     const sup = await _supervisorValidarPin(pin);
-    if(!sup){ toast('PIN incorrecto','w'); return; }
+    if(!sup){
+      _lote15aFallos += 1;
+      if(_lote15aFallos >= 5){
+        _lote15aFallos = 0;
+        _lote15aHasta = Date.now() + 60000;
+        _abrirModalPin(null);
+      } else {
+        toast('PIN incorrecto','w');
+      }
+      return;
+    }
+    _lote15aFallos = 0;
     _abrirModalFirma('Firma de supervisor', sup.nombre, async (firmaPng) => {
       await _estamparFirmaSupervisor(plan, sup, firmaPng);
       toast('Firmado por ' + sup.nombre, 'g');
@@ -13462,20 +16369,64 @@ function firmarComoSupervisor(){
 window.firmarComoSupervisor = firmarComoSupervisor;
 
 async function guardarSupervisorUI(){
-  const nombre = (document.getElementById('supNombre')?.value || '').trim();
-  const cargo = (document.getElementById('supCargo')?.value || '').trim() || 'Supervisor';
-  const pin = (document.getElementById('supPin')?.value || '').trim();
-  const pin2 = (document.getElementById('supPin2')?.value || '').trim();
+  // AARMS lote15a: solo desde la sesión de administrador.
+  if(typeof _cartasAdminSesionValida !== 'function' || !_cartasAdminSesionValida()){
+    toast('Pide al administrador que configure el supervisor','w');
+    return;
+  }
+  const nombre = (document.getElementById('lote15SupNombre')?.value || '').trim();
+  const cargo = (document.getElementById('lote15SupCargo')?.value || '').trim() || 'Supervisor';
+  const pin = (document.getElementById('lote15SupPin')?.value || '').trim();
+  const pin2 = (document.getElementById('lote15SupPin2')?.value || '').trim();
   if(!nombre){ toast('Falta el nombre','w'); return; }
   if(!/^\d{4,6}$/.test(pin)){ toast('PIN de 4-6 dígitos','w'); return; }
   if(pin !== pin2){ toast('Los PIN no coinciden','w'); return; }
   await _supervisorSet(nombre, cargo, pin);
+  const p1 = document.getElementById('lote15SupPin'); if(p1) p1.value = '';
+  const p2 = document.getElementById('lote15SupPin2'); if(p2) p2.value = '';
   toast('Supervisor guardado','g');
-  const p1 = document.getElementById('supPin'); if(p1) p1.value = '';
-  const p2 = document.getElementById('supPin2'); if(p2) p2.value = '';
+  _lote15aPintarAdmin();
   _renderAjustesSupervisor();
 }
 window.guardarSupervisorUI = guardarSupervisorUI;
+
+async function _lote15aRestablecerPin(){
+  if(typeof _cartasAdminSesionValida !== 'function' || !_cartasAdminSesionValida()) return;
+  const c = _appConfigGet();
+  const s = (c.supervisores || [])[0];
+  if(s){
+    s.pinHash = '';
+    c.supervisores = [s];
+    await _appConfigSave(c);
+  }
+  _lote15aFallos = 0;
+  _lote15aHasta = 0;
+  toast('PIN restablecido','g');
+  _lote15aPintarAdmin();
+  _renderAjustesSupervisor();
+}
+window._lote15aRestablecerPin = _lote15aRestablecerPin;
+
+function _lote15aPintarAdmin(){
+  const host = document.getElementById('lote15AdminSup');
+  if(!host) return;
+  const sesion = typeof _cartasAdminSesionValida === 'function' && _cartasAdminSesionValida();
+  if(!sesion){ host.style.display = 'none'; host.innerHTML = ''; return; }
+  const s = _supervisorActual();
+  host.style.display = 'block';
+  host.innerHTML = `<div style="background:var(--bg2);border:1px solid var(--ln);border-radius:12px;padding:14px">
+    <div style="font-family:var(--syne);font-weight:800;font-size:14px;margin-bottom:10px">Supervisor</div>
+    <div class="f" style="margin-bottom:8px"><label>Nombre</label><input type="text" id="lote15SupNombre" placeholder="Nombre completo" value="${_lote6aEsc(s && s.nombre || '')}"></div>
+    <div class="f" style="margin-bottom:8px"><label>Cargo</label><input type="text" id="lote15SupCargo" placeholder="Supervisor" value="${_lote6aEsc(s && s.cargo || '')}"></div>
+    <div class="f" style="margin-bottom:8px"><label>PIN (4-6 dígitos)</label><input type="password" id="lote15SupPin" inputmode="numeric" maxlength="6" autocomplete="new-password"></div>
+    <div class="f" style="margin-bottom:8px"><label>Confirmar PIN</label><input type="password" id="lote15SupPin2" inputmode="numeric" maxlength="6" autocomplete="new-password"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <button type="button" class="btn btn-p" style="width:auto" onclick="guardarSupervisorUI()">Guardar supervisor</button>
+      <button type="button" class="btn btn-g" style="width:auto" onclick="_lote15aRestablecerPin()">Restablecer PIN</button>
+    </div>
+  </div>`;
+}
+window._lote15aPintarAdmin = _lote15aPintarAdmin;
 
 async function guardarMuestreadorUI(){
   const nombre = (document.getElementById('mestNombre')?.value || '').trim();
@@ -13522,22 +16473,128 @@ function _renderAjustesMuestreador(){
   }
 }
 function _renderAjustesSupervisor(){
+  // AARMS lote15a: Ajustes solo muestra el nombre y el estado.
   const s = _supervisorActual();
   const st = document.getElementById('supEstado');
-  const n = document.getElementById('supNombre');
-  const c = document.getElementById('supCargo');
-  if(s){
-    if(st) st.textContent = 'Supervisor: ' + s.nombre + (s.cargo ? ' · ' + s.cargo : '');
-    if(n && !n.value) n.value = s.nombre || 'Ing. Edgar Iván Castillo';
-    if(c && !c.value) c.value = s.cargo || 'Supervisor';
-  } else {
-    if(st) st.textContent = 'Sin supervisor configurado';
-    if(n && !n.value) n.value = 'Ing. Edgar Iván Castillo';
-    if(c && !c.value) c.value = 'Supervisor';
-  }
+  const n = document.getElementById('supNombreVista');
+  const listo = !!(s && s.pinHash);
+  if(n) n.textContent = (s && s.nombre) ? s.nombre : '';
+  if(st) st.textContent = listo ? 'Supervisor configurado' : 'Sin supervisor configurado';
 }
 window._renderAjustesMuestreador = _renderAjustesMuestreador;
 window._renderAjustesSupervisor = _renderAjustesSupervisor;
+
+function _lote10Texto(v){ return String(v == null ? '' : v).trim(); }
+function _lote10Lleno(v){ return _lote10Texto(v) !== ''; }
+function _lote10DisolPorNombre(nombre){
+  const lista = (_catalogoCache && _catalogoCache.disoluciones) || [];
+  const t = _lote10Texto(nombre).toLowerCase();
+  return lista.find(d => _lote10Texto(d.nombre).toLowerCase() === t) || null;
+}
+function _lote10EqOk(tipo){
+  const lista = _catalogoCache && _catalogoCache.equipos && _catalogoCache.equipos[tipo];
+  return Array.isArray(lista) && lista.some(it => _lote10Lleno(it && it.id));
+}
+function _lote10BufferOk(lista, i){
+  const b = lista && lista[i];
+  return !!(b && _lote10Lleno(b.lote) && _lote10Lleno(b.marca) && _lote10Lleno(b.caducidad));
+}
+function _lote10DisolOk(nombre){
+  const d = _lote10DisolPorNombre(nombre);
+  return !!(d && _lote10Lleno(d.lote) && _lote10Lleno(d.caducidad));
+}
+function _lote10ReactOk(nombre){
+  const d = _catalogoMatchPorNombre(nombre);
+  if(!d) return false;
+  const marca = _lote10Texto(d.marca) || _lote10Texto(_catalogoMarcaDesdeNombre(d.nombre));
+  return _lote10Lleno(d.lote) && _lote10Lleno(marca) && _lote10Lleno(d.caducidad);
+}
+function _lote10CondOk(i){
+  const d = _catalogoCache && _catalogoCache.conductividad && _catalogoCache.conductividad[i];
+  return !!(d && _lote10Lleno(d.lote) && _lote10Lleno(d.marca) && _lote10Lleno(d.caducidad));
+}
+function _lote10AguaOk(){
+  const d = _catalogoAguaReactivo();
+  return !!(d && _lote10Lleno(d.lote) && _lote10Lleno(d.marca) && _lote10Lleno(d.caducidad));
+}
+function _lote10Pendientes(){
+  const m = (typeof _muestreadorActual === 'function') ? _muestreadorActual() : {};
+  const s = (typeof _supervisorActual === 'function') ? _supervisorActual() : null;
+  const cal = _catalogoCache && _catalogoCache.buffers && _catalogoCache.buffers.calibracion;
+  const ver = _catalogoCache && _catalogoCache.buffers && _catalogoCache.buffers.verificacion;
+  const filas = [
+    { nombre: 'Nombre del muestreador y su firma', ok: _lote10Lleno(m.nombre) && _lote10Lleno(m.firmaPng), ir: { tipo: 'ajustes', id: 'mestNombre' } },
+    { nombre: 'Supervisor y su PIN', ok: !!(s && _lote10Lleno(s.nombre) && _lote10Lleno(s.pinHash)), ir: { tipo: 'ajustes', id: 'supEstado' } },
+    { nombre: 'Potenciómetro', ok: _lote10EqOk('potenciometros'), ir: { tipo: 'eq', id: 'potenciometros' } },
+    { nombre: 'Conductímetro', ok: _lote10EqOk('conductimetros'), ir: { tipo: 'eq', id: 'conductimetros' } },
+    { nombre: 'Termómetro', ok: _lote10EqOk('termometros'), ir: { tipo: 'eq', id: 'termometros' } },
+    { nombre: 'Malla', ok: _lote10EqOk('mallas'), ir: { tipo: 'eq', id: 'mallas' } },
+    { nombre: 'Kit de cloro', ok: _lote10EqOk('kitsCloro'), ir: { tipo: 'eq', id: 'kitsCloro' } },
+    { nombre: 'Oxímetro', ok: _lote10EqOk('oximetros'), ir: { tipo: 'eq', id: 'oximetros' } },
+    { nombre: 'Patrón de referencia 4.00', ok: _lote10BufferOk(ver, 0), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
+    { nombre: 'Patrón de referencia 7.00', ok: _lote10BufferOk(ver, 1), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
+    { nombre: 'Patrón de referencia 10.00', ok: _lote10BufferOk(ver, 2), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
+    { nombre: 'Patrón de trabajo 4.00', ok: _lote10BufferOk(cal, 0), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
+    { nombre: 'Patrón de trabajo 6.86', ok: _lote10BufferOk(cal, 1), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
+    { nombre: 'Patrón de trabajo 9.18', ok: _lote10BufferOk(cal, 2), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
+    { nombre: 'H₂SO₄ 1:1', ok: _lote10DisolOk('H₂SO₄ 1:1'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'HCl 1:1 (uso general)', ok: _lote10DisolOk('HCl 1:1 (uso general)'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'H₂SO₄ 25%', ok: _lote10DisolOk('H₂SO₄ 25%'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'NaOH 1N', ok: _lote10DisolOk('NaOH 1N'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'K₂Cr₂O₇ 25%', ok: _lote10DisolOk('K₂Cr₂O₇ 25%'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'HCl 1:1 (lavado de electrodo)', ok: _lote10DisolOk('HCl 1:1 (lavado electrodo)'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'HNO₃ ACS', ok: _lote10ReactOk('HNO₃ ACS'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'HNO₃ Suprapuro', ok: _lote10ReactOk('HNO₃ Suprapuro'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'KCl patrón', ok: _lote10CondOk(0), ir: { tipo: 'ancla', id: 'catConductividad' } },
+    { nombre: 'KCl comercial', ok: _lote10CondOk(1), ir: { tipo: 'ancla', id: 'catConductividad' } },
+    { nombre: 'Agua reactivo', ok: _lote10AguaOk(), ir: { tipo: 'ancla', id: 'catOtros' } },
+    { nombre: 'Disolución OD de calibración (0 mgO₂/L)', ok: _lote17OdDisolOk(0), ir: { tipo: 'ancla', id: 'catOdDisol' } },
+    { nombre: 'Disolución OD de trabajo (0 mgO₂/L)', ok: _lote17OdDisolOk(1), ir: { tipo: 'ancla', id: 'catOdDisol' } }
+  ];
+  return filas;
+}
+async function _lote10PintarArranque(){
+  const host = document.getElementById('lote10Arranque');
+  if(!host) return;
+  try { if(!_catalogoCache && typeof _catalogoCargar === 'function') await _catalogoCargar(); } catch(e){}
+  const filas = _lote10Pendientes();
+  const faltan = filas.filter(f => !f.ok);
+  if(!faltan.length){ host.style.display = 'none'; host.innerHTML = ''; return; }
+  host.style.display = 'block';
+  host.innerHTML = `
+    <div class="card" id="lote10ArranqueCard" style="margin:0 0 16px">
+      <div class="ch"><div class="ct">Configuración inicial: faltan ${faltan.length}</div></div>
+      <div class="cb" style="padding:6px 0">
+        ${filas.map((f, i) => `
+          <button type="button" data-lote10-ir="${i}" style="display:flex;width:100%;align-items:center;gap:10px;background:transparent;border:none;border-bottom:1px solid var(--ln);color:var(--w);padding:10px 14px;cursor:pointer;text-align:left">
+            <span style="flex:1;font-size:13px">${_lote10EscHtml(f.nombre)}</span>
+            <span style="font-size:11px;font-weight:800;color:${f.ok ? '#34d399' : '#fbbf24'}">${f.ok ? 'Completo' : 'Falta'}</span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+  host.querySelectorAll('[data-lote10-ir]').forEach(btn => {
+    btn.addEventListener('click', () => _lote10Ir(filas[Number(btn.getAttribute('data-lote10-ir'))]));
+  });
+}
+async function _lote10Ir(fila){
+  if(!fila || !fila.ir) return;
+  const ir = fila.ir;
+  if(ir.tipo === 'ajustes'){
+    abrirAjustes();
+    setTimeout(() => {
+      const el = document.getElementById(ir.id);
+      if(el){ el.scrollIntoView({ block: 'center' }); try{ el.focus(); }catch(e){} }
+    }, 80);
+    return;
+  }
+  await abrirCatalogo();
+  invSetTab(ir.tipo === 'eq' ? 'equipos' : 'disol');
+  setTimeout(() => {
+    const el = document.getElementById(ir.tipo === 'eq' ? ('invEq_' + ir.id) : ir.id);
+    if(el) el.scrollIntoView({ block: 'start' });
+  }, 120);
+}
+window._lote10PintarArranque = _lote10PintarArranque;
 
 function abrirAjustes(){
   closeFabMenu();
@@ -13579,13 +16636,13 @@ if(_renderPlanPageOrig){
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AARMS adminaccess: acceso admin oculto (Reynaldo Rodríguez) — SOLO hash
+// AARMS adminaccess: acceso admin oculto (Reynaldo Rodríguez Rodríguez) — SOLO hash
 // AARMS cartacontrol: Cartas Control Shewhart por equipo
 // ═══════════════════════════════════════════════════════════════
 
 // AARMS adminaccess: hash SHA-256 del código (NUNCA el código en texto plano)
 const _ADMIN_CODE_HASH = '3adeef315d810d758fde9e772258e44a61d94e8ff0911b6c779e6134bb3bbc11';
-const _ADMIN_TITULAR = 'Reynaldo Rodríguez';
+const _ADMIN_TITULAR = 'Reynaldo Rodríguez Rodríguez';
 
 async function _adminHashCodigo(texto){
   const enc = new TextEncoder().encode(String(texto || ''));
@@ -13624,7 +16681,7 @@ function _adminCerrarModalCodigo(){
   if(m) m.style.display = 'none';
 }
 
-async function _adminConfirmarCodigo(){
+function _adminConfirmarCodigo(){
   const inp = document.getElementById('modalAdminCodeInput');
   const err = document.getElementById('modalAdminCodeErr');
   const raw = inp ? String(inp.value || '') : '';
@@ -13632,20 +16689,30 @@ async function _adminConfirmarCodigo(){
     if(err) err.textContent = 'Código incorrecto';
     return;
   }
-  const h = await _adminHashCodigo(raw);
-  if(inp) inp.value = '';
-  if(h !== _ADMIN_CODE_HASH){
-    if(err) err.textContent = 'Código incorrecto';
-    return;
-  }
-  _adminCerrarModalCodigo();
-  _adminEntrarVista();
+  return _adminHashCodigo(raw).then(h => {
+    if(inp) inp.value = '';
+    if(h !== _ADMIN_CODE_HASH){
+      if(err) err.textContent = 'Código incorrecto';
+      return;
+    }
+    _adminCerrarModalCodigo();
+    // AARMS cartaspublic: PIN correcto → sesión admin (habilita cierre de periodo)
+    _cartasAdminAbrirSesion();
+    _adminEntrarVista();
+  });
 }
 
 function _adminEntrarVista(){
-  goPage('pgAdmin');
+  goPage('pgCartas');
   if(typeof _cartasRenderVista === 'function') _cartasRenderVista();
 }
+
+// AARMS cartaspublic: abrir desde menú (lectura, sin exigir PIN)
+function abrirCartasControl(){
+  goPage('pgCartas');
+  if(typeof _cartasRenderVista === 'function') _cartasRenderVista();
+}
+window.abrirCartasControl = abrirCartasControl;
 
 function _adminBindGatillo(){
   // AARMS adminaccess: elementos ya existentes en home (sin UI nueva visible)
@@ -13723,6 +16790,17 @@ const _CARTAS_EQUIPOS = [
 ];
 
 let _cartasUi = { equipo: 'ph', periodoId: null };
+// AARMS cartaspublic: sesión admin (solo tras PIN); cierre exige esta sesión en la función
+let _cartasAdminSesionHasta = 0;
+function _cartasAdminSesionValida(){
+  return Date.now() < (_cartasAdminSesionHasta || 0);
+}
+function _cartasAdminAbrirSesion(){
+  _cartasAdminSesionHasta = Date.now() + 20 * 60 * 1000;
+}
+function _cartasAdminCerrarSesion(){
+  _cartasAdminSesionHasta = 0;
+}
 
 async function _cartasRegistrarPunto(opts){
   // AARMS cartacontrol: solo ACEPTA; no duplicar lógica de criterio
@@ -13795,10 +16873,14 @@ window._cartasRegistrarPunto = _cartasRegistrarPunto;
 window._cartasFeedDesdePhCampo = _cartasFeedDesdePhCampo;
 
 async function _cartasCerrarPeriodo(){
+  // AARMS cartaspublic: validación real en la función (no solo UI/CSS)
+  if(!_cartasAdminSesionValida()){
+    toast('Cerrar periodo requiere acceso admin (PIN)','w');
+    return;
+  }
   const meta = _cartasMetaGet();
   const act = (meta.periodos || []).find(p => p.activo && !p.cerrado);
   if(!act){ toast('No hay periodo activo', 'w'); return; }
-  // AARMS nobranding:
   const ok = await confirmAction({
     title: 'Cerrar periodo',
     message: '¿Cerrar el periodo "' + act.label + '"?\nLos puntos se conservan; se abre un periodo nuevo vacío.',
@@ -13806,6 +16888,11 @@ async function _cartasCerrarPeriodo(){
     okDanger: false
   });
   if(!ok) return;
+  // Re-validar sesión por si expiró durante el confirm
+  if(!_cartasAdminSesionValida()){
+    toast('Sesión admin expirada — vuelve a autenticarte','w');
+    return;
+  }
   act.activo = false;
   act.cerrado = true;
   act.cerradoEn = new Date().toISOString();
@@ -13905,11 +16992,34 @@ async function _cartasRenderVista(){
   }
   const tabs = document.getElementById('cartasTabsEquipo');
   const sel = document.getElementById('cartasSelPeriodo');
-  const btnCerrar = document.getElementById('cartasBtnCerrar');
+  const wrapAcc = document.getElementById('cartasAcciones');
   const tbl = document.getElementById('cartasTablaBody');
   const canvas = document.getElementById('cartasCanvas');
-  const titular = document.getElementById('cartasAdminTitular');
-  if(titular) titular.textContent = _ADMIN_TITULAR;
+  const barSub = document.getElementById('cartasBarSub');
+  const esAdmin = _cartasAdminSesionValida();
+  if(barSub){
+    barSub.textContent = esAdmin
+      ? ('Admin · ' + _ADMIN_TITULAR)
+      : 'Control de calidad';
+  }
+
+  // AARMS cartaspublic: botón cerrar SOLO si hay sesión admin (no existe en DOM público)
+  let btnCerrar = document.getElementById('cartasBtnCerrar');
+  if(esAdmin){
+    if(!btnCerrar && wrapAcc){
+      btnCerrar = document.createElement('button');
+      btnCerrar.type = 'button';
+      btnCerrar.id = 'cartasBtnCerrar';
+      btnCerrar.className = 'btn btn-g';
+      btnCerrar.style.cssText = 'width:auto;font-size:11px;padding:8px 12px';
+      btnCerrar.textContent = 'Cerrar periodo';
+      btnCerrar.onclick = () => { void _cartasCerrarPeriodo(); };
+      wrapAcc.appendChild(btnCerrar);
+    }
+  } else if(btnCerrar){
+    btnCerrar.remove();
+    btnCerrar = null;
+  }
 
   if(tabs){
     tabs.innerHTML = _CARTAS_EQUIPOS.map(eq => {
@@ -13941,18 +17051,134 @@ async function _cartasRenderVista(){
       tbl.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--g1);padding:16px">Sin datos aún</td></tr>`;
     } else {
       tbl.innerHTML = puntos.map(p => `<tr>
-        <td>${p.fecha || ''} ${p.hora || ''}</td>
-        <td>${p.folioOMAR || '—'}</td>
-        <td>${p.valor}</td>
-        <td>${p.aceptaRechaza || ''}</td>
+        <td style="padding:8px">${p.fecha || ''} ${p.hora || ''}</td>
+        <td style="padding:8px">${p.folioOMAR || '—'}</td>
+        <td style="padding:8px">${p.valor}</td>
+        <td style="padding:8px">${p.aceptaRechaza || ''}</td>
       </tr>`).join('');
     }
+  }
+  // AARMS lote2a: tabla de folios solo con sesión de administrador
+  if(typeof _lote2aPintarAdmin === 'function') _lote2aPintarAdmin();
+  if(typeof _lote15aPintarAdmin === 'function') _lote15aPintarAdmin();
+}
+
+// AARMS cartaspublic: PDF lectura (gráfica + tabla) del periodo/equipo visto
+async function _cartasDescargarPdf(){
+  try{
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      toast('jsPDF no disponible','w');
+      return;
+    }
+    const meta = _cartasMetaGet();
+    const per = (meta.periodos || []).find(p => p.id === _cartasUi.periodoId) || _cartasPeriodoActivo();
+    const eqMeta = _CARTAS_EQUIPOS.find(e => e.id === _cartasUi.equipo) || _CARTAS_EQUIPOS[0];
+    const puntos = await _cartasPuntosFiltrados();
+    const canvas = document.getElementById('cartasCanvas');
+    if(canvas) _cartasDrawChart(canvas, puntos, eqMeta.unidad);
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
+    const M = 40;
+    const W = doc.internal.pageSize.getWidth();
+    let y = 48;
+    const titulo = 'Carta Control ' + (eqMeta.label || 'Equipo') + ' - Periodo ' + (per && per.label ? per.label : '-');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(23, 42, 74);
+    doc.text(titulo, M, y);
+    y += 18;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(80, 90, 110);
+    doc.text('Asesoria y Analisis S.C. - Solo lectura', M, y);
+    y += 14;
+    if(canvas){
+      try{
+        const img = canvas.toDataURL('image/png');
+        const imgW = W - M * 2;
+        const imgH = Math.min(220, imgW * (canvas.clientHeight || 240) / (canvas.clientWidth || 320));
+        doc.addImage(img, 'PNG', M, y, imgW, imgH, '', 'FAST');
+        y += imgH + 16;
+      }catch(_){}
+    }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(23, 42, 74);
+    doc.text('Datos crudos', M, y);
+    y += 12;
+    const cols = [
+      { h: 'Fecha / Hora', w: 120 },
+      { h: 'Folio OMAR', w: 110 },
+      { h: 'Valor', w: 70 },
+      { h: 'Acepta/Rechaza', w: 120 }
+    ];
+    const rowH = 16;
+    doc.setFillColor(15, 23, 42);
+    doc.rect(M, y, cols.reduce((s, c) => s + c.w, 0), rowH, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    let cx = M;
+    cols.forEach(c => {
+      doc.text(c.h, cx + 4, y + 11);
+      cx += c.w;
+    });
+    y += rowH;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(40, 50, 70);
+    if(!puntos.length){
+      doc.text('Sin datos aún', M + 4, y + 12);
+      y += 20;
+    } else {
+      puntos.forEach((p, i) => {
+        if(y > 720){
+          doc.addPage();
+          y = 48;
+        }
+        if(i % 2 === 1){
+          doc.setFillColor(241, 245, 249);
+          doc.rect(M, y, cols.reduce((s, c) => s + c.w, 0), rowH, 'F');
+        }
+        const vals = [
+          String((p.fecha || '') + ' ' + (p.hora || '')).trim(),
+          String(p.folioOMAR || '-'),
+          String(p.valor ?? ''),
+          String(p.aceptaRechaza || '')
+        ];
+        cx = M;
+        vals.forEach((v, vi) => {
+          const safe = (typeof jsPdfAscii === 'function') ? jsPdfAscii(v) : v.replace(/[^\x20-\x7E]/g, '');
+          doc.text(safe.substring(0, 28), cx + 4, y + 11);
+          cx += cols[vi].w;
+        });
+        y += rowH;
+      });
+    }
+    const slug = String((eqMeta.id || 'eq') + '_' + (per && per.label || 'periodo')).replace(/[^\w\-]+/g, '_');
+    if(typeof doc.save === 'function'){
+      doc.save('carta_control_' + slug + '.pdf');
+    } else {
+      const blob = doc.output('blob');
+      if(typeof entregarPDF === 'function') await entregarPDF(blob, 'carta_control_' + slug + '.pdf');
+      else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'carta_control_' + slug + '.pdf';
+        a.click();
+      }
+    }
+    toast('PDF descargado','g');
+  }catch(err){
+    console.error('[cartasDescargar]', err);
+    toast('No se pudo generar el PDF','w');
   }
 }
 window._cartasRenderVista = _cartasRenderVista;
 window._cartasCerrarPeriodo = _cartasCerrarPeriodo;
+window._cartasDescargarPdf = _cartasDescargarPdf;
+window._cartasAdminSesionValida = _cartasAdminSesionValida;
 
 document.addEventListener('DOMContentLoaded', () => {
   try{ _adminBindGatillo(); }catch(_){}
+  try{ _lote15bPodarTodo(); }catch(_){}
 });
 setTimeout(() => { try{ _adminBindGatillo(); }catch(_){} }, 800);
