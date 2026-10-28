@@ -2560,13 +2560,14 @@ function buildFechaIndex(fechaISO){
 }
 
 function renderHome(filtro=''){
-  const muestreos=getMuestreos();
+  // AARMS lote21a: el catálogo y plan__ no entran al inicio, al conteo ni a la búsqueda.
+  const muestreos=getMuestreos().filter(m=>m && !_lote21EsOculto(m.id));
   const planes=getPlanes();
   const cnt=document.getElementById('homeCnt');
   const div=document.getElementById('homeLista');
   if(!cnt||!div)return;
   if(typeof _lote10PintarArranque === 'function') void _lote10PintarArranque();
-  cnt.textContent=muestreos.filter(m=>!_lote21EsOculto(m.id)).length;
+  cnt.textContent=muestreos.length;
   // Tokenizado del filtro
   const quitarTildes = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const tokens = filtro ? filtro.split(/\s+/).filter(Boolean).map(quitarTildes) : [];
@@ -2575,7 +2576,7 @@ function renderHome(filtro=''){
   // Un plan pasa el filtro si cualquiera de sus muestreos pasa, o si el folio
   // del plan contiene los tokens.
   const planView = planes.map(plan=>{
-    const ms = (plan.omarIds||[]).map(mid => muestreos.find(x=>x.id===mid)).filter(Boolean);
+    const ms = (plan.omarIds||[]).filter(mid=>!_lote21EsOculto(mid)).map(mid => muestreos.find(x=>x.id===mid)).filter(Boolean);
     return {plan, muestreos: ms};
   }).filter(pv=>pv.muestreos.length>0);  // solo planes con muestreos
 
@@ -2739,6 +2740,7 @@ let _pendingNewPlanId = null;
 let _pendingNewMuestreoId = null;
 
 async function abrirPlan(planId){
+  if(_lote21EsOculto(planId)) return;
   _currentPlanId = planId;
   // Forzar refresh de caché por si se acaba de modificar algo
   try { await refreshCache(); } catch(e){}
@@ -5475,7 +5477,8 @@ function _downloadBlob(blob, filename){
 
 // AARMS lote14b: empresa, dirección, ciudad y estado. Contacto, puesto y teléfono siguen en la OMAR.
 function _lote14PlanDeTs(omarTs){
-  return (_cachedPlanes||[]).find(p => (p.omarIds||[]).some(id => String(id)===String(omarTs))) || null;
+  if(_lote21EsOculto(omarTs)) return null;
+  return (_cachedPlanes||[]).find(p => p && !_lote21EsOculto(p.id) && (p.omarIds||[]).some(id => String(id)===String(omarTs))) || null;
 }
 function _lote14CamposEmpresa(plan){
   return [
@@ -8141,17 +8144,21 @@ async function refreshCache(){
 
 // Helper: muestreos que pertenecen a un plan, ordenados por folio OMAR
 function getMuestreosDePlan(planId){
+  if(_lote21EsOculto(planId)) return [];
   const plan = _cachedPlanes.find(p=>p.id===planId);
-  if(!plan || !plan.omarIds) return [];
+  if(!plan || _lote21EsOculto(plan.id) || !plan.omarIds) return [];
   // Mantener orden del array omarIds (orden explícito del plan)
   return plan.omarIds
+    .filter(mid => !_lote21EsOculto(mid))
     .map(mid => _cachedMuestreos.find(m=>m.id===mid))
     .filter(Boolean);
 }
 
 // Helper: el plan al que pertenece un muestreo
 function getPlanDeMuestreo(muestreoId){
-  return _cachedPlanes.find(p=>(p.omarIds||[]).includes(muestreoId));
+  // AARMS lote21a: el catálogo no tiene plan, y un plan__ guardado solo se oculta.
+  if(_lote21EsOculto(muestreoId)) return undefined;
+  return (_cachedPlanes||[]).find(p=>p && !_lote21EsOculto(p.id) && (p.omarIds||[]).includes(muestreoId));
 }
 
 // ── PLAN CRUD ──
@@ -8214,6 +8221,7 @@ async function eliminarPlan(planId, {borrarOmars=true}={}){
 
 /** Eliminar plan completo desde la lista del inicio (home). */
 async function eliminarPlanDesdeHome(planId){
+  if(_lote21EsOculto(planId)) return;
   const plan=_cachedPlanes.find(p=>p.id===planId);
   if(!plan) return;
   const n=(plan.omarIds||[]).length;
@@ -8435,6 +8443,7 @@ async function saveMuestreoActual(){
 }
 
 async function eliminarMuestreo(id){
+  if(_lote21EsOculto(id)) return;
   // Si el muestreo pertenece a un plan, quitarlo de la lista de omarIds del plan
   const plan = _cachedPlanes.find(p=>(p.omarIds||[]).includes(id));
   if(plan){
@@ -10707,7 +10716,7 @@ function _lote2aPintarAdmin(){
     if(!box) return;
     const abierto = box.style.display !== 'none';
     if(abierto){ box.style.display = 'none'; return; }
-    const log = _folioLogGet().slice().reverse();
+    const log = _folioLogGet().slice().reverse().filter(r=>r && !_lote21EsOculto(r.planId) && !_lote21EsOculto(r.omarId));
     box.style.display = 'block';
     if(!log.length){ box.textContent = 'Sin folios emitidos'; return; }
     box.innerHTML = `<table style="width:100%;border-collapse:collapse">
