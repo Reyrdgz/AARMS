@@ -7197,14 +7197,15 @@ window.MACHIOTE_ANALITOS = MACHIOTE_ANALITOS;
 // AARMS sub4-cons: tomas del OMAR activo (live `tomas` o persistidas)
 function _machioteTomasFuente(omarOpt){
   const o = omarOpt || (omar && omar.ts ? omar : null);
-  if(o && omar && o.ts && String(o.ts) === String(omar.ts) && Array.isArray(tomas) && tomas.length){
-    return tomas;
-  }
+  const mismo = !!(o && omar && o.ts && String(o.ts) === String(omar.ts));
+  // AARMS lote21e: las tomas de otra OMAR no entran. Si es la misma, vale lo que está en memoria.
+  if(mismo && Array.isArray(tomas) && tomas.length) return tomas;
   if(o && o.ts){
     const m = (_cachedMuestreos || []).find(x => String(x.id) === String(o.ts));
     if(m && Array.isArray(m.tomas) && m.tomas.length) return m.tomas;
   }
-  if(Array.isArray(tomas)) return tomas;
+  if(mismo && Array.isArray(tomas)) return tomas;
+  if(!o && Array.isArray(tomas)) return tomas;
   return [];
 }
 
@@ -7233,12 +7234,13 @@ function _lote7cTraducir(codigoMachiote){
   });
   return out.join('/');
 }
-function _lote7cPres(analitoKey){
+function _lote7cPres(analitoKey, listaTomas){
   const def = (typeof MACHIOTE_CONSERVADORES === 'object') ? MACHIOTE_CONSERVADORES[analitoKey] : null;
   if(!def) return '';
   let codigo = '';
   if(def.cloro){
-    const con = typeof tieneCloro === 'function' && tieneCloro();
+    // AARMS lote21e: el cloro es el de las tomas que se pasan (la OMAR pedida). Sin lista, la pantalla.
+    const con = tieneCloro(listaTomas);
     codigo = con ? '7/4' : '11/4';
   } else {
     codigo = def.codigo || '';
@@ -7249,8 +7251,8 @@ window._lote7cTraducir = _lote7cTraducir;
 window._lote7cPres = _lote7cPres;
 
 // AARMS sub4-cons: solo Cadena. AARMS lote7c: ya no lee CADENA_DATA.pres.
-function _cadenaPresParaAnalito(analitoKey){
-  return _lote7cPres(analitoKey);
+function _cadenaPresParaAnalito(analitoKey, listaTomas){
+  return _lote7cPres(analitoKey, listaTomas);
 }
 
 // AARMS bmconserv: tabla propia Machiote (leyenda F-AA-114-18). Hielo (4) al final.
@@ -7469,9 +7471,11 @@ document.addEventListener('input', function(e){
   }, 250);
 });
 
-// Detecta si alguna toma tiene cloro registrado como SI
-function tieneCloro(){
-  return tomas.some(t=>t.cloro===true);
+// Detecta si alguna toma tiene cloro registrado como SI.
+// AARMS lote21e: con lista, esa lista (registro de la OMAR pedida). Sin lista, la OMAR en pantalla.
+function tieneCloro(lista){
+  const arr = Array.isArray(lista) ? lista : tomas;
+  return (arr || []).some(t => t && t.cloro === true);
 }
 
 function buildCusTable(){
@@ -9879,7 +9883,7 @@ async function buildPDFCadena(omarIdPedido){
   const DATA={};
   PARAMS.forEach(p=>{
     const base=CADENA_DATA[p]||{vol:'',env:'',ph:''};
-    DATA[p]={ pres:_lote7cPres(p), vol:base.vol||'', env:base.env||'', ph:base.ph||'' };
+    DATA[p]={ pres:_lote7cPres(p, tomas), vol:base.vol||'', env:base.env||'', ph:base.ph||'' };
   });
   // Parámetros cuyo número de frascos = número de tomas simples
   const DYNAMIC_FRASCOS=['GYA','CTYF','ENTE.','ECOL'];
