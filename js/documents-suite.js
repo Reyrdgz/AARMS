@@ -1223,13 +1223,23 @@ function poblarBmForm(){
   BM_FORM_IDS.forEach(id=> _ds(id, F[id] != null ? F[id] : ''));
 }
 
+function _lote21BmPantallaDeEste(){
+  const pg = document.getElementById('pgBm');
+  if(!omar || !omar.ts || !pg || !pg.classList.contains('on')) return false;
+  return String(pg.getAttribute('data-lote21-omar') || '') === String(omar.ts);
+}
 function leerBmForm(){
   if(!omar) return;
+  // AARMS lote21d1: los cuadros de otra OMAR no entran en esta.
+  if(!_lote21BmPantallaDeEste()) return;
   const prev = omar.bmForm || {};
   const F = {};
-  // AARMS sub53-fino: no pisar con vacío si memoria ya tiene dato (PDF×todos / panel no montado)
+  const manual = _LOTE3A_MANUAL;
   BM_FORM_IDS.forEach(id=>{
+    const el = document.getElementById(id);
     const dom = _dg(id);
+    const editado = !!(el && el.getAttribute('data-lote21-dirty') === '1');
+    if(manual[id] && editado){ F[id] = dom; return; }
     const hasDom = dom !== '' && dom != null && !(typeof dom === 'boolean');
     if(hasDom) F[id] = dom;
     else if(prev[id] != null && String(prev[id]).trim() !== '') F[id] = prev[id];
@@ -1483,6 +1493,12 @@ function abrirPagBm(){
   if(!omar||!omar.ts){ toast('Abre un OMAR primero','w'); return; }
   poblarBmForm();
   _lote3aOmarPintado = omar.ts;
+  const pgBm = document.getElementById('pgBm');
+  if(pgBm) pgBm.setAttribute('data-lote21-omar', String(omar.ts));
+  ['bm_s2_bdal', 'bm_s4_bfcmt', 'bm_s4_bfcmt_fol'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.removeAttribute('data-lote21-dirty');
+  });
   // AARMS lote3a: al abrir se recalcula desde las otras bitácoras
   const snapBm = _bmSnapshotOrigen();
   _bmAplicarSnapshotEnMemoria(snapBm);
@@ -1747,7 +1763,8 @@ async function _lote5aIr(dest){
   if(dest === 'bpm' && typeof abrirPagBpm === 'function'){ abrirPagBpm(); return; }
 }
 async function _lote5aGuardarFolios(){
-  // AARMS lote5a: solo el folio BDAL o BFCMT. No se reescribe la hoja ni las tomas.
+  // AARMS lote21d1: BDAL y BFCMT solo se escriben en la OMAR pintada en pantalla.
+  if(!_lote21BmPantallaDeEste()) return;
   if(typeof leerBmForm === 'function') leerBmForm();
   if(!omar || !omar.ts) return;
   const lista = (typeof _cachedMuestreos !== 'undefined' && _cachedMuestreos) ? _cachedMuestreos : [];
@@ -1755,12 +1772,16 @@ async function _lote5aGuardarFolios(){
   if(!m || typeof idbPut !== 'function') return;
   let o = {};
   try { o = JSON.parse(m.omar || '{}'); } catch(e){ o = {}; }
+  const estable = typeof _lote21JsonEstable === 'function' ? _lote21JsonEstable : JSON.stringify;
+  if(estable(o.bmForm || {}) === estable(omar.bmForm || {})) return;
   o.bmForm = omar.bmForm || {};
   o.ts = omar.ts;
   m.omar = JSON.stringify(o);
   await idbPut(m);
 }
 function lote5aAlFolio(){
+  const el = document.activeElement;
+  if(el && el.id && _LOTE3A_MANUAL[el.id]) el.setAttribute('data-lote21-dirty', '1');
   if(typeof leerBmForm === 'function') leerBmForm();
   clearTimeout(_lote3aSaveT);
   _lote3aSaveT = setTimeout(() => { _lote5aGuardarFolios(); }, 400);
@@ -1777,7 +1798,7 @@ async function lote5aGenerar(){
 }
 async function lote5aGenerarTodos(){
   clearTimeout(_lote3aSaveT);
-  await _lote5aGuardarFolios();
+  if(_lote21BmPantallaDeEste()) await _lote5aGuardarFolios();
   return generarPDFBmTodos();
 }
 function _lote5cHuellaActual(){
