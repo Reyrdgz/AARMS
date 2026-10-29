@@ -3581,7 +3581,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
 
   const { jsPDF } = window.jspdf;
   const logo = await loadLogo(LOGO_PDF_URI);
-  const FONT = 'helvetica';
+  let FONT = 'helvetica';
   const NAVY = (window.STD && STD.NAVY) || [10,22,40];
   const TEXT = (window.STD && STD.TEXT) || [30,41,59];
   const WHITE = (window.STD && STD.WHITE) || [255,255,255];
@@ -3752,6 +3752,9 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
 
   // ═══════════════ PÁGINA 1 — portrait, 6 bloques ═══════════════
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
+  if(typeof _pdfBmAplicarRoboto === 'function'){
+    try{ FONT = (await _pdfBmAplicarRoboto(doc)) || FONT; }catch(e){}
+  }
   let W = 612, H = 792, M = 28, CW = W - M * 2, HDR = 86;
 
   let yTop1 = HDR;
@@ -3760,7 +3763,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
     // AARMS phfolio2: folio individual de Hoja 1
     yTop1 = _pdfMembreteStd(doc, logo, {
       docTitulo: 'pH-metro',
-      docSubtitulo: 'Uso, calibracion y verificacion',
+      docSubtitulo: 'Uso, calibración y verificación',
       codigoFormato: 'F-AA-264-4',
       folio: folioHoja1,
       margin: M,
@@ -3770,7 +3773,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   hdrP1();
   let y = Math.max(yTop1 || 98, 98);
   doc.setFont(FONT, 'bold'); doc.setFontSize(9); doc.setTextColor(...NAVY);
-  doc.text(asci('USO, CALIBRACION, COMPROBACION Y VERIFICACION DEL pH-METRO'), M + CW / 2, y, { align: 'center' });
+  doc.text(asci('USO, CALIBRACIÓN, COMPROBACIÓN Y VERIFICACIÓN DEL pH-METRO'), M + CW / 2, y, { align: 'center' });
   y += 11;
   doc.setFont(FONT, 'normal'); doc.setFontSize(7); doc.setTextColor(...TEXT);
   doc.text(subTxt, M + CW / 2, y, { align: 'center' });
@@ -3912,10 +3915,10 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       }
     });
   }
-  y = drawBloque('1. Calibracion en el Laboratorio', H_CAL,
+  y = drawBloque('1. Calibración en el Laboratorio', H_CAL,
     padRows(calLabRows, 3, 7),
     [{
-      text: 'Criterio de aceptacion: ____   Slope: ' + (slope || '____') + '   Temperatura: ' + (temp || '____'),
+      text: 'Criterio de aceptación: ____   Slope: ' + (slope || '____') + '   Temperatura: ' + (temp || '____'),
       acepta: true,
       aceptaVal: acepCalLab
     }], y);
@@ -3926,11 +3929,11 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       ? [[fechaLab, horaLab, lote, marca, buffer, h.comp_l1||'', h.comp_l2||'', h.comp_l3||'',
           (prom3(h.comp_l1, h.comp_l2, h.comp_l3) != null ? prom3(h.comp_l1, h.comp_l2, h.comp_l3).toFixed(2) : ''), 'CO']]
       : []);
-  y = drawBloque('2. Comprobacion de Calibracion en Laboratorio', H_COMP,
+  y = drawBloque('2. Comprobación de Calibración en Laboratorio', H_COMP,
     padRows(compLabFilled, 3, 10),
     [
-      { text: 'La medicion no debe desviarse por mas de ± 0,05 UpH del valor nominal del patron de referencia', acepta: true, aceptaVal: acepComp },
-      { text: 'No debera haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas', acepta: true, aceptaVal: acepComp2 }
+      { text: 'La medición no debe desviarse por más de ± 0,05 UpH del valor nominal del patrón de referencia', acepta: true, aceptaVal: acepComp },
+      { text: 'No deberá haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas', acepta: true, aceptaVal: acepComp2 }
     ], y);
 
   const verLabFilled = labN
@@ -3939,11 +3942,11 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       ? [[fechaLab, horaLab, lote, marca, buffer, h.ver_l1||'', h.ver_l2||'', h.ver_l3||'',
           (prom3(h.ver_l1, h.ver_l2, h.ver_l3) != null ? prom3(h.ver_l1, h.ver_l2, h.ver_l3).toFixed(2) : ''), 'V']]
       : []);
-  y = drawBloque('3. Verificacion en Laboratorio', H_COMP,
+  y = drawBloque('3. Verificación en Laboratorio', H_COMP,
     padRows(verLabFilled, 1, 10),
     [
-      { text: 'Criterio de aceptacion: No debe haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas.', acepta: true, aceptaVal: acepVer },
-      { text: 'El promedio no debe desviarse mas de 0.05 UpH del Valor Nominal, graficarlo.' }
+      { text: 'Criterio de aceptación: No debe haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas.', acepta: true, aceptaVal: acepVer },
+      { text: 'El promedio no debe desviarse más de 0.05 UpH del Valor Nominal, graficarlo.' }
     ], y);
 
   const fechaCampo = fmtFecha(h.campo_fecha || h.fecha) || fechaLab;
@@ -3960,10 +3963,10 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       }
     });
   }
-  y = drawBloque('4. Calibracion en el Campo', H_CAL,
+  y = drawBloque('4. Calibración en el Campo', H_CAL,
     padRows(calCampoRows, 3, 7),
     [{
-      text: 'Criterio de aceptacion: ____   Slope: ' + (slopeCampo || '____') + '   Temperatura: ' + (tempCampo || '____'),
+      text: 'Criterio de aceptación: ____   Slope: ' + (slopeCampo || '____') + '   Temperatura: ' + (tempCampo || '____'),
       acepta: true,
       aceptaVal: acepCalCampo
     }], y);
@@ -3974,11 +3977,11 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       ? [[fechaCampo, horaCampo, lote, marca, buffer, h.campo_c1||'', h.campo_c2||'', h.campo_c3||'',
           (prom3(h.campo_c1, h.campo_c2, h.campo_c3) != null ? prom3(h.campo_c1, h.campo_c2, h.campo_c3).toFixed(2) : ''), 'CO']]
       : []);
-  y = drawBloque('5. Comprobacion de Calibracion en Campo', H_COMP,
+  y = drawBloque('5. Comprobación de Calibración en Campo', H_COMP,
     padRows(campCompFilled, 3, 10),
     [
-      { text: 'La medicion no debe desviarse por mas de ± 0,05 UpH del valor nominal del patron de referencia', acepta: true, aceptaVal: acepCampoComp },
-      { text: 'No debera haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas', acepta: true, aceptaVal: acepCampoComp2 }
+      { text: 'La medición no debe desviarse por más de ± 0,05 UpH del valor nominal del patrón de referencia', acepta: true, aceptaVal: acepCampoComp },
+      { text: 'No deberá haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas', acepta: true, aceptaVal: acepCampoComp2 }
     ], y);
 
   const campV1 = h.campo_v1 || h.campo_ver_l1 || '';
@@ -3990,11 +3993,11 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       ? [[fechaCampo, horaCampo, lote, marca, buffer, campV1, campV2, campV3,
           (prom3(campV1, campV2, campV3) != null ? prom3(campV1, campV2, campV3).toFixed(2) : ''), 'V']]
       : []);
-  y = drawBloque('6. Verificacion en Campo', H_COMP,
+  y = drawBloque('6. Verificación en Campo', H_COMP,
     padRows(campVerFilled, 1, 10),
     [
-      { text: 'Criterio de aceptacion: No debe haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas.', acepta: true, aceptaVal: acepCampoVer },
-      { text: 'El promedio no debe desviarse mas de 0.05 UpH del Valor Nominal, graficarlo.' }
+      { text: 'Criterio de aceptación: No debe haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas.', acepta: true, aceptaVal: acepCampoVer },
+      { text: 'El promedio no debe desviarse más de 0.05 UpH del Valor Nominal, graficarlo.' }
     ], y);
 
   y = _lote4bcCuerpoObs(doc, M, y, CW, (phN && phN.obs) || h.obs || '', FONT);
@@ -4019,7 +4022,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   hdrP2();
   y = Math.max(yTop2 || 98, 98);
   doc.setFont(FONT, 'bold'); doc.setFontSize(9); doc.setTextColor(...NAVY);
-  doc.text(asci('Calibracion, Comprobacion y/o Verificacion Entre Toma De Muestras'), M + CW / 2, y, { align: 'center' });
+  doc.text(asci('Calibración, Comprobación y/o Verificación Entre Toma De Muestras'), M + CW / 2, y, { align: 'center' });
   y += 10;
   doc.setFont(FONT, 'normal'); doc.setFontSize(7); doc.setTextColor(...TEXT);
   doc.text(subTxt, M + CW / 2, y, { align: 'center' });
@@ -4144,7 +4147,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       hdrP2();
       y = Math.max(yTop2 || 98, 98) + 4;
       doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
-      doc.text(asci('Calibracion, Comprobacion y/o Verificacion Entre Toma De Muestras (cont.)'), M + CW / 2, y, { align: 'center' });
+      doc.text(asci('Calibración, Comprobación y/o Verificación Entre Toma De Muestras (cont.)'), M + CW / 2, y, { align: 'center' });
       y += 10;
       yBox0 = y;
       y = _pdfBarraSeccion(doc, 'Registros entre tomas (cont.)', M, y, CW, FONT);
@@ -4244,15 +4247,15 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   y += 8;
 
   const blmpFol = (omar && omar.blmp && (omar.blmp.folio || omar.blmp.aapt)) || '____';
-  const notaBlmp = 'la limpieza entre lecturas se encuentra registrada en la bitacora BLMP____/AA/N-3/____ Folio. ' + asci(String(blmpFol));
-  const codAct = 'CODIGO DE ACTIVIDAD DE CONTROL: CA: Calibracion · CO: Comprobacion · V: Verificacion';
-  const crit = 'CRITERIO DE ACEPTACION O RECHAZO: La medicion no debe desviarse por mas de ± 0,05 UpH del valor nominal del patron de referencia. No debera haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas.';
+  const notaBlmp = 'La limpieza entre lecturas se encuentra registrada en la bitácora BLMP____/AA/N-3/____ Folio. ' + asci(String(blmpFol));
+  const codAct = 'CÓDIGO DE ACTIVIDAD DE CONTROL: CA: Calibración · CO: Comprobación · V: Verificación';
+  const crit = 'CRITERIO DE ACEPTACIÓN O RECHAZO: La medición no debe desviarse por más de ± 0,05 UpH del valor nominal del patrón de referencia. No deberá haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas.';
   if(y > H - 160){
     doc.addPage('letter', 'landscape');
     hdrP2();
     y = Math.max(yTop2 || 98, 98);
     doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
-    doc.text(asci('Calibracion, Comprobacion y/o Verificacion Entre Toma De Muestras (cont.)'), M + CW / 2, y, { align: 'center' });
+    doc.text(asci('Calibración, Comprobación y/o Verificación Entre Toma De Muestras (cont.)'), M + CW / 2, y, { align: 'center' });
     y += 10;
   }
   y = _pdfCajaLeyenda(doc, notaBlmp, M, y, CW, FONT, { fontSize: 6.5 });
@@ -4273,7 +4276,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
     const ph = doc.internal.pageSize.getHeight();
     const mx = 18;
     doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
-    doc.text('Pag. ' + i + ' de ' + totalPag, pw - mx, ph - 22, { align: 'right' });
+    doc.text('Pág. ' + i + ' de ' + totalPag, pw - mx, ph - 22, { align: 'right' });
     doc.setFont(FONT, 'normal'); doc.setFontSize(6.5); doc.setTextColor(120);
     doc.text('F-AA-264-4', pw - mx, ph - 12, { align: 'right' });
   }
@@ -4723,10 +4726,10 @@ async function generarPDFBmBlob(){
   if(typeof cap !== 'function') return null;
   return cap(() => generarPDFBm());
 }
-async function generarPDFBitacoraPHOficialBlob(){
+async function generarPDFBitacoraPHOficialBlob(planId){
   const cap = window._pdfCaptureOutput;
   if(typeof cap !== 'function') return null;
-  return cap(() => generarPDFBitacoraPHOficial());
+  return cap(() => generarPDFBitacoraPHOficial(planId));
 }
 async function generarPDFBitODBlob(){
   const cap = window._pdfCaptureOutput;

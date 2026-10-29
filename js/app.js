@@ -16003,13 +16003,17 @@ async function _pdfABlob(tipo, omarId){
     case 'phlab': {
       // AARMS lote21c: con plan.ph2644 solo el formato de dos páginas. El viejo queda para un plan sin esa estructura.
       const planPh = (typeof _curPlan === 'function') ? _curPlan() : null;
-      if(planPh && planPh.ph2644 && typeof generarPDFBitacoraPHOficialBlob === 'function') return await generarPDFBitacoraPHOficialBlob();
+      if(planPh && planPh.ph2644 && typeof generarPDFBitacoraPHOficialBlob === 'function') return await generarPDFBitacoraPHOficialBlob(planPh.id);
       if(typeof generarPDFPh2644H1Blob === 'function') return await generarPDFPh2644H1Blob();
       break;
     }
     case 'colab': if(typeof generarPDFColabCompletoBlob === 'function') return await generarPDFColabCompletoBlob(); break;
     case 'blmp': if(typeof generarPDFBlmpFormBlob === 'function') return await generarPDFBlmpFormBlob(); break;
-    case 'bitPh': if(typeof generarPDFBitacoraPHOficialBlob === 'function') return await generarPDFBitacoraPHOficialBlob(); break;
+    case 'bitPh': {
+      const planBit = (typeof _curPlan === 'function') ? _curPlan() : null;
+      if(typeof generarPDFBitacoraPHOficialBlob === 'function') return await generarPDFBitacoraPHOficialBlob(planBit && planBit.id);
+      break;
+    }
     case 'bm': if(typeof generarPDFBmBlob === 'function') return await generarPDFBmBlob(); break;
     case 'bitod': if(typeof generarPDFBitODBlob === 'function') return await generarPDFBitODBlob(); break;
     case 'omar': if(typeof generarPDFOmarBlob === 'function') return await generarPDFOmarBlob(omarId); break;
@@ -16027,6 +16031,8 @@ async function generarTodosLosPDFs(){
   const prevOmarId = omar && omar.ts ? String(omar.ts) : null;
   toast('Generando todos los PDFs...', '');
   const zip = new JSZip();
+  const avisos = [];
+  let avisoDonde = '';
   const generadores = [
     {key:'bpm', nombre:'BPM_PlanMuestreo.pdf', fn: () => _pdfABlob('bpm')},
     {key:'lvar', nombre:'LVAR_ListaVerificacion.pdf', fn: () => _pdfABlob('lvar')},
@@ -16034,12 +16040,25 @@ async function generarTodosLosPDFs(){
     {key:'colab', nombre:'Conductimetro.pdf', fn: () => _pdfABlob('colab')},
     {key:'blmp', nombre:'BLMP_LimpiezaPHmetro.pdf', fn: () => _pdfABlob('blmp')},
     {key:'bitPh', nombre:'pH_Hoja2_EntreTomas.pdf', fn: () => _pdfABlob('bitPh')},
-    {key:'bm', nombre:'BM_BitacoraMuestreo.pdf', fn: () => _pdfABlob('bm')},
     {key:'bitod', nombre:'OD_Bitacora.pdf', fn: () => _pdfABlob('bitod')}
   ];
   for(const gen of generadores){
     if(gen.key === 'bitPh' && plan.ph2644) continue;
     if(gen.key === 'bitod' && typeof _lote17OdAplica === 'function' && !_lote17OdAplica(plan) && !(typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan))) continue;
+    if(gen.key === 'phlab' && typeof _lote4Ph === 'function' && _lote4Ph(plan)){
+      const rech = (typeof _lote4Rechazos === 'function') ? _lote4Rechazos(plan) : [];
+      const faltan = (typeof _lote4Faltantes === 'function') ? _lote4Faltantes(plan) : [];
+      if(rech.length){
+        avisos.push('Rechaza: ' + rech.map(r => r.texto).join('; '));
+        if(!avisoDonde) avisoDonde = (rech[0] && rech[0].donde) || '';
+        continue;
+      }
+      if(faltan.length){
+        avisos.push('Faltan: ' + faltan.map(f => f.texto).join('; '));
+        if(!avisoDonde) avisoDonde = (faltan[0] && faltan[0].donde) || '';
+        continue;
+      }
+    }
     try{
       const blob = await gen.fn();
       if(blob) zip.file(gen.nombre, blob);
@@ -16062,7 +16081,7 @@ async function generarTodosLosPDFs(){
       if(blob){
         const m = (_cachedMuestreos||[]).find(x => String(x.id) === String(omarId));
         const folio = m ? (m.folio || omarId) : omarId;
-        zip.file(`OMAR_${folio}.pdf`, blob);
+        zip.file(`HojaDeCampo_${folio}.pdf`, blob);
       }
     }catch(e){ console.warn('[zip omar]', e); }
   }
@@ -16078,7 +16097,17 @@ async function generarTodosLosPDFs(){
   if(prevOmarId){
     try{ cargarMuestreo(prevOmarId); }catch(e){ console.warn('[zip restore omar]', e); }
   }
-  toast('ZIP descargado con todos los PDFs', 'g');
+  if(avisos.length){
+    toast(avisos.join(' · '), 'w', {
+      ms: 9000,
+      onClick: () => {
+        if(avisoDonde === 'campo' && typeof abrirBitacoraPH === 'function') abrirBitacoraPH();
+        else if(typeof _lote4aAbrir === 'function') _lote4aAbrir();
+      }
+    });
+  } else {
+    toast('ZIP descargado con todos los PDFs', 'g');
+  }
 }
 
 window.abrirCatalogo = abrirCatalogo;
