@@ -4331,23 +4331,62 @@ function buildLvarPatrones(){
 }
 
 // Cálculo de envases por OMAR individual:
-//  - Simple (Grasas, Coliformes, Toxicidad): 1 envase × tomas
-//  - Compuesto (Fisicoquímico, DQO, Metales, etc.): tomas + 1 (n simples + 1 compuesta)
+//  - Muestreo simple: un frasco por análisis pedido, cantidad = número de tomas, columna SIMPLE.
+//  - Muestreo compuesto: frascos de tipo compuesto, cantidad = tomas + 1, columna COMPUESTO.
 function _calcCantEnvasePorOmar(env, nTomas){
   const n = nTomas || 1;
   if(env.tipo === 'simple') return n;
   return n + 1;
 }
-function _lote22cEnvaseCuenta(env, o){
-  // AARMS lote22c: un OMAR simple usa la columna simple; uno compuesto, la compuesta según su duración.
+function _lote22cEsCampo(nombre){
+  return ['pH','Temperatura','Conductividad Eléctrica','Materia Flotante','Flujo','Flujos'].includes(nombre);
+}
+function _lote22cCodigosEnvase(o){
+  // AARMS lote22c: pH, temperatura, conductividad, materia flotante y flujo no piden frasco.
+  const nombres = Array.isArray(o && o.analitosNombres) ? o.analitosNombres : [];
+  const map = (typeof ANALITO_A_PARAM !== 'undefined') ? ANALITO_A_PARAM : {};
+  const codigos = ['FQ','DBO5','DQO','TOC','MP','Hg','CIAN','FOS.','N.TOT','NO2','NO3','SAAM','GYA','CTYF','ECOL','ENTE.','HELM','CLR','CLOR','CrHx','TOX'];
+  if(nombres.length){
+    const out = new Set();
+    nombres.forEach(a => {
+      if(_lote22cEsCampo(a)) return;
+      if(codigos.includes(a)) out.add(a);
+      else if(map[a]) out.add(map[a]);
+    });
+    return out;
+  }
+  return new Set((o && o.analitos) || []);
+}
+function _lote22cAplica(env, codes){
+  if(!env.analitos || env.analitos.length === 0) return true;
+  return env.analitos.some(a => codes.has(a));
+}
+function _lote22cPartes(env, o){
+  // AARMS lote22c: el frasco es el de la Cadena (la fila de LVAR_ENVASES que trae ese análisis).
+  // En simple va en SIMPLE, uno por toma. En compuesto, COMPUESTO sigue en tomas + 1.
   const tipoO = String(o && o.tipo || '').trim().toLowerCase();
-  const tipoE = String(env && env.tipo || '').trim().toLowerCase();
-  if(tipoO === 'simple' && tipoE !== 'simple') return 0;
-  if(tipoO === 'compuesto' && tipoE !== 'compuesto') return 0;
-  const lista = (o && o.analitos) || [];
-  const aplica = !env.analitos || env.analitos.length === 0 || env.analitos.some(a => lista.includes(a));
-  if(!aplica) return 0;
-  return _calcCantEnvasePorOmar(env, o.ntomas);
+  const n = parseInt(o && o.ntomas, 10);
+  const cant = n > 0 ? n : 1;
+  if(!_lote22cAplica(env, _lote22cCodigosEnvase(o))) return { simple:0, compuesto:0 };
+  if(tipoO === 'simple') return { simple: cant, compuesto:0 };
+  if(tipoO === 'compuesto'){
+    if(String(env && env.tipo || '').toLowerCase() !== 'compuesto') return { simple:0, compuesto:0 };
+    return { simple:0, compuesto:_calcCantEnvasePorOmar(env, cant) };
+  }
+  if(String(env && env.tipo || '').toLowerCase() === 'simple') return { simple: cant, compuesto:0 };
+  return { simple:0, compuesto:_calcCantEnvasePorOmar(env, cant) };
+}
+function _lote22cFilas(env, omars){
+  const t = { simple:0, compuesto:0 };
+  (omars || []).forEach(o => {
+    const p = _lote22cPartes(env, o);
+    t.simple += p.simple;
+    t.compuesto += p.compuesto;
+  });
+  const out = [];
+  if(t.simple > 0) out.push({ tipo:'SIMPLE', cant:t.simple });
+  if(t.compuesto > 0) out.push({ tipo:'COMPUESTO', cant:t.compuesto });
+  return out;
 }
 
 function buildLvarEnvases(){
@@ -4374,25 +4413,27 @@ function buildLvarEnvases(){
   }
 
   // Filtrar: solo envases con analitos coincidentes, o "siempre presentes"
-  const aplicables = LVAR_ENVASES.filter(env => omars.some(o => _lote22cEnvaseCuenta(env, o) > 0));
+  const aplicables = LVAR_ENVASES.filter(env => _lote22cFilas(env, omars).length);
+  const readonlyAttr = _lvarBloqueado ? 'readonly' : '';
 
   c.innerHTML = aplicables.map(env => {
+    const filas = _lote22cFilas(env, omars);
     const saved = d[env.key] || {};
-    let cantCalc = 0;
-    omars.forEach((o) => { cantCalc += _lote22cEnvaseCuenta(env, o); });
-    const cant = saved.cant !== undefined ? saved.cant : cantCalc;
-    const tipoBadge = env.tipo === 'simple'
-      ? `<span style="background:rgba(251,191,36,.1);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">SIMPLE</span>`
-      : `<span style="background:rgba(74,158,255,.12);color:var(--acc);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">COMPUESTO</span>`;
-    const readonlyAttr = _lvarBloqueado ? 'readonly' : '';
-    return `
+    return filas.map(fila => {
+      const cant = (filas.length === 1 && saved.cant !== undefined && saved.cant !== '') ? saved.cant : fila.cant;
+      const tipoBadge = fila.tipo === 'SIMPLE'
+        ? `<span style="background:rgba(251,191,36,.1);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">SIMPLE</span>`
+        : `<span style="background:rgba(74,158,255,.12);color:var(--acc);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">COMPUESTO</span>`;
+      const campo = filas.length === 1 ? `data-lv-envases="${env.key}" data-field="cant"` : '';
+      return `
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--ln)">
-        <input data-lv-envases="${env.key}" data-field="cant" type="number" min="0" value="${cant}" ${readonlyAttr} style="width:60px;text-align:center;flex-shrink:0;font-weight:800;color:var(--acc)">
+        <input ${campo} type="number" min="0" value="${cant}" ${readonlyAttr} style="width:60px;text-align:center;flex-shrink:0;font-weight:800;color:var(--acc)">
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;color:var(--w);line-height:1.3">${_lvarEnvaseDisplayLabel(env)}</div>
           <div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${tipoBadge}</div>
         </div>
       </div>`;
+    }).join('');
   }).join('');
 }
 
@@ -5123,7 +5164,7 @@ async function generarPDFLVAR(){
   const omarsActivas = omars.filter(o => !o.noRealizada);
   const analitosTotales = new Set();
   omarsActivas.forEach(o => (o.analitos||[]).forEach(a => analitosTotales.add(a)));
-  const aplicables = LVAR_ENVASES.filter(e => omarsActivas.some(o => _lote22cEnvaseCuenta(e, o) > 0));
+  const aplicables = LVAR_ENVASES.filter(e => _lote22cFilas(e, omarsActivas).length);
 
   const envH = 14;
   const envCws = [CW*0.70, CW*0.15, CW*0.15];
@@ -5152,33 +5193,36 @@ async function generarPDFLVAR(){
       y += envH;
     }
   } else {
-    aplicables.forEach((envItem, idx) => {
-      ensureSpace(envH+2);
+    let envIdx = 0;
+    aplicables.forEach(envItem => {
       const s = env[envItem.key] || {};
-      let cantCalc = 0;
-      omarsActivas.forEach(o => { cantCalc += _lote22cEnvaseCuenta(envItem, o); });
-      const cant = (s.cant!==undefined && s.cant!=='') ? s.cant : cantCalc;
-      if(typeof _filaPrem === 'function'){
-        y = _filaPrem(doc, [
-          asci(_lvarEnvaseDisplayLabel(envItem)).substring(0,65),
-          String(envItem.tipo||'').toUpperCase(),
-          (cant !== undefined && cant !== '') ? String(cant) : ''
-        ], M, y, envCws, envH, idx, {
-          font:FONT, fontSize:6.8, maxCharsArr:[50, 10, 8]
-        });
-      } else {
-        const bg = idx%2===0 ? WHITE : [248,250,252];
-        doc.setFillColor(...bg); doc.rect(M, y, CW, envH, 'F');
-        bordeRect(M, y, CW, envH);
-        doc.setTextColor(...DGRAY); doc.setFont(FONT,'normal'); doc.setFontSize(7);
-        doc.text(asci(_lvarEnvaseDisplayLabel(envItem)).substring(0,65), M+5, y+9);
-        doc.setFont(FONT,'bold'); doc.setFontSize(6.5);
-        if(envItem.tipo==='simple'){ doc.setTextColor(180,130,20); }
-        else                       { doc.setTextColor(...ACCENT); }
-        doc.text(envItem.tipo.toUpperCase(), M+CW*0.74, y+9, {align:'center'});
-        doc.text(asci(valStyle(cant !== undefined && cant !== '' ? String(cant) : '')), M+CW*0.92, y+9, {align:'center'});
-        y += envH;
-      }
+      const filas = _lote22cFilas(envItem, omarsActivas);
+      filas.forEach(fila => {
+        ensureSpace(envH+2);
+        const cant = (filas.length === 1 && s.cant!==undefined && s.cant!=='') ? s.cant : fila.cant;
+        const idx = envIdx++;
+        if(typeof _filaPrem === 'function'){
+          y = _filaPrem(doc, [
+            asci(_lvarEnvaseDisplayLabel(envItem)).substring(0,65),
+            fila.tipo,
+            (cant !== undefined && cant !== '') ? String(cant) : ''
+          ], M, y, envCws, envH, idx, {
+            font:FONT, fontSize:6.8, maxCharsArr:[50, 10, 8]
+          });
+        } else {
+          const bg = idx%2===0 ? WHITE : [248,250,252];
+          doc.setFillColor(...bg); doc.rect(M, y, CW, envH, 'F');
+          bordeRect(M, y, CW, envH);
+          doc.setTextColor(...DGRAY); doc.setFont(FONT,'normal'); doc.setFontSize(7);
+          doc.text(asci(_lvarEnvaseDisplayLabel(envItem)).substring(0,65), M+5, y+9);
+          doc.setFont(FONT,'bold'); doc.setFontSize(6.5);
+          if(fila.tipo==='SIMPLE'){ doc.setTextColor(180,130,20); }
+          else                    { doc.setTextColor(...ACCENT); }
+          doc.text(fila.tipo, M+CW*0.74, y+9, {align:'center'});
+          doc.text(asci(valStyle(cant !== undefined && cant !== '' ? String(cant) : '')), M+CW*0.92, y+9, {align:'center'});
+          y += envH;
+        }
+      });
     });
   }
   y += 8;
