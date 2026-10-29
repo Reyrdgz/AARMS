@@ -10990,12 +10990,14 @@ function _blmpSyncActsFromDom(){
 }
 function _blmpAgregarActividad(){
   _blmpSyncActsFromDom();
+  _blmpUi._actsDirty = true;
   const baseFecha = document.getElementById('blmp_fecha')?.value || '';
   _blmpUi.actividades.push({ hora:'', fecha: baseFecha, codigo:'', justificacion:'' });
   _blmpRenderActividades();
 }
 function _blmpQuitarActividad(ix){
   _blmpSyncActsFromDom();
+  _blmpUi._actsDirty = true;
   _blmpUi.actividades.splice(ix, 1);
   if(!_blmpUi.actividades.length) _blmpUi.actividades.push({ hora:'', fecha:'', codigo:'', justificacion:'' });
   _blmpRenderActividades();
@@ -11016,7 +11018,9 @@ async function _blmpVincularPlanRef(rec){
     updatedAt: Date.now()
   };
   // AARMS blmpfiel: OMAR solo referencia — sin duplicar verificacion/limpieza
-  if(omar && omar.ts){
+  // AARMS lote21d1: no se estampa en una OMAR de otro plan.
+  const omarDeEste = omar && omar.ts && (plan.omarIds || []).some(id => String(id) === String(omar.ts));
+  if(omarDeEste){
     omar.blmpRef = {
       hecho: true,
       folio: rec.folio || '',
@@ -11031,13 +11035,57 @@ async function _blmpVincularPlanRef(rec){
   try{ await marcarPlanDocDone('blmp', plan.id); }catch(_){}
 }
 
+function _blmpTexto(id, valor, previo){
+  const v = valor == null ? '' : String(valor).trim();
+  if(v) return v;
+  const el = id ? document.getElementById(id) : null;
+  if(el && el.getAttribute('data-lote21-dirty') === '1') return '';
+  if(previo != null && String(previo).trim() !== '') return String(previo);
+  return '';
+}
+function _blmpFirma(r){
+  const estable = typeof _lote21JsonEstable === 'function' ? _lote21JsonEstable : JSON.stringify;
+  return estable({
+    folio: r.folio || '', folioP2: r.folioP2 || '', aapt: r.aapt || '',
+    fecha: r.fecha || '', hora: r.hora || '',
+    verificacion: r.verificacion || {}, obs_v: r.obs_v || '',
+    actividades: r.actividades || [], mantenimiento: r.mantenimiento || {}, obs: r.obs || ''
+  });
+}
 async function _blmpGuardarRegistro(){
   const data = _blmpLeerForm();
+  const prev = data.id ? await idbBlmpGet(data.id).catch(() => null) : null;
+  // AARMS lote21d1: un cuadro vacío no borra el registro, salvo que la persona lo haya borrado.
+  if(prev){
+    data.aapt = _blmpTexto('blmp_aapt', data.aapt, prev.aapt);
+    data.fecha = _blmpTexto('blmp_fecha', data.fecha, prev.fecha);
+    data.hora = _blmpTexto('blmp_hora', data.hora, prev.hora);
+    data.obs_v = _blmpTexto('blmp_obs_v', data.obs_v, prev.obs_v);
+    data.obs = _blmpTexto('blmp_obs', data.obs, prev.obs);
+    const mantPrev = prev.mantenimiento || {};
+    data.mantenimiento = {
+      folioCee: _blmpTexto('blmp_m_cee', data.mantenimiento && data.mantenimiento.folioCee, mantPrev.folioCee),
+      folioApartado: _blmpTexto('blmp_m_apt', data.mantenimiento && data.mantenimiento.folioApartado, mantPrev.folioApartado),
+      folioFaa22: _blmpTexto('blmp_m_faa22', data.mantenimiento && data.mantenimiento.folioFaa22, mantPrev.folioFaa22)
+    };
+    const verPrev = prev.verificacion || {};
+    const verDom = {
+      v_panel:'blmp_v_panel', v_cables:'blmp_v_cables', v_cuerpo:'blmp_v_cuerpo',
+      v_error:'blmp_v_error', v_vida:'blmp_v_vida', v_eEnv:'blmp_v_eenv',
+      v_eSuc:'blmp_v_esuc', v_eComp:'blmp_v_ecomp', v_calib:'blmp_v_calib'
+    };
+    data.verificacion = data.verificacion || {};
+    Object.keys(verDom).forEach(k => {
+      data.verificacion[k] = _blmpTexto(verDom[k], data.verificacion[k], verPrev[k]);
+    });
+    if(!_blmpUi._actsDirty && Array.isArray(prev.actividades) && prev.actividades.length && !data.actividades.length){
+      data.actividades = prev.actividades;
+    }
+  }
   if(!data.aapt){ toast('Captura el equipo AA/PT','w'); return null; }
   if(!data.fecha){ toast('Captura la fecha de verificacion','w'); return null; }
   let folio = data.folio;
   let folioP2 = '';
-  const prev = data.id ? await idbBlmpGet(data.id).catch(() => null) : null;
   if(prev && prev.folioP2) folioP2 = String(prev.folioP2);
   // AARMS blmpfolio2: documento nuevo = 2 folios (pág1 + pág2); legado con solo folio → asignar folioP2
   if(!folio){
@@ -11069,6 +11117,11 @@ async function _blmpGuardarRegistro(){
     updatedAt: Date.now(),
     createdAt: prev && prev.createdAt ? prev.createdAt : Date.now()
   };
+  if(prev && _blmpFirma(rec) === _blmpFirma(prev)){
+    _blmpUi.id = prev.id;
+    _blmpUi.folio = prev.folio;
+    return prev;
+  }
   await idbBlmpPut(rec);
   _blmpUi.id = rec.id;
   _blmpUi.folio = rec.folio;
@@ -11117,6 +11170,20 @@ async function abrirPagBlmp(){
   }
   if(typeof _catalogoCargar === 'function'){ try{ await _catalogoCargar(); }catch(_){} }
   _blmpPoblarForm(rec);
+  _blmpUi._actsDirty = false;
+  if(pgBlmp){
+    pgBlmp.querySelectorAll('[data-lote21-dirty]').forEach(el => el.removeAttribute('data-lote21-dirty'));
+    if(!pgBlmp.dataset.lote21DirtyBound){
+      pgBlmp.dataset.lote21DirtyBound = '1';
+      const marcar = e => {
+        if(e.target && e.target.matches && e.target.matches('input, textarea, select')){
+          e.target.setAttribute('data-lote21-dirty', '1');
+        }
+      };
+      pgBlmp.addEventListener('input', marcar);
+      pgBlmp.addEventListener('change', marcar);
+    }
+  }
   _aplicarDocEstadoBadge('blmp');
   goPage('pgBlmp');
   _refreshBotonesContinuarLab();
@@ -15987,8 +16054,9 @@ async function generarPDFBlmpFormBlob(){
     if(!rec && ref && ref.folio && typeof idbBlmpGetByFolio === 'function'){
       try{ rec = await idbBlmpGetByFolio(ref.folio); }catch(_){}
     }
-    if(!rec && typeof _blmpGuardarRegistro === 'function'){
-      // Si el formulario está abierto con datos, guardar primero
+    const pgBlmp = document.getElementById('pgBlmp');
+    const misma = !!(pgBlmp && pgBlmp.classList.contains('on') && plan && String(pgBlmp.getAttribute('data-lote21-plan') || '') === String(plan.id));
+    if(!rec && misma && typeof _blmpGuardarRegistro === 'function'){
       const aaptEl = document.getElementById('blmp_aapt');
       if(aaptEl && aaptEl.value) rec = await _blmpGuardarRegistro();
     }
