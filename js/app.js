@@ -11216,15 +11216,26 @@ window.idbBlmpGetByFolio = idbBlmpGetByFolio;
 window.idbBlmpGet = idbBlmpGet;
 window._BLMP_VERIF_KEYS = _BLMP_VERIF_KEYS;
 
+function _lote21ColabPantallaDeEste(){
+  const pg = document.getElementById('pgColab');
+  if(!omar || !omar.ts || !pg || !pg.classList.contains('on')) return false;
+  return String(pg.getAttribute('data-lote21-omar') || '') === String(omar.ts);
+}
 function leerColabAlOmar(conservar){
   if(!omar) omar={};
+  // AARMS lote21d1: los cuadros de otra OMAR no entran en esta.
+  if(!_lote21ColabPantallaDeEste()) return;
   const prev=omar.colabLab||{};
   const g=id=>{ const e=document.getElementById(id); if(!e) return undefined; if(e.type==='checkbox') return e.checked; return (e.value||'').trim(); };
   const set=(k,id)=>{
+    const el=document.getElementById(id);
+    if(!el) return;
     const v=g(id);
     if(v===undefined) return;
-    // AARMS lote21d: al generar, un cuadro vacío no borra el dato guardado.
-    if(conservar && typeof v === 'string' && !v && prev[k]) return;
+    const dirty = el.getAttribute('data-lote21-dirty') === '1';
+    // AARMS lote21d1: un cuadro vacío no borra el dato, salvo que la persona lo haya borrado.
+    if(!dirty && typeof v === 'string' && !v && prev[k]) return;
+    if(!dirty && el.type === 'checkbox' && prev[k] != null && !!v !== !!prev[k]) return;
     prev[k]=v;
   };
   set('fecha','colab_fecha'); set('hora','colab_hora'); set('marca','colab_marca'); set('clave','colab_clave');
@@ -11540,6 +11551,8 @@ function cerrarFlujoConductimetroDesdeLab(){
 async function abrirPagColab(){
   if(!omar.ts){ toast('Primero captura el OMAR','w'); return; }
   if(typeof _catalogoCargar === 'function'){ try{ await _catalogoCargar(); }catch(_){} }
+  const pgCol = document.getElementById('pgColab');
+  if(pgCol) pgCol.setAttribute('data-lote21-omar', String(omar.ts));
   poblarColabForm();
   // AARMS sub3fix2: restaurar estado NA al abrir
   if(omar.colabLab?.mant_na){
@@ -11555,6 +11568,17 @@ async function abrirPagColab(){
   if(p) p.textContent = (omar.folio?'OMAR '+omar.folio:'OMAR');
   _aplicarDocEstadoBadge('colab');
   _pintarCondFlujoStepper(1);
+  if(pgCol){
+    pgCol.querySelectorAll('[data-lote21-dirty]').forEach(el => el.removeAttribute('data-lote21-dirty'));
+    if(!pgCol.dataset.lote21DirtyBound){
+      pgCol.dataset.lote21DirtyBound = '1';
+      const marcar = e => {
+        if(e.target && e.target.matches && e.target.matches('input, textarea, select')) e.target.setAttribute('data-lote21-dirty', '1');
+      };
+      pgCol.addEventListener('input', marcar);
+      pgCol.addEventListener('change', marcar);
+    }
+  }
   goPage('pgColab');
   // AARMS lvarfix
   _refreshBotonesContinuarLab();
@@ -11648,9 +11672,10 @@ async function generarPDFColabCompleto(){
   // AARMS condfiel: no leer formulario vacío si la página no está abierta (evita borrar lab)
   // AARMS lote21d: los cuadros solo entran si el conductímetro en pantalla es este plan. No se reescribe el muestreo desde otra página.
   const pgCol = document.getElementById('pgColab');
-  if(pgCol && pgCol.classList.contains('on') && typeof leerColabAlOmar === 'function'){
+  if(_lote21ColabPantallaDeEste() && typeof leerColabAlOmar === 'function'){
     leerColabAlOmar(true);
   }
+  const pantallaAjena = !!(pgCol && pgCol.classList.contains('on') && omar && omar.ts && String(pgCol.getAttribute('data-lote21-omar') || '') !== String(omar.ts));
 
   let plan = (typeof _planActivo === 'function') ? _planActivo() : null;
   if(!plan && typeof omar !== 'undefined' && omar?.ts && typeof getPlanDeMuestreo === 'function'){
@@ -11683,7 +11708,7 @@ async function generarPDFColabCompleto(){
   c.folioP2 = folios[1];
   c.folioP3 = folios[2];
   // AARMS lote21d: si los folios ya están, no se reescribe el muestreo ni el plan.
-  if(!yaFolios && typeof omar !== 'undefined' && omar && omar.ts){
+  if(!yaFolios && !pantallaAjena && typeof omar !== 'undefined' && omar && omar.ts){
     omar.colabLab = Object.assign({}, omar.colabLab || {}, { folio: c.folio, folioP2: c.folioP2, folioP3: c.folioP3 });
     const mFol = (_cachedMuestreos || []).find(x => String(x.id) === String(omar.ts));
     if(mFol && typeof idbPut === 'function'){
