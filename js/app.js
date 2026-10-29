@@ -3770,6 +3770,7 @@ async function abrirLVAR(){
     }
   });
 
+  document.querySelectorAll('#pgLVAR [data-lote21-dirty]').forEach(el => el.removeAttribute('data-lote21-dirty'));
   goPage('pgLVAR');
   _lvarFlujoActivo = true;
   _pintarLvarFlujoStepper(1);
@@ -4028,6 +4029,7 @@ function _lvarAttachAutoCheck(){
     }
     // Auto-guardado debounced cada vez que cambia cualquier input del LVAR
     if(inp.matches('input, textarea, select')){
+      inp.setAttribute('data-lote21-dirty', '1');
       clearTimeout(_lvarAutoSaveTimer);
       _lvarAutoSaveTimer = setTimeout(()=>{
         guardarLVAR(true).then(()=>{
@@ -4389,16 +4391,34 @@ function buildLvarEnvases(){
 let _lvarFolioPendiente = null;
 let _hcarFolioPendiente = null;
 let _cciarFolioPendiente = null;
+function _lote21JsonEstable(v){
+  if(Array.isArray(v)) return '[' + v.map(_lote21JsonEstable).join(',') + ']';
+  if(v && typeof v === 'object'){
+    return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + _lote21JsonEstable(v[k])).join(',') + '}';
+  }
+  return JSON.stringify(v);
+}
 async function guardarLVAR(silent){
   if(!_currentPlanId) return;
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
   if(!plan) return;
   if(_lvarBloqueado){ return; }  // No-op si está bloqueado
+  const pgLvar = document.getElementById('pgLVAR');
+  // AARMS lote21d1: los cuadros de otra pantalla no se escriben en este plan.
+  if(!pgLvar || !pgLvar.classList.contains('on') || String(pgLvar.getAttribute('data-lote21-plan') || '') !== String(plan.id)) return;
 
   const gv = id => { const e=document.getElementById(id); return e?e.value.trim():''; };
   const limpio = v => (!v || v === '—' || v === '-') ? '' : v;
-  let folio = limpio(gv('lv_folio'));
-  const tieneDatos = ['lv_fecha','lv_lugar','lv_dir','lv_ciudad','lv_estado','lv_tipo','lv_norma','lv_obs','lv_asig'].some(id => limpio(gv(id)));
+  const prev = plan.lvar || {};
+  const dirty = id => { const e = document.getElementById(id); return !!(e && e.getAttribute('data-lote21-dirty') === '1'); };
+  const campo = (key, id) => {
+    const v = limpio(gv(id));
+    if(v) return v;
+    if(dirty(id)) return '';
+    return prev[key] != null ? prev[key] : '';
+  };
+  let folio = campo('folio', 'lv_folio');
+  const tieneDatos = ['lv_fecha','lv_lugar','lv_dir','lv_ciudad','lv_estado','lv_tipo','lv_norma','lv_obs','lv_asig'].some(id => limpio(gv(id)) || limpio(prev[{lv_fecha:'fecha',lv_lugar:'lugar',lv_dir:'direccion',lv_ciudad:'ciudad',lv_estado:'estado',lv_tipo:'tipo',lv_norma:'norma',lv_obs:'obs',lv_asig:'asig'}[id]]));
   if(!folio && tieneDatos){
     if(!_lvarFolioPendiente){
       _lvarFolioPendiente = _folioTomar('lvar', 1, {
@@ -4418,40 +4438,56 @@ async function guardarLVAR(silent){
 
   const data = {
     folio,
-    fecha:     gv('lv_fecha'),
-    lugar:     gv('lv_lugar'),
-    direccion: gv('lv_dir'),
-    ciudad:    gv('lv_ciudad'),
-    estado:    gv('lv_estado'), // AARMS v64: estado separado
-    // AARMS lvarnomixto: persistir resumen válido (recalcula si el campo trae valor inventado)
-    tipo:      _lvarTipoMuestreoParaUiYPdf(gv('lv_tipo')),
-    norma:     gv('lv_norma'),
-    obs:       gv('lv_obs'),
-    asig:      gv('lv_asig'),
-    asigFecha: gv('lv_asigFecha'),
-    asigHora:  gv('lv_asigHora'),
-    sup:       gv('lv_sup'),
-    supFecha:  gv('lv_supFecha'),
-    supHora:   gv('lv_supHora'),
+    fecha:     campo('fecha', 'lv_fecha'),
+    lugar:     campo('lugar', 'lv_lugar'),
+    direccion: campo('direccion', 'lv_dir'),
+    ciudad:    campo('ciudad', 'lv_ciudad'),
+    estado:    campo('estado', 'lv_estado'),
+    tipo:      (limpio(gv('lv_tipo')) ? (_lvarTipoMuestreoParaUiYPdf(gv('lv_tipo')) || limpio(gv('lv_tipo'))) : campo('tipo', 'lv_tipo')),
+    norma:     campo('norma', 'lv_norma'),
+    obs:       campo('obs', 'lv_obs'),
+    asig:      campo('asig', 'lv_asig'),
+    asigFecha: campo('asigFecha', 'lv_asigFecha'),
+    asigHora:  campo('asigHora', 'lv_asigHora'),
+    sup:       campo('sup', 'lv_sup'),
+    supFecha:  campo('supFecha', 'lv_supFecha'),
+    supHora:   campo('supHora', 'lv_supHora'),
     // Los OMARs NO se duplican aquí — viven en la store de muestreos.
     equipos:{}, personal:{}, disol:{}, react:{}, patrones:{}, secundario:{}, material:{}, envases:{}
   };
 
-  // Rescatar todos los data-lv-* del DOM
+  // AARMS lote21d1: un cuadro vacío no pisa el dato guardado, salvo que se haya borrado en esta pantalla.
   const secMap = {eq:'equipos', personal:'personal', disol:'disol', react:'react', patrones:'patrones', secundario:'secundario', material:'material', envases:'envases'};
   for(const s of Object.keys(secMap)){
     const target = secMap[s];
-    document.querySelectorAll(`[data-lv-${s}]`).forEach(inp=>{
+    const nodos = document.querySelectorAll(`[data-lv-${s}]`);
+    if(!nodos.length){
+      data[target] = prev[target] || {};
+      continue;
+    }
+    nodos.forEach(inp=>{
       const key = inp.getAttribute(`data-lv-${s}`);
       const field = inp.getAttribute('data-field');
-      if(!data[target][key]) data[target][key] = {};
+      if(!data[target][key]) data[target][key] = Object.assign({}, (prev[target] && prev[target][key]) || {});
+      const editado = inp.getAttribute('data-lote21-dirty') === '1';
       const val = inp.type === 'checkbox' ? inp.checked : inp.value;
-      data[target][key][field] = val;
-      // AARMS lvarfix: recordar si el ID vino del inventario (sincronizable)
+      const vacio = inp.type === 'checkbox' ? false : !limpio(val);
+      const anterior = prev[target] && prev[target][key] ? prev[target][key][field] : undefined;
+      if(vacio && !editado && anterior != null && limpio(anterior)) data[target][key][field] = anterior;
+      else if(inp.type === 'checkbox' && !editado && anterior != null) data[target][key][field] = anterior;
+      else data[target][key][field] = val;
       if(target === 'equipos' && field === 'num'){
         data[target][key].fromCatalog = inp.getAttribute('data-from-catalog') === '1';
       }
     });
+  }
+
+  const done = !!(data.folio && data.asig);
+  const yaDocs = plan.docs && plan.docs.lvar;
+  if(yaDocs && yaDocs.done === done && _lote21JsonEstable(data) === _lote21JsonEstable(prev)){
+    _lvarData = prev;
+    if(!silent) toast('LVAR guardado ✓','g');
+    return;
   }
 
   plan.lvar = data;
