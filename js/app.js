@@ -5446,17 +5446,8 @@ async function _generarItemPDF(item){
     // Generar PDF del LVAR. La función ya está hecha; le forzamos un fileName custom.
     return await _generarLVARConNombre(item.fileName);
   }
-  if(item.kind === 'hojaCampo' || item.kind === 'cadena'){
+  if(item.kind === 'hojaCampo' || item.kind === 'cadena' || item.kind === 'cliente'){
     return await _generarPDFOMARConNombre(item.kind, item.fileName, item.muestreoId);
-  }
-  if(item.kind === 'cliente'){
-    // Cargar el muestreo destino y generar el PDF correspondiente.
-    if(item.muestreoId){
-      cargarMuestreo(item.muestreoId);
-      goPage('pg1');
-      await new Promise(r=>setTimeout(r, 600)); // tiempo a que pinte los inputs
-    }
-    return await _generarPDFOMARConNombre(item.kind, item.fileName);
   }
 }
 
@@ -5490,7 +5481,7 @@ async function _generarPDFOMARConNombre(kind, fileName, omarId){
     } else if(kind === 'cadena'){
       await buildPDFCadena(omarId);
     } else if(kind === 'cliente'){
-      await buildPDFCliente();
+      await buildPDFCliente(omarId);
     }
   } finally {
     window.entregarPDF = origEntregar;
@@ -8637,8 +8628,8 @@ function genPDF(tipo='lab'){
     return;
   }
 
-  // AARMS lote21e: la Hoja se guarda dentro de buildPDF, y solo si la pantalla es esa OMAR.
-  if(tipo !== 'lab') saveMuestreoActual();
+  // AARMS lote21e: Hoja y Reporte se guardan dentro de su generador, y solo si la pantalla es esa OMAR.
+  if(tipo !== 'lab' && tipo !== 'cliente') saveMuestreoActual();
   window._pdfTipo=tipo;
   const btn=tipo==='cliente'?document.getElementById('btnPDFCliente'):document.getElementById('btnPDFLab');
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
@@ -9362,7 +9353,15 @@ async function buildPDF(omarIdPedido){
     const sr1=document.getElementById('shareRow'); if(sr1)sr1.style.display='flex';
   }catch(e){ doc.save(fileName); toast('PDF guardado ✓','g'); }
 }
-async function buildPDFCliente(){
+async function buildPDFCliente(omarIdPedido){
+  const fuente = await _lote21HojaFuente(omarIdPedido);
+  if(!fuente){ toast('No hay OMAR para el Reporte de Muestreo','w'); return; }
+  const tomas = fuente.tomas;
+  const omar = fuente.omar;
+  const photoData2 = fuente.photoData2;
+  const sigData = fuente.sigData;
+  const sigData2 = fuente.sigData2;
+  const gv = id => fuente.campos[id] != null ? String(fuente.campos[id]).trim() : '';
   const {jsPDF}=window.jspdf;
   // PRE-LOAD all images BEFORE starting PDF draw
   const [imgFoto2,imgSig,imgSig2,logoPDF]=await Promise.all([
@@ -9384,7 +9383,6 @@ async function buildPDFCliente(){
     fotoBg:[240,244,248],sigBg:[248,251,255],
   };
 
-  const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';}
   const now=new Date();
   const dStr=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const tStr=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
