@@ -319,7 +319,7 @@ function _catalogoSnapshot(){
     conductividad: _catalogoCache.conductividad,
     otros: _catalogoCache.otros || [],  // AARMS v66-p2: incluir agua reactivo y otros patrones
     equipos: _catalogoCache.equipos || {},  // AARMS sub1-equipos
-    fechaSnapshot: new Date().toISOString()
+    fechaSnapshot: _lote21AhoraLocal()
   }));
 }
 
@@ -1427,12 +1427,18 @@ function _lote21HoyFechaHoraLocal(){
   const h = _lote4hoy();
   return h.fecha + 'T' + h.hora;
 }
+function _lote21AhoraLocal(){
+  // AARMS lote21b: instante local, sin Z. toISOString() pasa al día UTC.
+  const n = new Date();
+  const p = (x) => String(x).padStart(2, '0');
+  return _lote21HoyFechaHoraLocal() + ':' + p(n.getSeconds());
+}
 function _lote21FechaPantalla(src){
   // AARMS lote21b: AAAA-MM-DD se parte. new Date("AAAA-MM-DD") es UTC y retrocede un día.
   if(src == null || src === '') return '';
   const s = String(src).trim();
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(m) return m[3] + '/' + m[2] + '/' + m[1];
+  if(m) return fmtF(m[1] + '-' + m[2] + '-' + m[3]);
   const d = new Date(s);
   if(isNaN(d.getTime())) return s.substring(0, 10);
   const p = n => String(n).padStart(2, '0');
@@ -15251,7 +15257,7 @@ async function catalogoUpConductividad(idx, campo, valor){
 
 function _catalogoHistoricoAgregar(tipo, item, lotePrevio, loteNuevo){
   if(!_catalogoCache.historico) _catalogoCache.historico = [];
-  _catalogoCache.historico.unshift({ fecha: new Date().toISOString(), tipo, item, lotePrevio, loteNuevo });
+  _catalogoCache.historico.unshift({ fecha: _lote21AhoraLocal(), tipo, item, lotePrevio, loteNuevo });
   if(_catalogoCache.historico.length > 100) _catalogoCache.historico.length = 100;
 }
 
@@ -16904,7 +16910,7 @@ async function _cartasCerrarPeriodo(){
   }
   act.activo = false;
   act.cerrado = true;
-  act.cerradoEn = new Date().toISOString();
+  act.cerradoEn = _lote21AhoraLocal();
   act.cerradoPor = _ADMIN_TITULAR;
   const y = new Date().getFullYear();
   let label = String(y);

@@ -623,7 +623,7 @@ function _lote16Filas(plan, d){
   return [
     fila('Folio, página 1', d.folio1, 'Plan', 'plan', 'sin folio de plan'),
     fila('Folio, página 2', d.folio2, 'Contador bpm', 'plan', 'se reserva al generar el PDF'),
-    fila('Fecha', d.fecha, 'Plan', 'plan', 'sin fecha'),
+    fila('Fecha', (typeof _lote21FechaPantalla === 'function' && d.fecha) ? _lote21FechaPantalla(d.fecha) : (d.fecha || ''), 'Plan', 'plan', 'sin fecha'),
     fila('Empresa', d.empresa, 'Plan', 'plan', 'sin empresa'),
     fila('Folios OMAR', d.foliosOmar, 'OMAR del plan', 'plan', 'sin folio OMAR'),
     fila('Año de las bitácoras', d.anio, 'Fecha del plan', 'plan', 'sin año'),
