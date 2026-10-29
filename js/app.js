@@ -1308,6 +1308,7 @@ window.addEventListener('DOMContentLoaded',async ()=>{
   loadSaved();
   // AARMS v65: cargar catálogo al inicio
   _catalogoCargar().catch(e => errorUsuario('No se pudo cargar el inventario.', e));
+  _lote22fPedirPersistente();
   // Autoguardado en cualquier cambio de input de los formularios de OMAR y Hoja de Campo
   // Los inputs de tomas se manejan aparte (delegación) en attachTomasAutosave().
   ['pg0','pg1'].forEach(pgId=>{
@@ -11460,9 +11461,11 @@ function leerColabAlOmar(conservar){
   set('comp_fecha','colab_comp_fecha'); set('comp_hora','colab_comp_hora'); set('comp_lote','colab_comp_lote');
   set('comp_marca','colab_comp_marca'); set('comp_vn','colab_comp_vn');
   set('comp_l1','colab_comp_l1'); set('comp_l2','colab_comp_l2'); set('comp_l3','colab_comp_l3');
+  set('comp_acep','colab_comp_acep');
   set('ver_fecha','colab_ver_fecha'); set('ver_hora','colab_ver_hora'); set('ver_lote','colab_ver_lote');
   set('ver_marca','colab_ver_marca'); set('ver_vn','colab_ver_vn');
   set('ver_l1','colab_ver_l1'); set('ver_l2','colab_ver_l2'); set('ver_l3','colab_ver_l3');
+  set('ver_acep','colab_ver_acep');
   set('campo_cal_fecha','colab_campo_cal_fecha'); set('campo_cal_hora','colab_campo_cal_hora');
   set('campo_cal_lote','colab_campo_cal_lote'); set('campo_cal_marca','colab_campo_cal_marca');
   set('campo_cal_vn','colab_campo_cal_vn'); set('campo_cal_inc','colab_campo_cal_inc');
@@ -11652,10 +11655,13 @@ function poblarColabForm(){
   _instS('colab_comp_lote', c.comp_lote||calLote); _instS('colab_comp_marca', c.comp_marca||c.cal_marca||'');
   _instS('colab_comp_vn', c.comp_vn||calVn);
   _instS('colab_comp_l1', compL1); _instS('colab_comp_l2', compL2); _instS('colab_comp_l3', compL3);
+  _instS('colab_comp_acep', c.comp_acep||'');
   _instS('colab_ver_fecha', c.ver_fecha||c.fecha||''); _instS('colab_ver_hora', c.ver_hora||'');
   _instS('colab_ver_lote', verLote); _instS('colab_ver_marca', c.ver_marca||'');
   _instS('colab_ver_vn', verVn);
   _instS('colab_ver_l1', verL1); _instS('colab_ver_l2', verL2); _instS('colab_ver_l3', verL3);
+  _instS('colab_ver_acep', c.ver_acep||'');
+  _lote22dAplicarKcl();
   _instS('colab_campo_cal_fecha', c.campo_cal_fecha||''); _instS('colab_campo_cal_hora', c.campo_cal_hora||'');
   _instS('colab_campo_cal_lote', c.campo_cal_lote||''); _instS('colab_campo_cal_marca', c.campo_cal_marca||'');
   _instS('colab_campo_cal_vn', c.campo_cal_vn||''); _instS('colab_campo_cal_inc', c.campo_cal_inc||'');
@@ -11907,6 +11913,29 @@ async function generarPDFColabCompleto(){
     }
   }
 
+  const kcl = _lote22dKclCatalogo();
+  if(!String(c.cal_lote || c.mrc_lote || '').trim() && kcl.lote) c.cal_lote = kcl.lote;
+  if(!String(c.cal_marca || '').trim() && kcl.marca) c.cal_marca = kcl.marca;
+  if(!String(c.comp_lote || '').trim() && c.cal_lote) c.comp_lote = c.cal_lote;
+  if(!String(c.comp_marca || '').trim() && c.cal_marca) c.comp_marca = c.cal_marca;
+  const faltanDict = _lote22dFaltanDictamen(c);
+  if(faltanDict.length){
+    // AARMS lote22d: sin dictamen no se gasta folio y el aviso lleva al cuadro.
+    toast('Faltan: ' + faltanDict.map(f => f.texto).join('; '), 'w', {
+      ms: 9000,
+      onClick: () => {
+        const id = faltanDict[0] && faltanDict[0].id;
+        const ir = () => {
+          const el = document.getElementById(id);
+          if(el){ el.scrollIntoView({ block:'center' }); try{ el.focus(); }catch(e){} }
+        };
+        if(typeof abrirFlujoConductimetro === 'function'){
+          Promise.resolve(abrirFlujoConductimetro({ paso:'lab', origen:'plan' })).then(ir);
+        } else ir();
+      }
+    });
+    return;
+  }
   const yaFolios = !!(c.folio && c.folioP2 && c.folioP3);
   const folios = yaFolios ? [c.folio, c.folioP2, c.folioP3] : await _condResolverFoliosPaginas(c, plan);
   c.folio = folios[0];
@@ -15437,7 +15466,7 @@ function catalogoRenderEquipos(){
     <div id="invEq_${tipoKey}" style="margin-bottom:14px">
       <div style="font-size:11px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono);margin-bottom:6px;display:flex;align-items:center;gap:6px">${_invEqIcon(tipoKey)}<span>${label}</span></div>
       ${cards || '<div style="padding:8px;color:var(--g2);font-size:11px;font-style:italic">Sin equipos. Toca + para agregar.</div>'}
-      <button onclick="catalogoAgregarEquipo('${tipoKey}')" style="margin-top:6px;background:rgba(245,158,11,.08);border:1px dashed rgba(245,158,11,.3);color:#f59e0b;padding:6px 10px;border-radius:7px;font-size:11px;cursor:pointer;width:100%">+ Agregar ${label.toLowerCase()}</button>
+      <button type="button" role="button" aria-label="Agregar ${label.toLowerCase()}" onclick="catalogoAgregarEquipo('${tipoKey}')" style="margin-top:6px;background:rgba(245,158,11,.08);border:1px dashed rgba(245,158,11,.3);color:#f59e0b;padding:6px 10px;border-radius:7px;font-size:11px;cursor:pointer;width:100%">+ Agregar ${label.toLowerCase()}</button>
     </div>`;
   };
 
@@ -15926,14 +15955,51 @@ function _planOmarData(plan){
   return out;
 }
 
+function _lote22dMarcado(v){
+  return /^acepta|^rechaz/i.test(String(v || '').trim());
+}
+function _lote22dKclCatalogo(){
+  const lista = (_catalogoCache && _catalogoCache.conductividad) || [];
+  const principal = lista[0] || null;
+  if(!principal) return { lote:'', marca:'' };
+  const elegido = (typeof _lote10Elegir === 'function') ? _lote10Elegir(principal, []) : { item: principal };
+  const item = (elegido && elegido.item) || principal;
+  const marca = String(item.marca || '').trim() || (typeof _catalogoMarcaDesdeNombre === 'function' ? _catalogoMarcaDesdeNombre(item.nombre) : '');
+  return { lote: String(item.lote || '').trim(), marca: marca };
+}
+function _lote22dAplicarKcl(){
+  // AARMS lote22d: lote y marca del MRC salen del KCl del inventario. Si faltan, el hueco queda en blanco.
+  const k = _lote22dKclCatalogo();
+  const lote = document.getElementById('colab_cal_lote');
+  const marca = document.getElementById('colab_cal_marca');
+  if(lote && !String(lote.value || '').trim() && k.lote) lote.value = k.lote;
+  if(marca && !String(marca.value || '').trim() && k.marca) marca.value = k.marca;
+  const host = document.getElementById('lote22dKclAviso');
+  if(!host) return;
+  const sinLote = !(lote && String(lote.value || '').trim());
+  const sinMarca = !(marca && String(marca.value || '').trim());
+  host.innerHTML = (sinLote || sinMarca)
+    ? '<div data-lote22d-kcl="1" style="margin-top:6px;font-size:12px;color:#fbbf24;line-height:1.45">Falta registrar en Inventario. <button type="button" onclick="abrirCatalogo()" style="margin-left:6px;background:transparent;border:1px solid rgba(251,191,36,.45);color:#fbbf24;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>'
+    : '';
+}
+function _lote22dFaltanDictamen(c){
+  const lab = c || {};
+  const faltan = [];
+  if(!_lote22dMarcado(lab.cal_acep)) faltan.push({ texto:'Calibración de laboratorio', id:'colab_cal_acep' });
+  if(!_lote22dMarcado(lab.comp_acep)) faltan.push({ texto:'Comprobación de laboratorio', id:'colab_comp_acep' });
+  if(!_lote22dMarcado(lab.ver_acep)) faltan.push({ texto:'Verificación de laboratorio', id:'colab_ver_acep' });
+  return faltan;
+}
 function _colabLabEstadoFromPlan(plan){
   const om = _planOmarData(plan)[0];
   const lab = (om && om.o && om.o.colabLab) || {};
   const hasId = !!(String(lab.fecha||'').trim() && (String(lab.marca||'').trim() || String(lab.clave||'').trim()));
   const hasCal = !!(String(lab.cal_lect||'').trim() || (String(lab.comp_l1||lab.mrc_l1||'').trim() && String(lab.comp_l2||lab.mrc_l2||'').trim() && String(lab.comp_l3||lab.mrc_l3||'').trim()));
   const mantOk = _colabMantCompleto(lab);
-  if(hasId && hasCal && mantOk) return 'completo';
-  if(lab.fecha || lab.marca || lab.cal_lect || lab.mrc_l1 || lab.m_bat || lab.mant_na) return 'progreso';
+  const dictamen = _lote22dFaltanDictamen(lab).length === 0;
+  // AARMS lote22d: sin Acepta o Rechaza en laboratorio, el conductímetro no queda completo.
+  if(hasId && hasCal && mantOk && dictamen) return 'completo';
+  if(lab.fecha || lab.marca || lab.cal_lect || lab.mrc_l1 || lab.m_bat || lab.mant_na || lab.cal_acep || lab.comp_acep || lab.ver_acep) return 'progreso';
   return 'vacio';
 }
 
@@ -16990,6 +17056,12 @@ function _lote10Pendientes(){
   ];
   return filas;
 }
+let _lote22fArranqueAbierto = false;
+function _lote22fToggleArranque(){
+  _lote22fArranqueAbierto = !_lote22fArranqueAbierto;
+  _lote10PintarArranque();
+}
+window._lote22fToggleArranque = _lote22fToggleArranque;
 async function _lote10PintarArranque(){
   const host = document.getElementById('lote10Arranque');
   if(!host) return;
@@ -16998,16 +17070,20 @@ async function _lote10PintarArranque(){
   const faltan = filas.filter(f => !f.ok);
   if(!faltan.length){ host.style.display = 'none'; host.innerHTML = ''; return; }
   host.style.display = 'block';
+  const abierto = !!_lote22fArranqueAbierto;
+  // AARMS lote22f: recogida por defecto. El plan y Nuevo Muestreo quedan a la vista.
   host.innerHTML = `
     <div class="card" id="lote10ArranqueCard" style="margin:0 0 16px">
-      <div class="ch"><div class="ct">Configuración inicial: faltan ${faltan.length}</div></div>
-      <div class="cb" style="padding:6px 0">
+      <button type="button" id="lote22fArranqueToggle" aria-expanded="${abierto ? 'true' : 'false'}" onclick="_lote22fToggleArranque()" style="display:flex;width:100%;align-items:center;gap:8px;background:transparent;border:none;color:var(--w);padding:12px 14px;cursor:pointer;text-align:left;font-family:var(--syne);font-weight:800;font-size:13px">
+        <span style="flex:1">Configuración inicial: faltan ${faltan.length} ${abierto ? '▾' : '▸'}</span>
+      </button>
+      ${abierto ? `<div class="cb" style="padding:6px 0">
         ${filas.map((f, i) => `
           <button type="button" data-lote10-ir="${i}" style="display:flex;width:100%;align-items:center;gap:10px;background:transparent;border:none;border-bottom:1px solid var(--ln);color:var(--w);padding:10px 14px;cursor:pointer;text-align:left">
             <span style="flex:1;font-size:13px">${_lote10EscHtml(f.nombre)}</span>
             <span style="font-size:11px;font-weight:800;color:${f.txt === 'Completo' ? '#34d399' : '#fbbf24'}">${_lote10EscHtml(f.txt || 'Falta')}</span>
           </button>`).join('')}
-      </div>
+      </div>` : ''}
     </div>`;
   host.querySelectorAll('[data-lote10-ir]').forEach(btn => {
     btn.addEventListener('click', () => _lote10Ir(filas[Number(btn.getAttribute('data-lote10-ir'))]));
@@ -17033,11 +17109,39 @@ async function _lote10Ir(fila){
 }
 window._lote10PintarArranque = _lote10PintarArranque;
 
+function _lote22fPintarAlmacen(ok){
+  const el = document.getElementById('lote22fAlmacen');
+  if(!el) return;
+  el.textContent = ok
+    ? 'Almacenamiento: protegido'
+    : 'Almacenamiento: no protegido — instala la app y respalda con Descargar muestreo completo';
+}
+async function _lote22fPedirPersistente(){
+  // AARMS lote22f: se pide al arrancar. La línea de Ajustes dice lo que respondió el navegador.
+  let ok = false;
+  let pedido = null;
+  try{
+    if(navigator.storage && typeof navigator.storage.persist === 'function'){
+      pedido = await navigator.storage.persist();
+    }
+    if(navigator.storage && typeof navigator.storage.persisted === 'function'){
+      ok = await navigator.storage.persisted();
+    } else if(pedido != null) ok = !!pedido;
+  }catch(e){
+    ok = false;
+  }
+  window._lote22fAlmacen = { protegido: !!ok, pedido: pedido };
+  _lote22fPintarAlmacen(!!ok);
+  return window._lote22fAlmacen;
+}
+window._lote22fPedirPersistente = _lote22fPedirPersistente;
 function abrirAjustes(){
   closeFabMenu();
   goPage('pgAjustes');
   _renderAjustesMuestreador();
   _renderAjustesSupervisor();
+  if(window._lote22fAlmacen) _lote22fPintarAlmacen(!!window._lote22fAlmacen.protegido);
+  else _lote22fPedirPersistente();
 }
 window.abrirAjustes = abrirAjustes;
 

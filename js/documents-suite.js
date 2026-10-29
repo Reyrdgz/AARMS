@@ -616,31 +616,32 @@ function _lote16Datos(plan){
 }
 function _lote16Filas(plan, d){
   const croq = _lote16CroquisFuente(plan);
-  const fila = (dato, valor, origen, ir, falta) => ({
+  const fila = (dato, valor, origen, ir, falta, despues) => ({
     dato, valor: valor || '', origen, ir,
-    estado: valor ? 'Listo' : ('Falta: ' + falta)
+    // AARMS lote22e: lo que se completa después va en gris. Falta queda para el punto 3.
+    estado: valor ? 'Listo' : (despues ? 'Después' : ('Falta: ' + falta))
   });
   return [
     fila('Folio, página 1', d.folio1, 'Plan', 'plan', 'sin folio de plan'),
-    fila('Folio, página 2', d.folio2, 'Contador bpm', 'plan', 'se reserva al generar el PDF'),
+    fila('Folio, página 2', d.folio2, 'Contador bpm', 'plan', 'se reserva al generar el PDF', true),
     fila('Fecha', (typeof _lote21FechaPantalla === 'function' && d.fecha) ? _lote21FechaPantalla(d.fecha) : (d.fecha || ''), 'Plan', 'plan', 'sin fecha'),
     fila('Empresa', d.empresa, 'Plan', 'plan', 'sin empresa'),
     fila('Folios OMAR', d.foliosOmar, 'OMAR del plan', 'plan', 'sin folio OMAR'),
     fila('Año de las bitácoras', d.anio, 'Fecha del plan', 'plan', 'sin año'),
-    fila('1. Folio LVAR', d.lvar, 'LVAR', 'lvar', 'sin folio de LVAR'),
+    fila('1. Folio LVAR', d.lvar, 'LVAR', 'lvar', 'sin folio de LVAR', true),
     fila('2. Clave del pH-metro', d.clave, 'Catálogo', 'catalogo', 'sin pH-metro en el catálogo'),
-    fila('2 y 4. Folios de pH', d.folPh, 'Bitácora de pH', 'ph', 'sin folio de pH'),
+    fila('2 y 4. Folios de pH', d.folPh, 'Bitácora de pH', 'ph', 'sin folio de pH', true),
     { dato: '5. Blanco de campo', valor: d.blanco ? 'Sí' : 'No', origen: 'Plan', ir: 'plan', estado: 'Listo' },
     d.blanco
       ? fila('5. Lote de agua reactivo', d.lote, 'Catálogo, Agua Reactivo', 'catalogo', 'sin lote en el catálogo')
       : { dato: '5. Lote de agua reactivo', valor: '', origen: 'Catálogo, Agua Reactivo', ir: 'catalogo', estado: 'Listo' },
     fila('7. Folios del Machiote', d.foliosOmar, 'Folios OMAR', 'plan', 'sin folio OMAR'),
     fila('Firma del muestreador', d.muNombre, 'Ajustes', 'ajustes', 'sin nombre en Ajustes'),
-    fila('Firma del supervisor', d.suNombre, 'Firma de supervisor', 'plan', 'sin firma de supervisor')
+    fila('Firma del supervisor', d.suNombre, 'Firma de supervisor', 'plan', 'sin firma de supervisor', true)
   ].concat([
     croq
       ? { dato: '11. Croquis', valor: (croq.gps ? 'Mapa' : '') + (croq.gps && croq.foto ? ' y ' : '') + (croq.foto ? 'Foto del sitio' : ''), origen: 'Hoja de Campo', ir: 'hoja', estado: 'Listo' }
-      : { dato: '11. Croquis', valor: '', origen: 'Hoja de Campo', ir: 'hoja', estado: 'Falta: sin foto ni mapa en la Hoja' }
+      : { dato: '11. Croquis', valor: '', origen: 'Hoja de Campo', ir: 'hoja', estado: 'Después' }
   ]);
 }
 function _lote16PintarLista(plan){
@@ -650,7 +651,7 @@ function _lote16PintarLista(plan){
   host.innerHTML = `<div style="display:grid;grid-template-columns:1.15fr 1.15fr .9fr .9fr;gap:8px;padding:6px 0;font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--mut)">
       <div>Dato</div><div>Valor</div><div>Origen</div><div>Estado</div>
     </div>` + filas.map(f => {
-    const col = f.estado === 'Listo' ? 'var(--green)' : '#f87171';
+    const col = f.estado === 'Listo' ? 'var(--green)' : (f.estado === 'Después' ? '#94a3b8' : '#f87171');
     const origen = `<button type="button" data-lote16-ir="${_lote16Esc(f.ir)}" style="background:none;border:none;padding:0;color:var(--acc);font-size:12px;cursor:pointer;text-align:left">${_lote16Esc(f.origen)}</button>`;
     return `<div data-lote16-fila="${_lote16Esc(f.dato)}" style="display:grid;grid-template-columns:1.15fr 1.15fr .9fr .9fr;gap:8px;padding:8px 0;border-top:1px solid var(--ln);align-items:start">
       <div style="font-size:12px;color:var(--w)">${_lote16Esc(f.dato)}</div>
@@ -5205,7 +5206,8 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
       margin: M
     }, FONT);
     doc.setFont(FONT, 'bold'); doc.setFontSize(8.5); doc.setTextColor(...NAVY);
-    const tit = 'Bitácora de Limpieza, Mantenimiento, Calibración, Comprobación, Verificación y Uso del Conductivimetro';
+    // AARMS lote22d: el título lleva tilde.
+    const tit = 'Bitácora de Limpieza, Mantenimiento, Calibración, Comprobación, Verificación y Uso del Conductivímetro';
     const titLines = doc.splitTextToSize(T(tit), CW);
     doc.text(titLines, M + CW / 2, yTop + 2, { align: 'center' });
     yTop += 2 + titLines.length * 10 + 2;
@@ -5451,7 +5453,7 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
   const calAcep = String(c.cal_acep || '').trim();
   const calRow = [[
     fmtFecha(c.cal_fecha || c.fecha), c.cal_hora || '', c.cal_lote || c.mrc_lote || '',
-    c.cal_marca || 'N/A', calVn, calInc ? ('±' + String(calInc).replace(/^±/,'')) : '',
+    c.cal_marca || '', calVn, calInc ? ('±' + String(calInc).replace(/^±/,'')) : '',
     calPm.plus, calPm.minus, c.cal_lect || '',
     (/^acepta|^rechaz/i.test(calAcep) ? '' : calAcep)
   ]];
@@ -5471,7 +5473,9 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
   const compL1 = c.comp_l1 || c.mrc_l1 || '';
   const compL2 = c.comp_l2 || c.mrc_l2 || '';
   const compL3 = c.comp_l3 || c.mrc_l3 || '';
-  const compEstado = acePct5(compL1, compL2, compL3, compVn);
+  // AARMS lote22d: el dictamen de laboratorio es el que se marcó. Sin marca, el PDF no se arma.
+  const compAcep = String(c.comp_acep || '').trim();
+  const compEstado = /^acepta/i.test(compAcep) ? 'acepta' : (/^rechaz/i.test(compAcep) ? 'rechaza' : null);
   const compHeads = ['FECHA','HORA','LOTE','MARCA','V. NOMINAL','L1','L2','L3','PROMEDIO','ACEPTA / RECHAZA'];
   const compCwR = [48,36,48,44,52,40,40,40,52,90];
   const compSum = compCwR.reduce((a,b)=>a+b,0);
@@ -5490,7 +5494,7 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
     _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(compCw[9]-54)/2), yComp + 18 + 2, compEstado, { compact:true, font:FONT });
   }
   y = drawCriterioBadge(y,
-    'No debe de haber una diferencia no mayor a ±5% entre lecturas independientes del valor nominal del MRC utilizado',
+    'No debe de haber una diferencia mayor a ±5% entre lecturas independientes del valor nominal del MRC utilizado',
     compEstado);
 
   // Verificación Lab
@@ -5498,7 +5502,8 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
   const verL1 = c.ver_l1 || c.ctrl_l1 || '';
   const verL2 = c.ver_l2 || c.ctrl_l2 || '';
   const verL3 = c.ver_l3 || c.ctrl_l3 || '';
-  const verEstado = acePct5(verL1, verL2, verL3, verVn);
+  const verAcep = String(c.ver_acep || '').trim();
+  const verEstado = /^acepta/i.test(verAcep) ? 'acepta' : (/^rechaz/i.test(verAcep) ? 'rechaza' : null);
   doc.setFont(FONT, 'bold'); doc.setFontSize(7); doc.setTextColor(...NAVY);
   doc.text(T('Verificación (muestra control)'), M, y + 7); y += 10;
   const verProm = prom3(verL1, verL2, verL3);
@@ -5513,7 +5518,7 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
     _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(compCw[9]-54)/2), yVer + 18 + 2, verEstado, { compact:true, font:FONT });
   }
   y = drawCriterioBadge(y,
-    'No debe de haber una diferencia no mayor a ±5% entre lecturas independientes del valor nominal del control utilizado',
+    'No debe de haber una diferencia mayor a ±5% entre lecturas independientes del valor nominal del control utilizado',
     verEstado);
 
   // Campo — Calibración
@@ -5565,7 +5570,7 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
     _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(compCw[9]-54)/2), yFcc + 18 + 2, fccEst, { compact:true, font:FONT });
   }
   y = drawCriterioBadge(y,
-    'No debe de haber una diferencia no mayor a ±5% entre lecturas independientes del valor nominal del MRC utilizado',
+    'No debe de haber una diferencia mayor a ±5% entre lecturas independientes del valor nominal del MRC utilizado',
     fccEst);
 
   const fcvVn = c.campo_ver_vn || '';
@@ -5585,7 +5590,7 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
     _pdfBadgeAceptaRechaza(doc, cx + Math.max(1,(compCw[9]-54)/2), yFcv + 18 + 2, fcvEst, { compact:true, font:FONT });
   }
   y = drawCriterioBadge(y,
-    'No debe de haber una diferencia no mayor a ±5% entre lecturas independientes del valor nominal del control utilizado',
+    'No debe de haber una diferencia mayor a ±5% entre lecturas independientes del valor nominal del control utilizado',
     fcvEst);
 
   y += 2;

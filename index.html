@@ -1839,13 +1839,14 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       <div class="f"><label>Fecha</label><input type="date" id="colab_cal_fecha"></div>
       <div class="f"><label>Hora</label><input type="time" id="colab_cal_hora"></div>
       <div class="f"><label>Lote</label><input type="text" id="colab_cal_lote"></div>
-      <div class="f"><label>Marca</label><input type="text" id="colab_cal_marca" placeholder="N/A"></div>
+      <div class="f"><label>Marca</label><input type="text" id="colab_cal_marca"></div>
       <div class="f"><label>Valor Nominal (µS/cm)</label><input type="text" id="colab_cal_vn" inputmode="decimal" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('lab')"></div>
       <div class="f"><label>Incertidumbre (± µS/cm)</label><input type="text" id="colab_cal_inc" inputmode="decimal" placeholder="0.75" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('lab')"></div>
       <div class="f"><label>VN + I (auto)</label><input type="text" id="colab_cal_vnp" readonly style="opacity:.85"></div>
       <div class="f"><label>VN − I (auto)</label><input type="text" id="colab_cal_vnm" readonly style="opacity:.85"></div>
       <div class="f"><label>Lectura equipo (µS/cm)</label><input type="text" id="colab_cal_lect"></div>
       <div class="f"><label>Acepta o Rechaza (manual)</label><select id="colab_cal_acep" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="ACEPTA">ACEPTA</option><option value="RECHAZA">RECHAZA</option></select></div>
+      <div id="lote22dKclAviso" style="grid-column:1 / -1"></div>
       <!-- legado mrc (oculto, se sincroniza) -->
       <input type="hidden" id="colab_mrc_nom"><input type="hidden" id="colab_mrc_lote">
       <input type="hidden" id="colab_mrc_l1"><input type="hidden" id="colab_mrc_l2"><input type="hidden" id="colab_mrc_l3">
@@ -1860,6 +1861,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       <div class="f"><label>L1</label><input type="text" id="colab_comp_l1"></div>
       <div class="f"><label>L2</label><input type="text" id="colab_comp_l2"></div>
       <div class="f"><label>L3</label><input type="text" id="colab_comp_l3"></div>
+      <div class="f"><label>Acepta o Rechaza</label><select id="colab_comp_acep" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="ACEPTA">ACEPTA</option><option value="RECHAZA">RECHAZA</option></select></div>
     </div></div>
 
     <div class="card"><div class="ch"><div class="ct">3. Verificación laboratorio (control)</div><span class="cbadge">±5%</span></div><div class="cb g2">
@@ -1871,6 +1873,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       <div class="f"><label>L1</label><input type="text" id="colab_ver_l1"></div>
       <div class="f"><label>L2</label><input type="text" id="colab_ver_l2"></div>
       <div class="f"><label>L3</label><input type="text" id="colab_ver_l3"></div>
+      <div class="f"><label>Acepta o Rechaza</label><select id="colab_ver_acep" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="ACEPTA">ACEPTA</option><option value="RECHAZA">RECHAZA</option></select></div>
       <input type="hidden" id="colab_ctrl_nom"><input type="hidden" id="colab_ctrl_lote">
       <input type="hidden" id="colab_ctrl_l1"><input type="hidden" id="colab_ctrl_l2"><input type="hidden" id="colab_ctrl_l3">
     </div></div>
@@ -2165,8 +2168,8 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
     </div>
     <span class="pill pill-o">v66</span>
   </div>
-  <div class="cont" style="padding:16px;max-width:900px;margin:0 auto">
-    <button class="btn btn-g" onclick="goHome()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Home</button>
+  <div class="cont" style="padding:76px 16px 24px;max-width:900px;margin:0 auto">
+    <button type="button" class="btn btn-g" onclick="goHome()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Home</button>
     <!-- AARMS sub1c: removido banner explicativo -->
 
     <!-- AARMS sub1b-inv: tabs Inventario -->
@@ -2212,7 +2215,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
         Disoluciones y Reactivos
       </h3>
       <div id="catDisoluciones"></div>
-      <button onclick="catalogoAgregarDisolucion()" style="margin-top:8px;background:rgba(251,191,36,.1);border:1px dashed rgba(251,191,36,.4);color:#fbbf24;padding:8px;border-radius:8px;font-size:11px;cursor:pointer;width:100%">+ Agregar disolución/reactivo</button>
+      <button type="button" role="button" aria-label="Agregar disolución o reactivo" onclick="catalogoAgregarDisolucion()" style="margin-top:8px;background:rgba(251,191,36,.1);border:1px dashed rgba(251,191,36,.4);color:#fbbf24;padding:8px;border-radius:8px;font-size:11px;cursor:pointer;width:100%">+ Agregar disolución/reactivo</button>
     </div>
     <div style="margin-bottom:20px">
       <h3 style="font-family:var(--syne);font-size:14px;color:var(--w);margin:0 0 8px 0;display:flex;align-items:center;gap:8px">
@@ -2220,7 +2223,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
         Soluciones de Conductividad
       </h3>
       <div id="catConductividad"></div>
-      <button onclick="catalogoAgregarConductividad()" style="margin-top:8px;background:rgba(134,239,172,.1);border:1px dashed rgba(134,239,172,.4);color:#86efac;padding:8px;border-radius:8px;font-size:11px;cursor:pointer;width:100%">+ Agregar solución conductividad</button>
+      <button type="button" role="button" aria-label="Agregar solución de conductividad" onclick="catalogoAgregarConductividad()" style="margin-top:8px;background:rgba(134,239,172,.1);border:1px dashed rgba(134,239,172,.4);color:#86efac;padding:8px;border-radius:8px;font-size:11px;cursor:pointer;width:100%">+ Agregar solución conductividad</button>
     </div>
     <div style="margin-bottom:20px">
       <h3 style="font-family:var(--syne);font-size:14px;color:var(--w);margin:0 0 8px 0;display:flex;align-items:center;gap:8px">
@@ -2228,7 +2231,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
         Otros Patrones / Agua Reactivo
       </h3>
       <div id="catOtros"></div>
-      <button onclick="catalogoAgregarOtro()" style="margin-top:8px;background:rgba(103,232,249,.1);border:1px dashed rgba(103,232,249,.4);color:#67e8f9;padding:8px;border-radius:8px;font-size:11px;cursor:pointer;width:100%">+ Agregar otro patrón</button>
+      <button type="button" role="button" aria-label="Agregar otro patrón" onclick="catalogoAgregarOtro()" style="margin-top:8px;background:rgba(103,232,249,.1);border:1px dashed rgba(103,232,249,.4);color:#67e8f9;padding:8px;border-radius:8px;font-size:11px;cursor:pointer;width:100%">+ Agregar otro patrón</button>
     </div>
     <div style="margin-bottom:20px" id="catOdDisol">
       <h3 style="font-family:var(--syne);font-size:14px;color:var(--w);margin:0 0 8px 0">OD → Disoluciones</h3>
@@ -2352,6 +2355,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   </div>
   <div class="cont" style="padding:16px;max-width:720px;margin:0 auto">
     <button class="btn btn-g" onclick="goHome()" style="font-size:12px;margin-bottom:14px;padding:9px 14px">← Home</button>
+    <div id="lote22fAlmacen" style="font-size:12px;color:var(--g1);margin:0 0 14px;line-height:1.4">Almacenamiento: …</div>
 
     <div class="card" style="margin-bottom:14px">
       <div class="ch"><div class="ct">Muestreador (esta tablet)</div></div>
