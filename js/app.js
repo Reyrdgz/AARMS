@@ -609,8 +609,10 @@ function _lote11TempEntero(prom){
   if(typeof prom !== 'number' || isNaN(prom)) return '';
   return String(Math.round(prom));
 }
-function _lote11TempHoja(tomaNum){
-  const ts = (typeof omar !== 'undefined' && omar && omar.ts) ? omar.ts : '';
+function _lote11TempHoja(tomaNum, omarTs){
+  const ts = (omarTs != null && String(omarTs) !== '')
+    ? omarTs
+    : ((typeof omar !== 'undefined' && omar && omar.ts) ? omar.ts : '');
   return {
     amb: _lote11TempEntero(_bitTempPromAmbPorToma(ts, tomaNum)),
     agua: _lote11TempEntero(_bitTempPromAguaPorToma(ts, tomaNum))
@@ -1314,6 +1316,7 @@ window.addEventListener('DOMContentLoaded',async ()=>{
     pg.addEventListener('input', e=>{
       const tg=e.target;
       if(!tg) return;
+      if(tg.setAttribute) tg.setAttribute('data-lote21-dirty','1');
       // Guardar también valores de tomas (inputs dentro de #tomasBody)
       const tCard=tg.closest('[data-toma-id]');
       if(tCard){ _captureTomaInputs(tCard); }
@@ -5443,7 +5446,10 @@ async function _generarItemPDF(item){
     // Generar PDF del LVAR. La función ya está hecha; le forzamos un fileName custom.
     return await _generarLVARConNombre(item.fileName);
   }
-  if(['hojaCampo','cadena','cliente'].includes(item.kind)){
+  if(item.kind === 'hojaCampo'){
+    return await _generarPDFOMARConNombre(item.kind, item.fileName, item.muestreoId);
+  }
+  if(['cadena','cliente'].includes(item.kind)){
     // Cargar el muestreo destino y generar el PDF correspondiente.
     if(item.muestreoId){
       cargarMuestreo(item.muestreoId);
@@ -5473,14 +5479,14 @@ async function _generarLVARConNombre(fileName){
 }
 
 // Wrapper sobre genPDF/genCadena para que descargue con nombre custom y sin compartir
-async function _generarPDFOMARConNombre(kind, fileName){
+async function _generarPDFOMARConNombre(kind, fileName, omarId){
   const origEntregar = window.entregarPDF;
   window.entregarPDF = async (blob, fname, opts) => {
     _downloadBlob(blob, fileName);
   };
   try {
     if(kind === 'hojaCampo'){
-      await buildPDF();
+      await buildPDF(omarId);
     } else if(kind === 'cadena'){
       await buildPDFCadena();
     } else if(kind === 'cliente'){
@@ -6771,14 +6777,20 @@ function loadCampoFromOMAR(){
     sv('h_obs',c.obs);
     sv('gps_n',c.gpsN); sv('gps_w',c.gpsW);
     sv('fn_nom',c.fnNom); sv('fn_car',c.fnCar);
-    sv('mn_nom',c.mnNom);
-    window._lote3baHojaDe = omar && omar.ts;
+    sv('mn_nom',c.mnNom); sv('mn_car',c.mnCar); sv('mn_sup',c.mnSup);
+    sv('h_comp',c.comp); sv('h_resg',c.resg);
     // Marcar chip de intervalo si lo tenía
     if(c.int){
       document.querySelectorAll('#h_intChips .chip').forEach(chip=>{
         if(chip.textContent.trim()===c.int) chip.classList.add('on');
       });
     }
+  }
+  window._lote3baHojaDe = omar && omar.ts;
+  const pgHoja = document.getElementById('pg1');
+  if(pgHoja && omar && omar.ts){
+    pgHoja.setAttribute('data-lote21-omar', String(omar.ts));
+    pgHoja.querySelectorAll('input, textarea, select').forEach(el=>el.removeAttribute('data-lote21-dirty'));
   }
   // AARMS lote14b: la empresa del plan pisa lo guardado en la hoja
   if(typeof _lote14AplicarEmpresa === 'function' && omar && omar.ts){
@@ -7008,7 +7020,13 @@ function setHInt(el,v){
 }
 function setSino(key,el,v){
   const w=el.closest('.sino');w.querySelectorAll('.sino-b').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');document.getElementById('h_'+key).value=v;
+  el.classList.add('on');
+  const inp=document.getElementById('h_'+key);
+  if(inp){
+    inp.value=v;
+    inp.setAttribute('data-lote21-dirty','1');
+  }
+  if(typeof _autoSaveDeferred==='function') _autoSaveDeferred(50);
 }
 function getGPS(){
   if(!navigator.geolocation){
@@ -8339,6 +8357,26 @@ async function planRemoverOmar(planId, muestreoId, {borrarMuestreo=false}={}){
   }
 }
 
+function _lote21HojaCamposSonDe(id){
+  const pg = document.getElementById('pg1');
+  if(!id || !pg) return false;
+  const pintado = String(pg.getAttribute('data-lote21-omar') || '');
+  if(!pintado) return true;
+  return pintado === String(id);
+}
+function _lote21HojaTomar(id, previo){
+  const el = document.getElementById(id);
+  const v = el ? String(el.value || '').trim() : '';
+  const vacio = !v || v === '—' || v === '-';
+  const dirty = !!(el && el.getAttribute('data-lote21-dirty') === '1');
+  const prevTxt = previo == null ? '' : String(previo).trim();
+  const prevOk = prevTxt && prevTxt !== '—' && prevTxt !== '-';
+  if(!vacio) return v;
+  if(dirty) return '';
+  if(prevOk) return prevTxt;
+  return '';
+}
+
 async function saveMuestreoActual(){
   // AARMS lote3ba: generar el Machiote no puede escribir la pantalla encima del registro
   if(window._lote3baSinGuardar) return;
@@ -8357,8 +8395,6 @@ async function saveMuestreoActual(){
     return;
   }
   const gv=elId=>{const e=document.getElementById(elId);return e?e.value.trim():'';};
-  const hMatRaw=document.getElementById('h_mat')?.value?.trim()||'';
-  const matCampo=_matrizNormalizada(hMatRaw||omar.mat||omar.campo?.mat||'');
   omar.lab={
     tnom:gv('c_tnom'),tfir:gv('c_tfir'),tfec:gv('c_tfec'),thor:gv('c_thor'),
     inom:gv('c_inom'),ifir:gv('c_ifir'),ifec:gv('c_ifec'),ihor:gv('c_ihor'),
@@ -8371,32 +8407,40 @@ async function saveMuestreoActual(){
     sup:gv('c_sup'),
     obs:gv('c_obs'),
   };
-  // Guardar también todos los datos del form de Hoja de Campo y firmas (pg1)
-  // que ANTES no se guardaban — por eso se perdían entre OMARs.
-  omar.campo = {
-    emp:    gv('h_emp'),
-    ate:    gv('h_ate'),
-    dir:    gv('h_dir'),
-    hcar:   gv('h_hcar'),
-    cciar:  gv('h_cciar'),
-    ini:    gv('h_ini'),
-    arribo: gv('h_arribo'),
-    fin:    gv('h_fin'),
-    idm:    gv('h_idm'),
-    mat:    matCampo,
-    tipo:   document.getElementById('h_tipo')?.value || '',
-    int:    gv('h_int'),
-    clima:  gv('h_clima'),
-    plan:   gv('h_plan'),
-    cdt:    gv('h_cdt'),
-    rdt:    gv('h_rdt'),
-    obs:    gv('h_obs'),
-    gpsN:   gv('gps_n'),
-    gpsW:   gv('gps_w'),
-    fnNom:  gv('fn_nom'),
-    fnCar:  gv('fn_car'),
-    mnNom:  gv('mn_nom'),
-  };
+  // AARMS lote21e: la hoja de otra OMAR no se escribe encima de este registro.
+  if(_lote21HojaCamposSonDe(mid)){
+    const prevC = (omar.campo && typeof omar.campo === 'object') ? omar.campo : {};
+    const tomar = (id, prev) => _lote21HojaTomar(id, prev);
+    omar.campo = {
+      emp:    tomar('h_emp', prevC.emp),
+      ate:    tomar('h_ate', prevC.ate),
+      dir:    tomar('h_dir', prevC.dir),
+      hcar:   tomar('h_hcar', prevC.hcar),
+      cciar:  tomar('h_cciar', prevC.cciar),
+      ini:    tomar('h_ini', prevC.ini),
+      arribo: tomar('h_arribo', prevC.arribo),
+      fin:    tomar('h_fin', prevC.fin),
+      idm:    tomar('h_idm', prevC.idm),
+      mat:    _matrizNormalizada(tomar('h_mat', prevC.mat || omar.mat || '')),
+      tipo:   tomar('h_tipo', prevC.tipo),
+      int:    tomar('h_int', prevC.int),
+      clima:  tomar('h_clima', prevC.clima),
+      plan:   tomar('h_plan', prevC.plan),
+      cdt:    tomar('h_cdt', prevC.cdt),
+      rdt:    tomar('h_rdt', prevC.rdt),
+      obs:    tomar('h_obs', prevC.obs),
+      gpsN:   tomar('gps_n', prevC.gpsN),
+      gpsW:   tomar('gps_w', prevC.gpsW),
+      comp:   tomar('h_comp', prevC.comp),
+      resg:   tomar('h_resg', prevC.resg),
+      fnNom:  tomar('fn_nom', prevC.fnNom),
+      fnCar:  tomar('fn_car', prevC.fnCar),
+      mnNom:  tomar('mn_nom', prevC.mnNom),
+      mnCar:  tomar('mn_car', prevC.mnCar),
+      mnSup:  tomar('mn_sup', prevC.mnSup),
+    };
+  }
+  if(!omar.campo || typeof omar.campo !== 'object') omar.campo = {};
   // Preservar planId del registro anterior si existía; si hay uno pendiente, usarlo
   const prev = _cachedMuestreos.find(x=>x.id===mid);
   let planId = prev?.planId || null;
@@ -8590,8 +8634,8 @@ function genPDF(tipo='lab'){
     return;
   }
 
-  // Auto-save muestreo before generating PDF
-  saveMuestreoActual();
+  // AARMS lote21e: la Hoja se guarda dentro de buildPDF, y solo si la pantalla es esa OMAR.
+  if(tipo !== 'lab') saveMuestreoActual();
   window._pdfTipo=tipo;
   const btn=tipo==='cliente'?document.getElementById('btnPDFCliente'):document.getElementById('btnPDFLab');
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
@@ -8610,7 +8654,164 @@ function genPDF(tipo='lab'){
   run();
 }
 
-async function buildPDF(){
+function _lote21TomasConSet(arr){
+  return (arr || []).map(t => {
+    const s = _tomaSanitized(t);
+    return Object.assign({}, s, { params: new Set(s.params || []) });
+  });
+}
+function _lote21CamposDesdeRegistro(o){
+  const c = (o && o.campo) || {};
+  const s = v => v == null ? '' : String(v);
+  return {
+    h_emp: s(c.emp || o.empresa || ''),
+    h_ate: s(c.ate || o.contacto || ''),
+    h_dir: s(c.dir || o.direccion || ''),
+    h_hcar: s(c.hcar || ''),
+    h_cciar: s(c.cciar || ''),
+    h_ini: s(c.ini || ''),
+    h_fin: s(c.fin || ''),
+    h_arribo: s(c.arribo || ''),
+    h_idm: s(c.idm || o.idmuestra || ''),
+    h_omar: s(o.folio || ''),
+    h_mat: s(c.mat || o.mat || ''),
+    h_tipo: s(c.tipo || o.tipo || ''),
+    h_int: s(c.int || o.intervalo || ''),
+    h_clima: s(c.clima || ''),
+    h_plan: s(c.plan || ''),
+    h_obs: s(c.obs || ''),
+    gps_n: s(c.gpsN || ''),
+    gps_w: s(c.gpsW || ''),
+    h_comp: s(c.comp || ''),
+    h_cdt: s(c.cdt || ''),
+    h_resg: s(c.resg || ''),
+    h_rdt: s(c.rdt || ''),
+    fn_nom: s(c.fnNom || o.contacto || ''),
+    fn_car: s(c.fnCar || o.puesto || ''),
+    mn_nom: s(c.mnNom || o.muestreador || ''),
+    mn_car: s(c.mnCar || ''),
+    mn_sup: s(c.mnSup || ''),
+  };
+}
+async function _lote21HojaFuente(omarIdPedido){
+  const pg = document.getElementById('pg1');
+  const pantallaId = pg ? String(pg.getAttribute('data-lote21-omar') || '') : '';
+  const id = omarIdPedido
+    ? String(omarIdPedido)
+    : (pantallaId || (omar && omar.ts ? String(omar.ts) : ''));
+  if(!id) return null;
+  const todos = await idbGetAll();
+  const m = (todos || []).find(x => String(x.id) === id);
+  if(!m) return null;
+  let original = {};
+  try { original = m.omar ? JSON.parse(m.omar) : {}; } catch(e){ original = {}; }
+  const o = JSON.parse(JSON.stringify(original));
+  o.ts = m.id;
+  const misma = _lote21HojaCamposSonDe(id);
+  if(misma){
+    const prevC = (o.campo && typeof o.campo === 'object') ? o.campo : {};
+    const tomar = (domId, prev) => _lote21HojaTomar(domId, prev);
+    o.campo = {
+      emp: tomar('h_emp', prevC.emp),
+      ate: tomar('h_ate', prevC.ate),
+      dir: tomar('h_dir', prevC.dir),
+      hcar: tomar('h_hcar', prevC.hcar),
+      cciar: tomar('h_cciar', prevC.cciar),
+      ini: tomar('h_ini', prevC.ini),
+      arribo: tomar('h_arribo', prevC.arribo),
+      fin: tomar('h_fin', prevC.fin),
+      idm: tomar('h_idm', prevC.idm),
+      mat: _matrizNormalizada(tomar('h_mat', prevC.mat || o.mat || '')),
+      tipo: tomar('h_tipo', prevC.tipo),
+      int: tomar('h_int', prevC.int),
+      clima: tomar('h_clima', prevC.clima),
+      plan: tomar('h_plan', prevC.plan),
+      cdt: tomar('h_cdt', prevC.cdt),
+      rdt: tomar('h_rdt', prevC.rdt),
+      obs: tomar('h_obs', prevC.obs),
+      gpsN: tomar('gps_n', prevC.gpsN),
+      gpsW: tomar('gps_w', prevC.gpsW),
+      comp: tomar('h_comp', prevC.comp),
+      resg: tomar('h_resg', prevC.resg),
+      fnNom: tomar('fn_nom', prevC.fnNom),
+      fnCar: tomar('fn_car', prevC.fnCar),
+      mnNom: tomar('mn_nom', prevC.mnNom),
+      mnCar: tomar('mn_car', prevC.mnCar),
+      mnSup: tomar('mn_sup', prevC.mnSup),
+    };
+    const folEl = document.getElementById('h_omar');
+    if(folEl){
+      const v = String(folEl.value || '').trim();
+      const dirty = folEl.getAttribute('data-lote21-dirty') === '1';
+      if(v) o.folio = v;
+      else if(dirty) o.folio = '';
+    }
+    if(typeof _flushTomasDesdeDOM === 'function') _flushTomasDesdeDOM();
+    const tomasGuardar = (tomas || []).map(t => _tomaSanitized(t));
+    const foto = photoData || null;
+    const foto2 = photoData2 || null;
+    const sig = sigData || null;
+    const sig2 = sigData2 || null;
+    const cambia = _lote21JsonEstable(o.campo) !== _lote21JsonEstable(original.campo || {})
+      || String(o.folio || '') !== String(original.folio || '')
+      || _lote21JsonEstable(tomasGuardar) !== _lote21JsonEstable(m.tomas || [])
+      || sig !== (m.sigData || null)
+      || sig2 !== (m.sigData2 || null)
+      || foto !== (m.photoData || null)
+      || foto2 !== (m.photoData2 || null);
+    if(cambia){
+      const base = JSON.parse(JSON.stringify(original));
+      base.campo = o.campo;
+      base.folio = o.folio || '';
+      base.ts = m.id;
+      const entry = Object.assign({}, m, {
+        folio: o.folio || m.folio || '',
+        tomas: tomasGuardar,
+        omar: JSON.stringify(base),
+        sigData: sig,
+        sigData2: sig2,
+        photoData: foto,
+        photoData2: foto2,
+      });
+      await idbPut(entry);
+      await refreshCache();
+      if(typeof omar !== 'undefined' && omar && String(omar.ts) === id){
+        omar.campo = o.campo;
+        omar.folio = o.folio || '';
+      }
+    }
+    return {
+      id,
+      omar: o,
+      tomas: _lote21TomasConSet(tomasGuardar),
+      photoData: foto,
+      photoData2: foto2,
+      sigData: sig,
+      sigData2: sig2,
+      campos: _lote21CamposDesdeRegistro(o),
+    };
+  }
+  return {
+    id,
+    omar: o,
+    tomas: _lote21TomasConSet(m.tomas || []),
+    photoData: m.photoData || null,
+    photoData2: m.photoData2 || null,
+    sigData: m.sigData || null,
+    sigData2: m.sigData2 || null,
+    campos: _lote21CamposDesdeRegistro(o),
+  };
+}
+
+async function buildPDF(omarIdPedido){
+  const fuente = await _lote21HojaFuente(omarIdPedido);
+  if(!fuente){ toast('No hay OMAR para la Hoja de Campo','w'); return; }
+  const photoData = fuente.photoData;
+  const sigData = fuente.sigData;
+  const sigData2 = fuente.sigData2;
+  const tomas = fuente.tomas;
+  const omar = fuente.omar;
+  const gv = id => fuente.campos[id] != null ? String(fuente.campos[id]) : '';
   const {jsPDF}=window.jspdf;
   // PRE-LOAD all images before drawing
   const [imgFoto,imgSigCli,imgSigMuest,logoPDF]=await Promise.all([
@@ -8628,10 +8829,8 @@ async function buildPDF(){
   const MGRAY=[208,216,228],LGRAY=[232,238,245],DGRAY=[51,65,85];
   const TEAL=[14,124,107],WHITE=[255,255,255],GREEN=[22,163,74];
 
-  const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';}
-
   // ══════════════════════════════════════
-  // PAGE 1
+  // PAGE 1 — AARMS lote21e: gv lee el registro de la OMAR pedida
   // ══════════════════════════════════════
 
   // ── HEADER — AARMS sub10-std: membrete compartido + folios ──
@@ -8744,7 +8943,7 @@ async function buildPDF(){
     x=M;
     if(t){
       // AARMS lote11b: T.AMB y T.AGU = Report B y Report A del Machiote. Sin bitácora, en blanco.
-      const rep = _lote11TempHoja(idx + 1);
+      const rep = _lote11TempHoja(idx + 1, fuente.id);
       const fixVals=[`T${idx+1}`,t.hora||'',t.pct?t.pct+'%':'',t.ls||'',
         rep.amb?rep.amb+'°':'',rep.agua?rep.agua+'°':'',t.ph||'',t.mat||'',
         t.cond||'',t.od||'',t.color||'',t.olor===true?'SI':t.olor===false?'NO':'',
@@ -16095,13 +16294,7 @@ async function generarPDFColabCompletoBlob(){
 }
 
 async function generarPDFOmarBlob(omarId){
-  const prevOmarId = omar && omar.ts ? String(omar.ts) : null;
-  try{
-    if(String(omarId) !== prevOmarId) cargarMuestreo(omarId);
-    return await _pdfCaptureOutput(() => buildPDF());
-  } finally {
-    if(prevOmarId && String(omarId) !== prevOmarId) cargarMuestreo(prevOmarId);
-  }
+  return await _pdfCaptureOutput(() => buildPDF(omarId));
 }
 
 window._pdfCaptureOutput = _pdfCaptureOutput;
