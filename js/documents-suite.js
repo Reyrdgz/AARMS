@@ -688,19 +688,41 @@ function poblarBpm(){
     });
   }
 }
+function _lote21BpmPantallaDeEste(plan){
+  const pg = document.getElementById('pgBpm');
+  if(!plan || !pg || !pg.classList.contains('on')) return false;
+  return String(pg.getAttribute('data-lote21-plan') || '') === String(plan.id);
+}
 function leerBpm(){
   // AARMS lote16: solo los dos textos libres. omar.bpm (y f7_preserv) no se reescribe.
+  // AARMS lote21d1: solo si la pantalla es este plan. Un cuadro vacío no borra, salvo que se haya borrado.
   const plan = _lote16Plan();
-  if(!plan) return;
-  const p3 = document.getElementById('lote16Punto3');
-  const ob = document.getElementById('lote16Obs');
-  if(p3) plan.bpmPunto3 = String(p3.value || '').trim();
-  if(ob) plan.bpmObs = String(ob.value || '').trim();
+  if(!plan || !_lote21BpmPantallaDeEste(plan)) return;
+  const tomar = (el, prev) => {
+    if(!el) return prev || '';
+    const v = String(el.value || '').trim();
+    if(v) return v;
+    if(el.getAttribute('data-lote21-dirty') === '1') return '';
+    return prev || '';
+  };
+  plan.bpmPunto3 = tomar(document.getElementById('lote16Punto3'), plan.bpmPunto3);
+  plan.bpmObs = tomar(document.getElementById('lote16Obs'), plan.bpmObs);
 }
 function abrirPagBpm(){
   const plan = _lote16Plan();
   if(!plan){ toast('Abre un plan primero','w'); return; }
+  const pg = document.getElementById('pgBpm');
+  if(pg) pg.setAttribute('data-lote21-plan', plan.id);
   poblarBpm();
+  if(pg){
+    pg.querySelectorAll('[data-lote21-dirty]').forEach(el => el.removeAttribute('data-lote21-dirty'));
+    if(!pg.dataset.lote21DirtyBound){
+      pg.dataset.lote21DirtyBound = '1';
+      pg.addEventListener('input', e => {
+        if(e.target && e.target.matches && e.target.matches('textarea, input')) e.target.setAttribute('data-lote21-dirty', '1');
+      });
+    }
+  }
   const pl = document.getElementById('bpmPill');
   if(pl) pl.textContent = plan.folio ? ('Folio ' + plan.folio) : 'Plan';
   if(typeof _aplicarDocEstadoBadge === 'function') _aplicarDocEstadoBadge('bpm');
@@ -947,15 +969,11 @@ async function generarPDFBpm(){
   const plan = _lote16Plan();
   if(!plan){ toast('Abre un plan primero','w'); return; }
   // AARMS lote21d: solo funde la pantalla si es este plan, y un cuadro vacío no borra el texto guardado.
-  const pgBpm = document.getElementById('pgBpm');
-  if(pgBpm && pgBpm.classList.contains('on')){
-    const p3 = document.getElementById('lote16Punto3');
-    const ob = document.getElementById('lote16Obs');
-    const t3 = p3 ? String(p3.value || '').trim() : '';
-    const to = ob ? String(ob.value || '').trim() : '';
-    if(t3) plan.bpmPunto3 = t3;
-    if(to) plan.bpmObs = to;
-    if((t3 || to) && typeof idbPlanPut === 'function'){
+  if(_lote21BpmPantallaDeEste(plan)){
+    const antes3 = String(plan.bpmPunto3 || '');
+    const antesO = String(plan.bpmObs || '');
+    leerBpm();
+    if((String(plan.bpmPunto3 || '') !== antes3 || String(plan.bpmObs || '') !== antesO) && typeof idbPlanPut === 'function'){
       try{ await idbPlanPut(plan); }catch(e){}
     }
   }
