@@ -5446,10 +5446,10 @@ async function _generarItemPDF(item){
     // Generar PDF del LVAR. La función ya está hecha; le forzamos un fileName custom.
     return await _generarLVARConNombre(item.fileName);
   }
-  if(item.kind === 'hojaCampo'){
+  if(item.kind === 'hojaCampo' || item.kind === 'cadena'){
     return await _generarPDFOMARConNombre(item.kind, item.fileName, item.muestreoId);
   }
-  if(['cadena','cliente'].includes(item.kind)){
+  if(item.kind === 'cliente'){
     // Cargar el muestreo destino y generar el PDF correspondiente.
     if(item.muestreoId){
       cargarMuestreo(item.muestreoId);
@@ -5488,7 +5488,7 @@ async function _generarPDFOMARConNombre(kind, fileName, omarId){
     if(kind === 'hojaCampo'){
       await buildPDF(omarId);
     } else if(kind === 'cadena'){
-      await buildPDFCadena();
+      await buildPDFCadena(omarId);
     } else if(kind === 'cliente'){
       await buildPDFCliente();
     }
@@ -6779,6 +6779,7 @@ function loadCampoFromOMAR(){
     sv('fn_nom',c.fnNom); sv('fn_car',c.fnCar);
     sv('mn_nom',c.mnNom); sv('mn_car',c.mnCar); sv('mn_sup',c.mnSup);
     sv('h_comp',c.comp); sv('h_resg',c.resg);
+    sv('c_transp',c.transp); sv('c_otro',c.transpOtro);
     // Marcar chip de intervalo si lo tenía
     if(c.int){
       document.querySelectorAll('#h_intChips .chip').forEach(chip=>{
@@ -8438,6 +8439,8 @@ async function saveMuestreoActual(){
       mnNom:  tomar('mn_nom', prevC.mnNom),
       mnCar:  tomar('mn_car', prevC.mnCar),
       mnSup:  tomar('mn_sup', prevC.mnSup),
+      transp: tomar('c_transp', prevC.transp),
+      transpOtro: tomar('c_otro', prevC.transpOtro),
     };
   }
   if(!omar.campo || typeof omar.campo !== 'object') omar.campo = {};
@@ -8691,6 +8694,8 @@ function _lote21CamposDesdeRegistro(o){
     mn_nom: s(c.mnNom || o.muestreador || ''),
     mn_car: s(c.mnCar || ''),
     mn_sup: s(c.mnSup || ''),
+    c_transp: s(c.transp || ''),
+    c_otro: s(c.transpOtro || ''),
   };
 }
 async function _lote21HojaFuente(omarIdPedido){
@@ -8738,6 +8743,8 @@ async function _lote21HojaFuente(omarIdPedido){
       mnNom: tomar('mn_nom', prevC.mnNom),
       mnCar: tomar('mn_car', prevC.mnCar),
       mnSup: tomar('mn_sup', prevC.mnSup),
+      transp: tomar('c_transp', prevC.transp),
+      transpOtro: tomar('c_otro', prevC.transpOtro),
     };
     const folEl = document.getElementById('h_omar');
     if(folEl){
@@ -8789,6 +8796,7 @@ async function _lote21HojaFuente(omarIdPedido){
       sigData: sig,
       sigData2: sig2,
       campos: _lote21CamposDesdeRegistro(o),
+      misma: true,
     };
   }
   return {
@@ -8800,6 +8808,7 @@ async function _lote21HojaFuente(omarIdPedido){
     sigData: m.sigData || null,
     sigData2: m.sigData2 || null,
     campos: _lote21CamposDesdeRegistro(o),
+    misma: false,
   };
 }
 
@@ -9833,7 +9842,6 @@ function genCadena(){
     try{
       // CRÍTICO: guardar el estado actual del formulario a omar.lab
       // antes de generar, para que el PDF vea los valores recién escritos
-      if(omar.folio){ await saveMuestreoActual(); }
       await buildPDFCadena();
       if(btn){btn.disabled=false;btn.textContent='Cadena de Custodia';}
     }catch(e){
@@ -9845,7 +9853,12 @@ function genCadena(){
   run();
 }
 
-async function buildPDFCadena(){
+async function buildPDFCadena(omarIdPedido){
+  const fuente = await _lote21HojaFuente(omarIdPedido);
+  if(!fuente){ toast('No hay OMAR para la Cadena de Custodia','w'); return; }
+  const tomas = fuente.tomas;
+  const omar = fuente.omar;
+  const gv = id => fuente.campos[id] != null ? String(fuente.campos[id]) : '';
   const {jsPDF}=window.jspdf;
   const logoPDF=await loadLogo(LOGO_PDF_URI);
   // Landscape US Letter
@@ -9858,7 +9871,6 @@ async function buildPDFCadena(){
   const AMBER=[255,251,224],AMBER2=[255,243,176];
   const AMBER_TXT=[80,60,0],BLACK=[0,0,0];
 
-  const gv=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
   const now=new Date();
   const dStr=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
   const tStr=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
@@ -10081,14 +10093,9 @@ async function buildPDFCadena(){
 
   // ── FIRMAS MATRIZ — campos editables PDF ──
   const FW=CW/3;
-  // IMPORTANTE: leer directo del DOM. omar.lab solo sirve como respaldo
-  // para muestreos cargados desde IndexedDB que aún no tienen valor en pantalla.
+  // AARMS lote21e: si la pantalla es otra OMAR, la cadena usa solo el registro pedido.
   const labStored = omar.lab||{};
-  const labGet = id => {
-    const el=document.getElementById(id);
-    const v=el?el.value:'';
-    return (v&&v.trim())||'';
-  };
+  const labGet = id => fuente.misma ? _lote21HojaTomar(id, '') : '';
   // Construye el objeto lab combinando DOM + fallback
   const lab = {
     tnom: labGet('c_tnom')||labStored.tnom||'',
@@ -10283,8 +10290,7 @@ async function buildPDFCadena(){
   fillRect(obsX,y,obsW,11,[225,232,246]);
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(6);
   doc.text('OBSERVACIONES',obsX+obsW/2,y+7.5,{align:'center'});
-  const obsEl=document.getElementById('c_obs');
-  const obsVal=(obsEl ? obsEl.value : ((omar.lab&&omar.lab.obs)||'')).trim();
+  const obsVal=(fuente.misma ? _lote21HojaTomar('c_obs', (omar.lab&&omar.lab.obs)||'') : ((omar.lab&&omar.lab.obs)||'')).trim();
   if(!obsVal){
     doc.setDrawColor(195,204,216);doc.setLineWidth(0.4);
     doc.line(obsX+1, y+12, obsX+obsW-1, y+respH-1);
