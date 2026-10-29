@@ -4337,6 +4337,17 @@ function _calcCantEnvasePorOmar(env, nTomas){
   if(env.tipo === 'simple') return n;
   return n + 1;
 }
+function _lote22cEnvaseCuenta(env, o){
+  // AARMS lote22c: un OMAR simple usa la columna simple; uno compuesto, la compuesta según su duración.
+  const tipoO = String(o && o.tipo || '').trim().toLowerCase();
+  const tipoE = String(env && env.tipo || '').trim().toLowerCase();
+  if(tipoO === 'simple' && tipoE !== 'simple') return 0;
+  if(tipoO === 'compuesto' && tipoE !== 'compuesto') return 0;
+  const lista = (o && o.analitos) || [];
+  const aplica = !env.analitos || env.analitos.length === 0 || env.analitos.some(a => lista.includes(a));
+  if(!aplica) return 0;
+  return _calcCantEnvasePorOmar(env, o.ntomas);
+}
 
 function buildLvarEnvases(){
   const c = document.getElementById('lv_envases');
@@ -4362,19 +4373,12 @@ function buildLvarEnvases(){
   }
 
   // Filtrar: solo envases con analitos coincidentes, o "siempre presentes"
-  const aplicables = LVAR_ENVASES.filter(env => {
-    if(env.analitos.length === 0) return true;
-    return env.analitos.some(a => analitosTotales.has(a));
-  });
+  const aplicables = LVAR_ENVASES.filter(env => omars.some(o => _lote22cEnvaseCuenta(env, o) > 0));
 
   c.innerHTML = aplicables.map(env => {
     const saved = d[env.key] || {};
     let cantCalc = 0;
-    omars.forEach((o) => {
-      const aplica = env.analitos.length === 0 || env.analitos.some(a => (o.analitos||[]).includes(a));
-      if(!aplica) return;
-      cantCalc += _calcCantEnvasePorOmar(env, o.ntomas);
-    });
+    omars.forEach((o) => { cantCalc += _lote22cEnvaseCuenta(env, o); });
     const cant = saved.cant !== undefined ? saved.cant : cantCalc;
     const tipoBadge = env.tipo === 'simple'
       ? `<span style="background:rgba(251,191,36,.1);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">SIMPLE</span>`
@@ -5080,9 +5084,9 @@ async function generarPDFLVAR(){
       const tipoTxt = om.noRealizada
         ? ((om.tipo || '—') + ' N/R')
         : (om.tipo || '—');
-      const analitosTxt = (om.analitos && om.analitos.length)
-        ? om.analitos.join(', ')
-        : ((om.analitosNombres && om.analitosNombres.length) ? om.analitosNombres.join(', ') : '—');
+      const analitosTxt = (om.analitosNombres && om.analitosNombres.length)
+        ? om.analitosNombres.join(', ')
+        : ((om.analitos && om.analitos.length) ? om.analitos.join(', ') : '—');
       if(typeof _filaPrem === 'function'){
         y = _filaPrem(doc, [
           asci(om.folio || '—'),
@@ -5090,7 +5094,7 @@ async function generarPDFLVAR(){
           String(om.ntomas || 1),
           asci(analitosTxt)
         ], M, y, omarCws, omarH, idx, {
-          font:FONT, fontSize:6.6, maxCharsArr:[12, 16, 8, 42]
+          font:FONT, fontSize:6.6, maxCharsArr:[12, 16, 8, 90]
         });
       } else {
         const bg = idx%2===0 ? WHITE : [248,250,252];
@@ -5118,10 +5122,7 @@ async function generarPDFLVAR(){
   const omarsActivas = omars.filter(o => !o.noRealizada);
   const analitosTotales = new Set();
   omarsActivas.forEach(o => (o.analitos||[]).forEach(a => analitosTotales.add(a)));
-  const aplicables = LVAR_ENVASES.filter(e => {
-    if(e.analitos.length === 0) return true;
-    return e.analitos.some(a => analitosTotales.has(a));
-  });
+  const aplicables = LVAR_ENVASES.filter(e => omarsActivas.some(o => _lote22cEnvaseCuenta(e, o) > 0));
 
   const envH = 14;
   const envCws = [CW*0.70, CW*0.15, CW*0.15];
@@ -5154,10 +5155,7 @@ async function generarPDFLVAR(){
       ensureSpace(envH+2);
       const s = env[envItem.key] || {};
       let cantCalc = 0;
-      omarsActivas.forEach(o => {
-        const aplica = envItem.analitos.length === 0 || envItem.analitos.some(a => (o.analitos||[]).includes(a));
-        if(aplica) cantCalc += _calcCantEnvasePorOmar(envItem, o.ntomas);
-      });
+      omarsActivas.forEach(o => { cantCalc += _lote22cEnvaseCuenta(envItem, o); });
       const cant = (s.cant!==undefined && s.cant!=='') ? s.cant : cantCalc;
       if(typeof _filaPrem === 'function'){
         y = _filaPrem(doc, [
@@ -15894,6 +15892,29 @@ function _curPlan(){
   return (_cachedPlanes||[]).find(p=>p.id===_currentPlanId) || null;
 }
 
+function _lote22aTomasEsperadas(o){
+  const n = parseInt(o && o.ntomas, 10);
+  if(n > 0) return n;
+  const tipo = String(o && o.tipo || '');
+  const intv = String(o && o.intervalo || '');
+  const tabla = tipo === 'Simple' ? SIMPLE_TOMAS_POR_INTERVALO : (tipo === 'Compuesto' ? TOMAS_POR_INTERVALO : null);
+  if(tabla && intv && tabla[intv]) return tabla[intv];
+  return 0;
+}
+function _lote22aOmarTieneDatos(m, o){
+  if(o && String(o.folio || '').trim()) return true;
+  if(o && Array.isArray(o.analitos) && o.analitos.length) return true;
+  if(m && Array.isArray(m.tomas) && m.tomas.length) return true;
+  if(m && m.sigData && String(m.sigData).length > 10) return true;
+  return false;
+}
+function _lote22aOmarHojaCompleta(m, o){
+  const esp = _lote22aTomasEsperadas(o);
+  const tomas = (m && Array.isArray(m.tomas)) ? m.tomas : [];
+  if(!esp || tomas.length !== esp) return false;
+  if(!tomas.every(t => t && String(t.hora || '').trim())) return false;
+  return !!(m && m.sigData && String(m.sigData).length > 10);
+}
 function _planOmarData(plan){
   const ids = plan && plan.omarIds ? plan.omarIds : [];
   const out = [];
@@ -16049,15 +16070,17 @@ function _planEstadoDoc(plan, docKey){
       return 'progreso';
     }
     case 'omars': {
+      // AARMS lote22a: Completo solo con las tomas de la duración, su hora y la firma del cliente.
+      // Un plan viejo no se reescribe: si no trae duración, se queda en progreso y no se marca solo.
       const ids = plan.omarIds || [];
-      if(ids.length === 0) return 'vacio';
-      let completos = 0;
-      for(const {o} of _planOmarData(plan)){
-        if(o.folio && o.empresa) completos++;
-      }
-      if(completos === 0) return 'vacio';
-      if(completos === ids.length) return 'completo';
-      return 'progreso';
+      const datos = _planOmarData(plan);
+      if(ids.length === 0 || datos.length === 0) return 'vacio';
+      const alguno = datos.some(({m, o}) => _lote22aOmarTieneDatos(m, o));
+      if(!alguno) return 'vacio';
+      const todos = datos.length === ids.length && datos.every(({m, o}) => _lote22aOmarHojaCompleta(m, o));
+      if(!todos) return 'progreso';
+      if(_planDocGateLocked(plan, 'omars')) return 'progreso';
+      return 'completo';
     }
   }
   return 'vacio';
@@ -16891,39 +16914,79 @@ function _lote10AguaOk(){
   const d = _catalogoAguaReactivo();
   return !!(d && _lote10Lleno(d.lote) && _lote10Lleno(d.marca) && _lote10Lleno(d.caducidad));
 }
+function _lote22bEstado(lleno, item, alternos){
+  // AARMS lote22b: vencido cuenta como pendiente. Un alterno vigente deja el renglón completo.
+  if(!lleno) return { ok:false, txt:'Falta' };
+  const el = _lote10Elegir(item, alternos || []);
+  if(el.vencido) return { ok:false, txt:'Vencido' };
+  return { ok:true, txt:'Completo' };
+}
+function _lote22bSi(ok){ return { ok:!!ok, txt: ok ? 'Completo' : 'Falta' }; }
+function _lote22bBuffer(lista, i){
+  const b = lista && lista[i];
+  const lleno = !!(b && _lote10Lleno(b.lote) && _lote10Lleno(b.marca) && _lote10Lleno(b.caducidad));
+  return _lote22bEstado(lleno, b, []);
+}
+function _lote22bDisol(nombre){
+  const d = _lote10DisolPorNombre(nombre);
+  const lleno = !!(d && _lote10Lleno(d.lote) && _lote10Lleno(d.caducidad));
+  return _lote22bEstado(lleno, d, _lote10AlternosDisol(nombre));
+}
+function _lote22bReact(nombre){
+  const d = (typeof _catalogoMatchPorNombre === 'function') ? _catalogoMatchPorNombre(nombre) : null;
+  if(!d) return { ok:false, txt:'Falta' };
+  const marca = _lote10Texto(d.marca) || _lote10Texto(_catalogoMarcaDesdeNombre(d.nombre));
+  const lleno = _lote10Lleno(d.lote) && _lote10Lleno(marca) && _lote10Lleno(d.caducidad);
+  return _lote22bEstado(lleno, d, _lote10AlternosDisol(nombre));
+}
+function _lote22bCond(i){
+  const d = _catalogoCache && _catalogoCache.conductividad && _catalogoCache.conductividad[i];
+  const lleno = !!(d && _lote10Lleno(d.lote) && _lote10Lleno(d.marca) && _lote10Lleno(d.caducidad));
+  return _lote22bEstado(lleno, d, []);
+}
+function _lote22bAgua(){
+  const d = (typeof _catalogoAguaReactivo === 'function') ? _catalogoAguaReactivo() : null;
+  const lleno = !!(d && _lote10Lleno(d.lote) && _lote10Lleno(d.marca) && _lote10Lleno(d.caducidad));
+  return _lote22bEstado(lleno, d, []);
+}
+function _lote22bOd(i){
+  const d = _catalogoCache && _catalogoCache.odDisoluciones && _catalogoCache.odDisoluciones[i];
+  const lleno = typeof _lote17OdDisolOk === 'function' ? _lote17OdDisolOk(i) : false;
+  return _lote22bEstado(lleno, d, []);
+}
 function _lote10Pendientes(){
   const m = (typeof _muestreadorActual === 'function') ? _muestreadorActual() : {};
   const s = (typeof _supervisorActual === 'function') ? _supervisorActual() : null;
   const cal = _catalogoCache && _catalogoCache.buffers && _catalogoCache.buffers.calibracion;
   const ver = _catalogoCache && _catalogoCache.buffers && _catalogoCache.buffers.verificacion;
   const filas = [
-    { nombre: 'Nombre del muestreador y su firma', ok: _lote10Lleno(m.nombre) && _lote10Lleno(m.firmaPng), ir: { tipo: 'ajustes', id: 'mestNombre' } },
-    { nombre: 'Supervisor y su PIN', ok: !!(s && _lote10Lleno(s.nombre) && _lote10Lleno(s.pinHash)), ir: { tipo: 'ajustes', id: 'supEstado' } },
-    { nombre: 'Potenciómetro', ok: _lote10EqOk('potenciometros'), ir: { tipo: 'eq', id: 'potenciometros' } },
-    { nombre: 'Conductímetro', ok: _lote10EqOk('conductimetros'), ir: { tipo: 'eq', id: 'conductimetros' } },
-    { nombre: 'Termómetro', ok: _lote10EqOk('termometros'), ir: { tipo: 'eq', id: 'termometros' } },
-    { nombre: 'Malla', ok: _lote10EqOk('mallas'), ir: { tipo: 'eq', id: 'mallas' } },
-    { nombre: 'Kit de cloro', ok: _lote10EqOk('kitsCloro'), ir: { tipo: 'eq', id: 'kitsCloro' } },
-    { nombre: 'Oxímetro', ok: _lote10EqOk('oximetros'), ir: { tipo: 'eq', id: 'oximetros' } },
-    { nombre: 'Patrón de referencia 4.00', ok: _lote10BufferOk(ver, 0), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
-    { nombre: 'Patrón de referencia 7.00', ok: _lote10BufferOk(ver, 1), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
-    { nombre: 'Patrón de referencia 10.00', ok: _lote10BufferOk(ver, 2), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
-    { nombre: 'Patrón de trabajo 4.00', ok: _lote10BufferOk(cal, 0), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
-    { nombre: 'Patrón de trabajo 6.86', ok: _lote10BufferOk(cal, 1), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
-    { nombre: 'Patrón de trabajo 9.18', ok: _lote10BufferOk(cal, 2), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
-    { nombre: 'H₂SO₄ 1:1', ok: _lote10DisolOk('H₂SO₄ 1:1'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'HCl 1:1 (uso general)', ok: _lote10DisolOk('HCl 1:1 (uso general)'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'H₂SO₄ 25%', ok: _lote10DisolOk('H₂SO₄ 25%'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'NaOH 1N', ok: _lote10DisolOk('NaOH 1N'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'K₂Cr₂O₇ 25%', ok: _lote10DisolOk('K₂Cr₂O₇ 25%'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'HCl 1:1 (lavado de electrodo)', ok: _lote10DisolOk('HCl 1:1 (lavado electrodo)'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'HNO₃ ACS', ok: _lote10ReactOk('HNO₃ ACS'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'HNO₃ Suprapuro', ok: _lote10ReactOk('HNO₃ Suprapuro'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'KCl patrón', ok: _lote10CondOk(0), ir: { tipo: 'ancla', id: 'catConductividad' } },
-    { nombre: 'KCl comercial', ok: _lote10CondOk(1), ir: { tipo: 'ancla', id: 'catConductividad' } },
-    { nombre: 'Agua reactivo', ok: _lote10AguaOk(), ir: { tipo: 'ancla', id: 'catOtros' } },
-    { nombre: 'Disolución OD de calibración (0 mgO₂/L)', ok: _lote17OdDisolOk(0), ir: { tipo: 'ancla', id: 'catOdDisol' } },
-    { nombre: 'Disolución OD de trabajo (0 mgO₂/L)', ok: _lote17OdDisolOk(1), ir: { tipo: 'ancla', id: 'catOdDisol' } }
+    { nombre: 'Nombre del muestreador y su firma', ..._lote22bSi(_lote10Lleno(m.nombre) && _lote10Lleno(m.firmaPng)), ir: { tipo: 'ajustes', id: 'mestNombre' } },
+    { nombre: 'Supervisor y su PIN', ..._lote22bSi(!!(s && _lote10Lleno(s.nombre) && _lote10Lleno(s.pinHash))), ir: { tipo: 'ajustes', id: 'supEstado' } },
+    { nombre: 'Potenciómetro', ..._lote22bSi(_lote10EqOk('potenciometros')), ir: { tipo: 'eq', id: 'potenciometros' } },
+    { nombre: 'Conductímetro', ..._lote22bSi(_lote10EqOk('conductimetros')), ir: { tipo: 'eq', id: 'conductimetros' } },
+    { nombre: 'Termómetro', ..._lote22bSi(_lote10EqOk('termometros')), ir: { tipo: 'eq', id: 'termometros' } },
+    { nombre: 'Malla', ..._lote22bSi(_lote10EqOk('mallas')), ir: { tipo: 'eq', id: 'mallas' } },
+    { nombre: 'Kit de cloro', ..._lote22bSi(_lote10EqOk('kitsCloro')), ir: { tipo: 'eq', id: 'kitsCloro' } },
+    { nombre: 'Oxímetro', ..._lote22bSi(_lote10EqOk('oximetros')), ir: { tipo: 'eq', id: 'oximetros' } },
+    { nombre: 'Patrón de referencia 4.00', ..._lote22bBuffer(ver, 0), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
+    { nombre: 'Patrón de referencia 7.00', ..._lote22bBuffer(ver, 1), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
+    { nombre: 'Patrón de referencia 10.00', ..._lote22bBuffer(ver, 2), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
+    { nombre: 'Patrón de trabajo 4.00', ..._lote22bBuffer(cal, 0), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
+    { nombre: 'Patrón de trabajo 6.86', ..._lote22bBuffer(cal, 1), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
+    { nombre: 'Patrón de trabajo 9.18', ..._lote22bBuffer(cal, 2), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
+    { nombre: 'H₂SO₄ 1:1', ..._lote22bDisol('H₂SO₄ 1:1'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'HCl 1:1 (uso general)', ..._lote22bDisol('HCl 1:1 (uso general)'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'H₂SO₄ 25%', ..._lote22bDisol('H₂SO₄ 25%'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'NaOH 1N', ..._lote22bDisol('NaOH 1N'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'K₂Cr₂O₇ 25%', ..._lote22bDisol('K₂Cr₂O₇ 25%'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'HCl 1:1 (lavado de electrodo)', ..._lote22bDisol('HCl 1:1 (lavado electrodo)'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'HNO₃ ACS', ..._lote22bReact('HNO₃ ACS'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'HNO₃ Suprapuro', ..._lote22bReact('HNO₃ Suprapuro'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
+    { nombre: 'KCl patrón', ..._lote22bCond(0), ir: { tipo: 'ancla', id: 'catConductividad' } },
+    { nombre: 'KCl comercial', ..._lote22bCond(1), ir: { tipo: 'ancla', id: 'catConductividad' } },
+    { nombre: 'Agua reactivo', ..._lote22bAgua(), ir: { tipo: 'ancla', id: 'catOtros' } },
+    { nombre: 'Disolución OD de calibración (0 mgO₂/L)', ..._lote22bOd(0), ir: { tipo: 'ancla', id: 'catOdDisol' } },
+    { nombre: 'Disolución OD de trabajo (0 mgO₂/L)', ..._lote22bOd(1), ir: { tipo: 'ancla', id: 'catOdDisol' } }
   ];
   return filas;
 }
@@ -16942,7 +17005,7 @@ async function _lote10PintarArranque(){
         ${filas.map((f, i) => `
           <button type="button" data-lote10-ir="${i}" style="display:flex;width:100%;align-items:center;gap:10px;background:transparent;border:none;border-bottom:1px solid var(--ln);color:var(--w);padding:10px 14px;cursor:pointer;text-align:left">
             <span style="flex:1;font-size:13px">${_lote10EscHtml(f.nombre)}</span>
-            <span style="font-size:11px;font-weight:800;color:${f.ok ? '#34d399' : '#fbbf24'}">${f.ok ? 'Completo' : 'Falta'}</span>
+            <span style="font-size:11px;font-weight:800;color:${f.txt === 'Completo' ? '#34d399' : '#fbbf24'}">${_lote10EscHtml(f.txt || 'Falta')}</span>
           </button>`).join('')}
       </div>
     </div>`;
