@@ -9933,6 +9933,7 @@ async function buildPDFCadena(omarIdPedido){
   const tomas = fuente.tomas;
   const omar = fuente.omar;
   const gv = id => fuente.campos[id] != null ? String(fuente.campos[id]) : '';
+  const tipoDoc = String((omar && omar.tipo) || '').trim() || gv('h_tipo');
   const {jsPDF}=window.jspdf;
   const logoPDF=await loadLogo(LOGO_PDF_URI);
   // Landscape US Letter
@@ -10045,7 +10046,7 @@ async function buildPDFCadena(omarIdPedido){
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5);
   doc.text('TIPO:',M+285,y+9);
   doc.setFont('helvetica','normal');doc.setTextColor(...DGRAY);doc.setFontSize(6.5);
-  doc.text(gv('h_tipo')||'_________',M+303,y+9);
+  doc.text(tipoDoc||'_________',M+303,y+9);
   // TIEMPOS
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(5);
   doc.text('TIEMPOS:',M+385,y+9);
