@@ -9947,7 +9947,7 @@ async function buildPDFCliente(omarIdPedido){
   outerBorder(ML,FY,CW,16);
   doc.setTextColor(...K.lbl);doc.setFont('helvetica','normal');doc.setFontSize(7);
   doc.text('Asesoría y Análisis S.C.  —  Tel. 622 224 0910  —  Guaymas, Sonora',ML+4,FY+7);
-  doc.text('Documento generado con AARMS — valor de registro oficial',ML+4,FY+13);
+  doc.text('Documento generado con AARMS',ML+4,FY+13);
   doc.setFont('helvetica','bold');doc.setTextColor(...K.accent);
   doc.text('F-AA-AR1 (Digital)',PW-ML-4,FY+10,{align:'right'});
 
