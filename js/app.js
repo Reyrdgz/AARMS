@@ -5339,14 +5339,15 @@ async function generarPDFLVAR(){
     toast('LVAR descargado ✓', 'g');
   }
 
-  alertApp({
-    title: 'LVAR generado ✓',
-    message: 'Se generó el PDF del LVAR.\n\nUsa este documento para preparar tu kit de muestreo. Puedes seguir editando el LVAR si necesitas hacer cambios.',
-    okText: 'Listo',
-    variant: 'success',
-  });
-  // Refrescar pantalla LVAR para mostrar el bloqueo
-  abrirLVAR();
+  if(!_lote24CapturandoPdf){
+    alertApp({
+      title: 'LVAR generado ✓',
+      message: 'Se generó el PDF del LVAR.\n\nUsa este documento para preparar tu kit de muestreo. Puedes seguir editando el LVAR si necesitas hacer cambios.',
+      okText: 'Listo',
+      variant: 'success',
+    });
+    abrirLVAR();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -5363,6 +5364,8 @@ function _slug(s){
 let _bulkDownloadPrefix = null;
 
 async function descargarMuestreoCompleto(){
+  // AARMS lote24b: un solo botón. El ZIP lleva todos los documentos del plan.
+  return generarTodosLosPDFs();
   if(!_currentPlanId){ toast('No hay plan abierto','w'); return; }
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
   if(!plan){ toast('Plan no encontrado','r'); return; }
@@ -10548,7 +10551,13 @@ function fmtF(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/$
 // de compartir nativa — así al guardar el archivo el usuario regresa a la app
 // sin perder el estado. En desktop usa descarga clásica.
 // Devuelve Promise que resuelve cuando termina la operación.
+let _lote24CapturandoPdf = false;
+let _lote24PdfBlob = null;
 function entregarPDF(blob, fname, opts={}){
+  if(_lote24CapturandoPdf){
+    _lote24PdfBlob = blob;
+    return Promise.resolve();
+  }
   const {title='Documento — A&A S.C.', text='Documento generado por AARMS'}=opts;
   const file=new File([blob],fname,{type:'application/pdf'});
   const canShare = navigator.share && navigator.canShare && navigator.canShare({files:[file]});
@@ -10687,6 +10696,7 @@ function confirmAction({title='Confirmar', message='¿Estás seguro?', okText='E
 // Alert estilizado de la app — reemplaza el alert() nativo feo
 // Devuelve una Promise que se resuelve cuando el usuario toca OK (para await)
 function alertApp({title='Aviso', message='', okText='Entendido', variant='warn'}={}){
+  if(_lote24CapturandoPdf) return Promise.resolve();
   return new Promise(resolve=>{
     const prev=document.getElementById('alertAppModal');
     if(prev) prev.remove();
@@ -16502,6 +16512,9 @@ async function _pdfCaptureOutput(pdfFn){
   const jspdfNs = window.jspdf;
   const JsPDF = jspdfNs && jspdfNs.jsPDF;
   if(!JsPDF) return null;
+  const yaCapturaba = _lote24CapturandoPdf;
+  _lote24CapturandoPdf = true;
+  _lote24PdfBlob = null;
   let docRef = null;
   let blobOut = null;
   const captureSave = function(){
@@ -16530,6 +16543,7 @@ async function _pdfCaptureOutput(pdfFn){
   window.alertApp = function(){};
   try{
     await pdfFn();
+    if(_lote24PdfBlob) return _lote24PdfBlob;
     if(blobOut) return blobOut;
     if(docRef){
       try{ return docRef.output('blob'); }catch(e){ return null; }
@@ -16540,6 +16554,8 @@ async function _pdfCaptureOutput(pdfFn){
     if(origEntregar) window.entregarPDF = origEntregar;
     window.toast = origToast;
     window.alertApp = origAlert;
+    _lote24CapturandoPdf = yaCapturaba;
+    _lote24PdfBlob = null;
   }
 }
 
@@ -16620,6 +16636,8 @@ async function _pdfABlob(tipo, omarId){
     case 'bm': if(typeof generarPDFBmBlob === 'function') return await generarPDFBmBlob(); break;
     case 'bitod': if(typeof generarPDFBitODBlob === 'function') return await generarPDFBitODBlob(); break;
     case 'omar': if(typeof generarPDFOmarBlob === 'function') return await generarPDFOmarBlob(omarId); break;
+    case 'cadena': return await _pdfCaptureOutput(() => buildPDFCadena(omarId));
+    case 'cliente': return await _pdfCaptureOutput(() => buildPDFCliente(omarId));
   }
   return null;
 }
@@ -16636,57 +16654,60 @@ async function generarTodosLosPDFs(){
   const zip = new JSZip();
   const avisos = [];
   let avisoDonde = '';
-  const generadores = [
-    {key:'bpm', nombre:'BPM_PlanMuestreo.pdf', fn: () => _pdfABlob('bpm')},
-    {key:'lvar', nombre:'LVAR_ListaVerificacion.pdf', fn: () => _pdfABlob('lvar')},
-    {key:'phlab', nombre:'pH_Hoja1_Lab.pdf', fn: () => _pdfABlob('phlab')},
-    {key:'colab', nombre:'Conductimetro.pdf', fn: () => _pdfABlob('colab')},
-    {key:'blmp', nombre:'BLMP_LimpiezaPHmetro.pdf', fn: () => _pdfABlob('blmp')},
-    {key:'bitPh', nombre:'pH_Hoja2_EntreTomas.pdf', fn: () => _pdfABlob('bitPh')},
-    {key:'bitod', nombre:'OD_Bitacora.pdf', fn: () => _pdfABlob('bitod')}
-  ];
-  for(const gen of generadores){
-    if(gen.key === 'bitPh' && plan.ph2644) continue;
-    if(gen.key === 'bitod' && typeof _lote17OdAplica === 'function' && !_lote17OdAplica(plan) && !(typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan))) continue;
-    if(gen.key === 'phlab' && typeof _lote4Ph === 'function' && _lote4Ph(plan)){
-      const rech = (typeof _lote4Rechazos === 'function') ? _lote4Rechazos(plan) : [];
-      const faltan = (typeof _lote4Faltantes === 'function') ? _lote4Faltantes(plan) : [];
-      if(rech.length){
-        avisos.push('Rechaza: ' + rech.map(r => r.texto).join('; '));
-        if(!avisoDonde) avisoDonde = (rech[0] && rech[0].donde) || '';
-        continue;
-      }
-      if(faltan.length){
-        avisos.push('Faltan: ' + faltan.map(f => f.texto).join('; '));
-        if(!avisoDonde) avisoDonde = (faltan[0] && faltan[0].donde) || '';
-        continue;
+  const faltanTxt = [];
+  const anotarFalta = (nombre, err) => {
+    const porque = err ? (': ' + (err.message || String(err))) : '';
+    faltanTxt.push(nombre + porque);
+  };
+  const meter = async (nombre, fn) => {
+    try{
+      const blob = await fn();
+      if(blob) zip.file(nombre, blob);
+      else anotarFalta(nombre);
+    }catch(e){
+      console.warn('[zip]', nombre, e);
+      anotarFalta(nombre, e);
+    }
+  };
+  const odAplica = typeof _lote17OdAplica === 'function' && (_lote17OdAplica(plan) || (typeof _lote17OdEsViejo === 'function' && _lote17OdEsViejo(plan)));
+  await meter('BPM_PlanMuestreo.pdf', () => _pdfABlob('bpm'));
+  await meter('LVAR_ListaVerificacion.pdf', () => _pdfABlob('lvar'));
+  await meter('BLMP_LimpiezaPHmetro.pdf', () => _pdfABlob('blmp'));
+  await meter('pH_F-AA-264-4.pdf', () => _pdfABlob('phlab'));
+  await meter('Conductimetro_F-AA-289-2.pdf', () => _pdfABlob('colab'));
+  if(odAplica) await meter('OD_F-AA-114-18.pdf', () => _pdfABlob('bitod'));
+  const pgHoja = document.getElementById('pg1');
+  const attrHoja = pgHoja ? pgHoja.getAttribute('data-lote21-omar') : null;
+  if(pgHoja) pgHoja.setAttribute('data-lote21-omar', 'zip');
+  try{
+    for(const omarId of (plan.omarIds || [])){
+      if(_lote21EsOculto(omarId)) continue;
+      const m = (_cachedMuestreos||[]).find(x => String(x.id) === String(omarId));
+      const folio = (m && m.folio) ? String(m.folio) : String(omarId);
+      await meter(`HojaDeCampo_${folio}.pdf`, () => _pdfABlob('omar', omarId));
+      await meter(`CadenaCustodia_${folio}.pdf`, () => _pdfABlob('cadena', omarId));
+      await meter(`ReporteMuestreo_${folio}.pdf`, () => _pdfABlob('cliente', omarId));
+      try{
+        let pdfM = null;
+        if(typeof _lote5cUltima === 'function'){
+          const ver = await _lote5cUltima(plan.id, omarId, 'bm');
+          if(ver && ver.pdf) pdfM = ver.pdf;
+        }
+        if(pdfM) zip.file(`Machiote_${folio}.pdf`, pdfM);
+        else anotarFalta(`Machiote_${folio}.pdf`);
+      }catch(e){
+        console.warn('[zip machiote]', e);
+        anotarFalta(`Machiote_${folio}.pdf`, e);
       }
     }
-    try{
-      const blob = await gen.fn();
-      if(blob) zip.file(gen.nombre, blob);
-    }catch(e){ console.warn('[zip]', gen.key, e); }
+  }finally{
+    if(pgHoja){
+      if(attrHoja == null) pgHoja.removeAttribute('data-lote21-omar');
+      else pgHoja.setAttribute('data-lote21-omar', attrHoja);
+    }
   }
-  for(const omarId of (plan.omarIds || [])){
-    if(_lote21EsOculto(omarId)) continue;
-    try{
-      if(typeof _lote5cUltima === 'function'){
-        const ver = await _lote5cUltima(plan.id, omarId, 'bm');
-        if(ver && ver.pdf){
-          const mVer = (_cachedMuestreos||[]).find(x => String(x.id) === String(omarId));
-          const folVer = mVer ? (mVer.folio || omarId) : omarId;
-          zip.file(`Machiote_${folVer}.pdf`, ver.pdf);
-        }
-      }
-    }catch(e){ console.warn('[zip machiote]', e); }
-    try{
-      const blob = await _pdfABlob('omar', omarId);
-      if(blob){
-        const m = (_cachedMuestreos||[]).find(x => String(x.id) === String(omarId));
-        const folio = m ? (m.folio || omarId) : omarId;
-        zip.file(`HojaDeCampo_${folio}.pdf`, blob);
-      }
-    }catch(e){ console.warn('[zip omar]', e); }
+  if(faltanTxt.length){
+    zip.file('FALTAN.txt', 'No se pudo generar:\n' + faltanTxt.map(l => '- ' + l).join('\n') + '\n');
   }
   const blob = await zip.generateAsync({type:'blob'});
   const url = URL.createObjectURL(blob);
@@ -16696,7 +16717,7 @@ async function generarTodosLosPDFs(){
   a.href = url;
   a.download = `AARMS_Plan_${folio}_${fecha}.zip`;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
   if(prevOmarId){
     try{ cargarMuestreo(prevOmarId); }catch(e){ console.warn('[zip restore omar]', e); }
   }
