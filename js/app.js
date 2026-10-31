@@ -4227,7 +4227,7 @@ function buildLvarLoteCadList(containerId, items, section){
         </div>
         <div class="g2">
           <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="lote" data-field="lote" data-required="true" type="text" readonly tabindex="-1" value="${esc(lote)}">
-          <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" readonly tabindex="-1" value="${esc(cad)}">
+          <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" readonly tabindex="-1" value="${esc(fmtFDoc(cad) || cad)}">
         </div>
         ${(!guardado && res.vencido) ? _lote10MsgVencido(it.label) : ''}
       </div>`;
@@ -4269,7 +4269,7 @@ function buildLvarReactivos(){
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
           <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="lote" data-field="lote" data-required="true" type="text" readonly tabindex="-1" value="${esc(lote)}">
           <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="marca" data-field="marca" data-required="true" type="text" readonly tabindex="-1" value="${esc(marca)}">
-          <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" readonly tabindex="-1" value="${esc(cad)}">
+          <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" readonly tabindex="-1" value="${esc(fmtFDoc(cad) || cad)}">
         </div>
         ${(!guardado && res.vencido) ? _lote10MsgVencido(r.label) : ''}
       </div>`;
@@ -4334,7 +4334,7 @@ function buildLvarPatrones(){
           ${p.conValor ? `<input type="text" ${phAttrs} data-lv-patrones="${p.key}" data-campo="valor" data-field="valor" data-required="true" value="${valor||''}" placeholder="pH" readonly style="opacity:.85;background:rgba(74,158,255,.05);cursor:not-allowed;text-align:center;font-weight:700;color:var(--acc)">` : ''}
           <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="lote" data-field="lote" data-required="true" type="text" value="${lote||''}"  placeholder="Lote">
           <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="marca" data-field="marca" data-required="true" type="text" value="${marca||''}" placeholder="${_MARCA_PLACEHOLDER[p.key] || 'Marca'}">
-          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="cad" data-field="cad" data-required="true" type="text" value="${cad||''}"   placeholder="Cad.">
+          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="cad" data-field="cad" data-required="true" type="text" value="${String(fmtFDoc(cad) || cad || '').replace(/"/g,'&quot;')}"   placeholder="Cad.">
         </div>
         ${aviso}
       </div>`;
@@ -4544,7 +4544,11 @@ async function guardarLVAR(silent){
       const field = inp.getAttribute('data-field');
       if(!data[target][key]) data[target][key] = Object.assign({}, (prev[target] && prev[target][key]) || {});
       const editado = inp.getAttribute('data-lote21-dirty') === '1';
-      const val = inp.type === 'checkbox' ? inp.checked : inp.value;
+      let val = inp.type === 'checkbox' ? inp.checked : inp.value;
+      if(typeof val === 'string' && (field === 'cad' || field === 'caducidad')){
+        const iso = fmtFIso(val);
+        if(iso) val = iso;
+      }
       const vacio = inp.type === 'checkbox' ? false : !limpio(val);
       const anterior = prev[target] && prev[target][key] ? prev[target][key][field] : undefined;
       if(vacio && !editado && anterior != null && limpio(anterior)) data[target][key][field] = anterior;
@@ -7979,8 +7983,10 @@ function openDB(){
 // AARMS lote5c: documentos guardados. Registro {plan, OMAR, tipo, versión, fecha y hora, PDF}.
 function _lote5cFecha(ts){
   const d = new Date(ts);
+  if(isNaN(d.getTime())) return fmtFDoc(ts);
   const p = n => String(n).padStart(2, '0');
-  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  const iso = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  return fmtF(iso) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
 }
 function _lote5cPut(rec){
   return openDB().then(db => new Promise((res, rej) => {
@@ -11368,7 +11374,7 @@ function _lote2aPintarAdmin(){
         <td style="padding:4px">${_FOLIO_ETIQUETA[r.tipo]||r.tipo}</td>
         <td>${r.numero}</td><td>${r.doc||''}</td><td>${r.planFolio||r.planId||'—'}</td>
         <td>${r.omarFolio||r.omarId||'—'}</td>
-        <td>${r.fecha||''}</td><td>${r.estado||''}</td>
+        <td>${fmtFDoc(r.fecha)||''}</td><td>${r.estado||''}</td>
       </tr>`).join('')}</tbody></table>`;
   };
 }
@@ -14071,7 +14077,7 @@ function _lote17Pintar(plan, contInfo, contSec){
   const uniq = [...new Set(folios)];
   contInfo.innerHTML = `
     <div style="font-size:12px;color:var(--g1);line-height:1.6">
-      <div>Fecha del plan: <b style="color:var(--w)">${_lote17Inp(plan.fecha || '')}</b></div>
+      <div>Fecha del plan: <b style="color:var(--w)">${_lote17Inp(fmtFDoc(plan.fecha || ''))}</b></div>
       <div>Folios OMAR: <b style="color:var(--w)">${_lote17Inp(uniq.join(', '))}</b></div>
       <div>Oxímetro: <b style="color:var(--w)">${clave ? _lote17Inp(clave) : 'Registra el oxímetro en Inventario'}</b></div>
       <div>Año de bitácoras: <b style="color:var(--w)">${anio}</b></div>
@@ -14095,7 +14101,7 @@ function _lote17Pintar(plan, contInfo, contSec){
         <div class="f" style="margin:0"><label>Ajuste</label><input type="text" value="${_lote17Inp(r.ajuste)}" oninput="lote17Cal('${modo}','${punto}','ajuste',this.value)"></div>
         <div class="f" style="margin:0"><label>Lectura final</label><input type="number" step="0.01" value="${_lote17Inp(r.fin)}" oninput="lote17Cal('${modo}','${punto}','fin',this.value)"></div>
       </div>
-      <div style="font-size:11px;color:var(--g2);margin-top:4px">Fecha ${ _lote17Inp(r.fecha) } · Hora ${ _lote17Inp(r.hora) } · Unidades %</div>
+      <div style="font-size:11px;color:var(--g2);margin-top:4px">Fecha ${ _lote17Inp(fmtFDoc(r.fecha)) } · Hora ${ _lote17Inp(r.hora) } · Unidades %</div>
     </div>`;
   };
   let html = '';
@@ -14122,7 +14128,7 @@ function _lote17Pintar(plan, contInfo, contSec){
     html += (b.lecturas || []).map((r, i) => {
       const p = _lote17OdProm(r.l1, r.l2);
       return `<div style="border-bottom:1px solid var(--ln);padding:6px 0;font-size:12px">
-        <div>${_lote17Inp(r.fecha)} ${_lote17Inp(r.hora)} · OMAR ${_lote17Inp(r.folioOmar)} · ${_lote17Inp(r.idMuestra)} · tiempo ${_lote17Inp(r.tiempo)}</div>
+        <div>${_lote17Inp(fmtFDoc(r.fecha))} ${_lote17Inp(r.hora)} · OMAR ${_lote17Inp(r.folioOmar)} · ${_lote17Inp(r.idMuestra)} · tiempo ${_lote17Inp(r.tiempo)}</div>
         <div class="g3" style="margin-top:4px">
           <div class="f" style="margin:0"><label>Lectura 1</label><input type="number" step="0.01" value="${_lote17Inp(r.l1)}" oninput="lote17Lect(${i},'l1',this.value)"></div>
           <div class="f" style="margin:0"><label>Lectura 2</label><input type="number" step="0.01" value="${_lote17Inp(r.l2)}" oninput="lote17Lect(${i},'l2',this.value)"></div>
@@ -16103,7 +16109,7 @@ function catalogoToggleHistorico(){
     c.innerHTML = h.length === 0
       ? '<div style="text-align:center;padding:14px;color:var(--g2);font-size:11px">Sin cambios registrados</div>'
       : h.map(reg => {
-        const fecha = new Date(reg.fecha).toLocaleString('es-MX');
+        const fecha = fmtFH(reg.fecha) || fmtFDoc(reg.fecha);
         return `<div style="background:var(--bg2);border:1px solid var(--ln);border-radius:7px;padding:8px 10px;margin-bottom:6px;font-size:11.5px">
           <div style="color:var(--g2);font-size:10px;margin-bottom:2px">${fecha} · ${reg.tipo}</div>
           <div style="color:var(--w);font-weight:700">${reg.item}</div>
@@ -17610,7 +17616,7 @@ function _renderSelloFirmaPlan(){
       : '';
     host.innerHTML = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       ${img}
-      <div style="font-size:12px;color:var(--green);font-weight:700">✓ Revisado por ${sup.nombre||'Supervisor'} · ${sup.fecha||''} · ${sup.hora||''}</div>
+      <div style="font-size:12px;color:var(--green);font-weight:700">✓ Revisado por ${sup.nombre||'Supervisor'} · ${fmtFDoc(sup.fecha)||''} · ${sup.hora||''}</div>
     </div>`;
   } else {
     host.style.display = 'none';
@@ -18045,7 +18051,7 @@ async function _cartasRenderVista(){
       tbl.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--g1);padding:16px">Sin datos aún</td></tr>`;
     } else {
       tbl.innerHTML = puntos.map(p => `<tr>
-        <td style="padding:8px">${p.fecha || ''} ${p.hora || ''}</td>
+        <td style="padding:8px">${fmtFDoc(p.fecha)} ${p.hora || ''}</td>
         <td style="padding:8px">${p.folioOMAR || '—'}</td>
         <td style="padding:8px">${p.valor}</td>
         <td style="padding:8px">${p.aceptaRechaza || ''}</td>
@@ -18133,7 +18139,7 @@ async function _cartasDescargarPdf(){
           doc.rect(M, y, cols.reduce((s, c) => s + c.w, 0), rowH, 'F');
         }
         const vals = [
-          String((p.fecha || '') + ' ' + (p.hora || '')).trim(),
+          String((fmtFDoc(p.fecha) + ' ' + (p.hora || '')).trim()),
           String(p.folioOMAR || '-'),
           String(p.valor ?? ''),
           String(p.aceptaRechaza || '')
