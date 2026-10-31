@@ -7635,20 +7635,22 @@ function setNow(inputId){
   if(!el) return;
   const d=new Date();
   const pad=n=>String(n).padStart(2,'0');
-  if(el.type==='date'){
-    el.value=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  } else if(el.type==='time'){
-    el.value=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } else if(el.id && el.id.endsWith('hor')){
-    // input tipo text con patrón HH:MM
-    el.value=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const iso=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const hm=`${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if(el.dataset.lote24Hora==='1'){
+    el.value=iso+'T'+hm;
+  } else if(el.dataset.lote24Fecha==='1' || el.type==='date'){
+    el.value=iso;
+  } else if(el.type==='time' || (el.id && el.id.endsWith('hor'))){
+    el.value=hm;
   } else {
-    // fallback fecha en texto
-    el.value=`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+    el.value=fmtF(iso);
   }
   el.dispatchEvent(new Event('change',{bubbles:true}));
-  el.style.background='rgba(74,222,128,.1)';
-  setTimeout(()=>{el.style.background='';},400);
+  const vis=el.parentElement && el.parentElement.querySelector('.lote24-fecha-txt');
+  const pint=vis||el;
+  pint.style.background='rgba(74,222,128,.1)';
+  setTimeout(()=>{pint.style.background='';},400);
 }
 
 // Llena todas las fechas/horas de una sección con "ahora"
@@ -10610,6 +10612,186 @@ function fmtFAhora(){
   const iso = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
   return `${fmtF(iso)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+
+function _lote24MascaraFecha(raw){
+  const d = String(raw || '').replace(/\D/g, '').slice(0, 6);
+  let o = d.slice(0, 2);
+  if(d.length > 2) o += '/' + d.slice(2, 4);
+  if(d.length > 4) o += '/' + d.slice(4, 6);
+  return o;
+}
+function _lote24MontarFecha(input){
+  if(!input || input.dataset.lote24Fecha === '1') return;
+  if(input.type !== 'date' && input.type !== 'datetime-local') return;
+  const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  const esHora = input.type === 'datetime-local';
+  const valorInicial = input.value || '';
+  const soloLectura = input.readOnly || input.disabled;
+  input.dataset.lote24Fecha = '1';
+  if(esHora) input.dataset.lote24Hora = '1';
+  input.type = 'hidden';
+  proto.set.call(input, valorInicial);
+  const wrap = document.createElement('div');
+  wrap.className = 'lote24-fecha';
+  const vis = document.createElement('input');
+  vis.type = 'text';
+  vis.className = 'lote24-fecha-txt';
+  vis.inputMode = 'numeric';
+  vis.autocomplete = 'off';
+  vis.placeholder = 'aa/mm/dd';
+  vis.setAttribute('aria-label', 'Fecha aa/mm/dd');
+  vis.readOnly = soloLectura;
+  if(input.required){ input.required = false; vis.required = true; }
+  const aviso = document.createElement('div');
+  aviso.className = 'lote24-fecha-aviso';
+  let horaEl = null;
+  if(esHora){
+    horaEl = document.createElement('input');
+    horaEl.type = 'time';
+    horaEl.setAttribute('aria-label', 'Hora');
+    horaEl.readOnly = soloLectura;
+  }
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'lote24-fecha-btn';
+  btn.textContent = '▾';
+  btn.setAttribute('aria-label', 'Elegir fecha');
+  if(soloLectura) btn.disabled = true;
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(vis);
+  if(horaEl) wrap.appendChild(horaEl);
+  wrap.appendChild(btn);
+  wrap.appendChild(input);
+  wrap.appendChild(aviso);
+  const pintar = () => {
+    const v = proto.get.call(input);
+    if(esHora){
+      const m = String(v || '').match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/);
+      const f = m ? fmtF(m[1]) : '';
+      vis.value = (f && f !== '—') ? f : '';
+      if(horaEl) horaEl.value = (m && m[2]) ? m[2] : '';
+      return;
+    }
+    if(!v){ vis.value = ''; return; }
+    if(String(v).toUpperCase() === 'N/A'){ vis.value = 'N/A'; return; }
+    const f = fmtF(v);
+    vis.value = (f && f !== '—') ? f : String(v);
+  };
+  const escribir = (iso, avisar) => {
+    if(esHora){
+      const h = (horaEl && horaEl.value) ? horaEl.value.slice(0, 5) : '';
+      proto.set.call(input, iso ? (iso + (h ? ('T' + h) : '')) : '');
+    } else {
+      proto.set.call(input, iso || '');
+    }
+    if(avisar){
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    pintar();
+  };
+  Object.defineProperty(input, 'value', {
+    configurable: true,
+    get(){ return proto.get.call(input); },
+    set(v){ proto.set.call(input, v == null ? '' : String(v)); pintar(); }
+  });
+  vis.addEventListener('input', () => {
+    const pegado = vis.value.trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(pegado)){
+      const isoPeg = fmtFIso(pegado);
+      if(isoPeg){ aviso.textContent = ''; escribir(isoPeg, true); return; }
+    }
+    const masked = _lote24MascaraFecha(vis.value);
+    if(vis.value !== masked) vis.value = masked;
+    if(!masked){ aviso.textContent = ''; escribir('', true); return; }
+    if(masked.length < 8){ aviso.textContent = ''; return; }
+    const iso = fmtFIso(masked);
+    if(!iso){
+      aviso.textContent = 'Fecha imposible. El orden es aa/mm/dd.';
+      if(typeof toast === 'function') toast('Fecha imposible', 'w');
+      return;
+    }
+    aviso.textContent = '';
+    escribir(iso, true);
+  });
+  vis.addEventListener('blur', () => {
+    if(aviso.textContent) pintar();
+  });
+  if(horaEl){
+    horaEl.addEventListener('input', () => {
+      const cur = String(proto.get.call(input) || '');
+      const m = cur.match(/^(\d{4}-\d{2}-\d{2})/);
+      const h = horaEl.value ? horaEl.value.slice(0, 5) : '';
+      if(!m) return;
+      proto.set.call(input, m[1] + (h ? ('T' + h) : ''));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  btn.addEventListener('click', () => _lote24AbrirSelector(input, vis, escribir));
+  pintar();
+}
+function _lote24CerrarSelector(){
+  const prev = document.getElementById('lote24Cal');
+  if(prev) prev.remove();
+}
+function _lote24AbrirSelector(input, vis, escribir){
+  _lote24CerrarSelector();
+  const actual = fmtFIso(vis.value) || String(input.value || '').slice(0, 10);
+  const base = /^\d{4}-\d{2}-\d{2}$/.test(actual) ? actual : _lote21HoyFecha();
+  const partes = base.split('-');
+  const panel = document.createElement('div');
+  panel.id = 'lote24Cal';
+  panel.className = 'lote24-cal';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-label', 'Elegir fecha');
+  const p2 = n => String(n).padStart(2, '0');
+  const anios = [];
+  for(let y = 2000; y <= 2099; y++) anios.push(`<option value="${p2(y).slice(-2)}"${y === +partes[0] ? ' selected' : ''}>${p2(y).slice(-2)}</option>`);
+  const meses = [];
+  for(let m = 1; m <= 12; m++) meses.push(`<option value="${p2(m)}"${m === +partes[1] ? ' selected' : ''}>${p2(m)}</option>`);
+  const dias = [];
+  for(let d = 1; d <= 31; d++) dias.push(`<option value="${p2(d)}"${d === +partes[2] ? ' selected' : ''}>${p2(d)}</option>`);
+  panel.innerHTML = `<p>Fecha aa/mm/dd</p><div class="lote24-cal-row">
+    <label>Año<select id="lote24CalA">${anios.join('')}</select></label>
+    <label>Mes<select id="lote24CalM">${meses.join('')}</select></label>
+    <label>Día<select id="lote24CalD">${dias.join('')}</select></label>
+  </div><div class="lote24-fecha-aviso" id="lote24CalAviso"></div>
+  <div class="lote24-cal-acciones"><button type="button" id="lote24CalOk">Aplicar</button><button type="button" id="lote24CalNo">Cerrar</button></div>`;
+  document.body.appendChild(panel);
+  document.getElementById('lote24CalNo').onclick = _lote24CerrarSelector;
+  document.getElementById('lote24CalOk').onclick = () => {
+    const txt = document.getElementById('lote24CalA').value + '/' + document.getElementById('lote24CalM').value + '/' + document.getElementById('lote24CalD').value;
+    const iso = fmtFIso(txt);
+    const av = document.getElementById('lote24CalAviso');
+    if(!iso){
+      if(av) av.textContent = 'Fecha imposible. El orden es aa/mm/dd.';
+      if(typeof toast === 'function') toast('Fecha imposible', 'w');
+      return;
+    }
+    escribir(iso, true);
+    _lote24CerrarSelector();
+  };
+}
+function _lote24FechasArranque(){
+  const list = (root) => {
+    if(!root || !root.querySelectorAll) return;
+    root.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(_lote24MontarFecha);
+  };
+  list(document);
+  const mo = new MutationObserver((muts) => {
+    muts.forEach(m => {
+      m.addedNodes.forEach(n => {
+        if(!n || n.nodeType !== 1) return;
+        if(n.matches && n.matches('input[type="date"], input[type="datetime-local"]')) _lote24MontarFecha(n);
+        list(n);
+      });
+    });
+  });
+  if(document.body) mo.observe(document.body, { childList: true, subtree: true });
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _lote24FechasArranque);
+else _lote24FechasArranque();
 // Store last PDF blob for sharing
 
 // Helper universal para entregar un PDF al usuario.
