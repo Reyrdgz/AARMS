@@ -4438,6 +4438,36 @@ function buildLvarEnvases(){
 }
 
 let _lvarFolioPendiente = null;
+// AARMS lote24b: el folio del LVAR se toma en el primer guardado con datos, una sola vez.
+async function _lote24AsegurarFolioLvar(plan){
+  if(!plan) return '';
+  plan.lvar = plan.lvar || {};
+  const limpio = v => (!v || v === '—' || v === '-') ? '' : String(v).trim();
+  const yaFolio = limpio(plan.lvar.folio);
+  if(yaFolio) return yaFolio;
+  const gv = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
+  const tiene = limpio(plan.lvar.fecha) || limpio(plan.lvar.lugar) || limpio(plan.lvar.asig)
+    || limpio(gv('lv_fecha')) || limpio(gv('lv_lugar')) || limpio(gv('lv_asig'));
+  if(!tiene) return '';
+  if(!_lvarFolioPendiente){
+    _lvarFolioPendiente = _folioTomar('lvar', 1, {
+      planId: plan.id, planFolio: plan.folio || '', doc: 'LVAR',
+      ya: ()=>{
+        const ya = plan.lvar && limpio(plan.lvar.folio);
+        return ya ? [ya] : [];
+      },
+      aplicar: (out)=>{ plan.lvar = plan.lvar || {}; plan.lvar.folio = out[0]; }
+    });
+  }
+  const nums = await _lvarFolioPendiente;
+  const folio = (plan.lvar && limpio(plan.lvar.folio)) || (nums && nums[0]) || '';
+  _lvarFolioPendiente = null;
+  if(folio){
+    plan.lvar.folio = folio;
+    _lote2aPintarCampo('lv_folio', folio);
+  }
+  return folio;
+}
 let _hcarFolioPendiente = null;
 let _cciarFolioPendiente = null;
 function _lote21JsonEstable(v){
@@ -4467,23 +4497,7 @@ async function guardarLVAR(silent){
     return prev[key] != null ? prev[key] : '';
   };
   let folio = campo('folio', 'lv_folio');
-  const tieneDatos = ['lv_fecha','lv_lugar','lv_dir','lv_ciudad','lv_estado','lv_tipo','lv_norma','lv_obs','lv_asig'].some(id => limpio(gv(id)) || limpio(prev[{lv_fecha:'fecha',lv_lugar:'lugar',lv_dir:'direccion',lv_ciudad:'ciudad',lv_estado:'estado',lv_tipo:'tipo',lv_norma:'norma',lv_obs:'obs',lv_asig:'asig'}[id]]));
-  if(!folio && tieneDatos){
-    if(!_lvarFolioPendiente){
-      _lvarFolioPendiente = _folioTomar('lvar', 1, {
-        planId: plan.id, planFolio: plan.folio || '', doc: 'LVAR',
-        ya: ()=>{
-          const ya = plan.lvar && limpio(plan.lvar.folio);
-          return ya ? [ya] : [];
-        },
-        aplicar: (out)=>{ plan.lvar = plan.lvar || {}; plan.lvar.folio = out[0]; }
-      });
-    }
-    const nums = await _lvarFolioPendiente;
-    folio = (plan.lvar && limpio(plan.lvar.folio)) || nums[0];
-    _lvarFolioPendiente = null;
-    _lote2aPintarCampo('lv_folio', folio);
-  }
+  if(!folio) folio = await _lote24AsegurarFolioLvar(plan);
 
   const data = {
     folio,
@@ -4579,8 +4593,15 @@ async function generarPDFLVAR(){
   const plan = _cachedPlanes.find(p=>p.id===_currentPlanId);
   if(!plan){ return; }
   await _lote21LvarFundirPantalla(plan);
+  const folioAntes = plan.lvar && plan.lvar.folio;
+  const folioListo = await _lote24AsegurarFolioLvar(plan);
+  if(folioListo && folioListo !== folioAntes){
+    plan.lvar.folio = folioListo;
+    try{ await guardarPlan(plan); }catch(e){}
+  }
   // AARMS lote21d: el PDF sale de una copia. La fusión del catálogo no se escribe en el plan.
   const data = JSON.parse(JSON.stringify(plan.lvar || {}));
+  if(folioListo) data.folio = folioListo;
 
   // AARMS v66-fix: fusionar valores del catálogo en data antes de generar PDF
   // Esto asegura que disoluciones, reactivos y patrones lleven sus lotes/marcas/caducidades
@@ -4677,24 +4698,25 @@ async function generarPDFLVAR(){
   const MGRAY=[208,216,228], LGRAY=[232,238,245], DGRAY=[51,65,85];
   const WHITE=[255,255,255], GREEN=[22,163,74];
 
-  // AARMS v64: header uniforme
+  // AARMS lote24b: las dos páginas llevan Folio: 000X en el encabezado.
   const HDR = 72;
   const folioLVAR = data.folio ? `Folio: ${data.folio}` : 'Folio: —';
-  // AARMS lvartitulofix: título completo — shrink fuente / ensancha caja / wrap 2 líneas (solo LVAR)
-  // AARMS lvarfiel2: título oficial completo (corrige typo MUESTEO → MUESTREO)
-  if(typeof window._pdfMembreteStd === 'function'){
-    window._pdfMembreteStd(doc, logoPDF, {
-      docTitulo: 'LISTA DE VERIFICACIÓN DE MUESTREO',
-      docSubtitulo: folioLVAR || 'LVAR',
-      codigoFormato: 'F-AA-60-16',
-      margin: M,
-      contentY: HDR,
-      docTituloFit: true
-    }, FONT);
-  } else {
-    _pdfStdHeader(doc, logoPDF, W, M, HDR, 'LISTA DE VERIFICACIÓN DE MUESTREO', folioLVAR || 'LVAR', 'F-AA-60-16');
-  }
-  let y = HDR + 8;
+  const pintarEncabezadoLvar = () => {
+    if(typeof window._pdfMembreteStd === 'function'){
+      return window._pdfMembreteStd(doc, logoPDF, {
+        docTitulo: 'LISTA DE VERIFICACIÓN DE MUESTREO',
+        docSubtitulo: folioLVAR,
+        folio: data.folio || '',
+        folioSiempre: true,
+        codigoFormato: 'F-AA-60-16',
+        margin: M,
+        docTituloFit: true
+      }, FONT);
+    }
+    _pdfStdHeader(doc, logoPDF, W, M, HDR, 'LISTA DE VERIFICACIÓN DE MUESTREO', folioLVAR, 'F-AA-60-16');
+    return HDR + 8;
+  };
+  let y = pintarEncabezadoLvar();
 
   // ════════ Helpers de dibujo ════════
   // Limpia caracteres que jsPDF helvetica base no soporta (subíndices, símbolos,
@@ -4822,7 +4844,7 @@ async function generarPDFLVAR(){
     if(y + need > H - 90){
       drawFooter();
       doc.addPage();
-      y = M;
+      y = pintarEncabezadoLvar();
     }
   };
 
