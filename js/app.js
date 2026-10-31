@@ -9438,6 +9438,11 @@ async function buildPDFCliente(omarIdPedido){
   const sigData = fuente.sigData;
   const sigData2 = fuente.sigData2;
   const gv = id => fuente.campos[id] != null ? String(fuente.campos[id]).trim() : '';
+  const tipoDoc = String((omar && omar.tipo) || '').trim() || gv('h_tipo');
+  const lugarDoc = String((omar && omar.sitio) || '').trim();
+  const puntoDoc = String((omar && omar.idmuestra) || '').trim() || gv('h_idm');
+  const nombreMuest = _lote24FirmaAjustes().nombre || gv('mn_nom');
+  const ambRep = _lote11TempHoja(1, fuente.id).amb;
   const {jsPDF}=window.jspdf;
   // PRE-LOAD all images BEFORE starting PDF draw
   const [imgFoto2,imgSig,imgSig2,logoPDF]=await Promise.all([
@@ -9481,9 +9486,16 @@ async function buildPDFCliente(omarIdPedido){
     doc.setTextColor(...K.lbl);doc.setFont('helvetica','bold');doc.setFontSize(6.5);
     doc.text(String(lbl).toUpperCase(),x+3,y+6);
     doc.setTextColor(...(opts.teal?K.teal:K.blk));
-    doc.setFont('helvetica',opts.bold?'bold':'normal');doc.setFontSize(opts.big?10:9);
-    const maxC=Math.floor((w-6)/5.2);
-    doc.text(String(val||'').substring(0,maxC),x+3,y+h-3);
+    doc.setFont('helvetica',opts.bold?'bold':'normal');
+    const size = opts.big ? 9 : 8;
+    doc.setFontSize(size);
+    const lines = doc.splitTextToSize(String(val||''), Math.max(8, w-6)).slice(0,2);
+    if(lines.length < 2){
+      doc.text(lines[0]||'', x+3, y+h-4);
+    }else{
+      doc.text(lines[0], x+3, y+11);
+      doc.text(lines[1], x+3, y+h-3);
+    }
   };
 
   // Image drawing is now synchronous via preloaded data above
@@ -9521,16 +9533,16 @@ async function buildPDFCliente(omarIdPedido){
   y=secH('Datos generales del servicio',y);
   const RH=19,hw=CW/2,qw=CW/4;
   dc(ML,y,hw,RH,'Empresa solicitante',gv('h_emp'),{bold:true,big:true});
-  dc(ML+hw,y,hw,RH,'Sitio de muestreo',gv('h_idm'),{bold:true,big:true});
+  dc(ML+hw,y,hw,RH,'Sitio de muestreo',lugarDoc,{bold:true,big:true});
   y+=RH;
-  dc(ML,y,CW*0.38,RH,'ID de la muestra',gv('h_idm'));
+  dc(ML,y,CW*0.38,RH,'ID de la muestra',puntoDoc);
   dc(ML+CW*0.38,y,CW*0.32,RH,'Norma / Matriz',gv('h_mat'));
-  dc(ML+CW*0.70,y,CW*0.30,RH,'Tipo de muestreo',gv('h_tipo')+(gv('h_int')?' / '+gv('h_int'):''),{teal:true,bold:true});
+  dc(ML+CW*0.70,y,CW*0.30,RH,'Tipo de muestreo',tipoDoc+(gv('h_int')?' / '+gv('h_int'):''),{teal:true,bold:true});
   y+=RH;
-  dc(ML,y,qw,RH,'Muestreador',gv('mn_nom'));
+  dc(ML,y,qw,RH,'Muestreador',nombreMuest);
   dc(ML+qw,y,qw,RH,'Recibido por',gv('fn_nom'));
   dc(ML+qw*2,y,qw,RH,'Hora de arribo',(function(){ const a=gv('h_arribo'); return a ? (a+' h') : ''; })());
-  dc(ML+qw*3,y,qw,RH,'Temp. ambiente',tomas.length>0&&tomas[0].tamb?tomas[0].tamb+' °C':'—',{bold:true});
+  dc(ML+qw*3,y,qw,RH,'Temp. ambiente',ambRep?ambRep+' °C':'—',{bold:true});
   y+=RH;
   dc(ML,y,CW*0.2,RH,'Coord. N',gv('gps_n'));
   dc(ML+CW*0.2,y,CW*0.2,RH,'Coord. W',gv('gps_w'));
@@ -9550,13 +9562,11 @@ async function buildPDFCliente(omarIdPedido){
   const pBY=y+12,pBH=FH-28,pBW=FW-10;
   doc.setFillColor(...K.fotoBg);doc.rect(ML+5,pBY,pBW,pBH,'F');
   doc.setDrawColor(176,184,196);doc.setLineWidth(0.3);doc.rect(ML+5,pBY,pBW,pBH,'S');
-  if(photoData2){
+  if(photoData2 && imgFoto2){
     drawFittedImg(doc,imgFoto2,ML+5,pBY,pBW,pBH);
   }else{
     doc.setTextColor(136,136,136);doc.setFont('helvetica','italic');doc.setFontSize(8);
-    doc.text('Foto capturada en campo',ML+5+pBW/2,pBY+pBH/2-5,{align:'center'});
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);
-    doc.text(dStr+' — '+tStr,ML+5+pBW/2,pBY+pBH/2+5,{align:'center'});
+    doc.text('[Sin foto — tomar foto desde la app]',ML+5+pBW/2,pBY+pBH/2,{align:'center'});
   }
   // Redraw photo box border on top always
   doc.setDrawColor(138,154,176);doc.setLineWidth(0.3);doc.rect(ML+5,pBY,pBW,pBH,'S');
@@ -9613,16 +9623,18 @@ async function buildPDFCliente(omarIdPedido){
     doc.setTextColor(...K.lbl);doc.setFont('helvetica','bold');doc.setFontSize(7);
     doc.text('INFORMACIÓN DEL PUNTO',rX+5,y+9);
     const infoList=[
-      ['Empresa',gv('h_emp')],['Sitio',gv('h_idm')],['Muestreador',gv('mn_nom')],
+      ['Empresa',gv('h_emp')],['Sitio',lugarDoc],['Muestreador',nombreMuest],
       ['Fecha inicio',gv('h_ini').replace('T',' ').substring(0,16)],
-      ['Tipo',gv('h_tipo')],['Coord. N','Sin GPS'],['Coord. W','Sin GPS'],
+      ['Tipo',tipoDoc],['Coord. N','Sin GPS'],['Coord. W','Sin GPS'],
     ];
     infoList.forEach(([l,v],i)=>{
       const iy=y+14+i*16;
       if(i>0){doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.line(rX+4,iy-1,rX+FW-4,iy-1);}
       doc.setTextColor(...K.lbl);doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.text(l.toUpperCase(),rX+4,iy+3);
-      doc.setTextColor(...K.blk);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-      doc.text(String(v||'—').substring(0,25),rX+4,iy+11);
+      doc.setTextColor(...K.blk);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+      const lines=doc.splitTextToSize(String(v||'—'), FW-12).slice(0,2);
+      if(lines.length<2) doc.text(lines[0]||'', rX+4, iy+11);
+      else { doc.text(lines[0], rX+4, iy+9); doc.text(lines[1], rX+4, iy+16); }
     });
   }
   y+=FH;
@@ -9802,11 +9814,16 @@ async function buildPDFCliente(omarIdPedido){
     // Rows
     allP.slice(0,14).forEach((p,ri)=>{
       const bg=ri%2===0?K.wht:K.rowAlt;
-      const lbl=ALIAS[p]||p;
+      const pedidos=[];
+      (omar.analitos||[]).forEach(a=>{
+        if(ANALITO_A_PARAM[a]===p && pedidos.indexOf(a)<0) pedidos.push(a);
+      });
+      const lbl=pedidos.length?pedidos.join(', '):(ALIAS[p]||p);
       doc.setFillColor(...bg);doc.rect(ML,y,ALW,TRR,'F');
       doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.rect(ML,y,ALW,TRR,'S');
-      doc.setTextColor(...K.blk);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-      doc.text(lbl.substring(0,45), ML+4, y+9);
+      doc.setTextColor(...K.blk);doc.setFont('helvetica','normal');doc.setFontSize(8);
+      const linea=doc.splitTextToSize(lbl, ALW-8);
+      doc.text(linea[0]||'', ML+4, y+9);
       tomas.forEach((t,ti)=>{
         const cx=ML+ALW+ti*ATW;
         doc.setFillColor(...bg);doc.rect(cx,y,ATW,TRR,'F');
@@ -9845,7 +9862,8 @@ async function buildPDFCliente(omarIdPedido){
   doc.setTextColor(...K.lbl);doc.setFont('helvetica','bold');doc.setFontSize(7);
   doc.text('FIRMA DEL MUESTREADOR',ML+4,y+9);
   doc.setDrawColor(...K.bdrCell);doc.setLineWidth(0.2);doc.line(ML+4,y+11,ML+SW-4,y+11);
-  doc.setTextColor(...K.blk);doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(gv('mn_nom'),ML+4,y+21);
+  doc.setTextColor(...K.blk);doc.setFont('helvetica','normal');doc.setFontSize(8);
+  doc.splitTextToSize(nombreMuest, SW-8).slice(0,2).forEach((ln,i)=>doc.text(ln, ML+4, y+20+i*9));
   doc.setTextColor(...K.lbl);doc.setFontSize(7.5);doc.text('Muestreador — Asesoría y Análisis S.C.',ML+4,y+30);
   // Fixed sig box
   const mSY=y+34,mSH=SH-48,mSW=SW-8;
