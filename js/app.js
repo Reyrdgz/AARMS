@@ -16943,7 +16943,10 @@ async function generarTodosLosPDFs(){
       await meter(`ReporteMuestreo_${folio}.pdf`, () => _pdfABlob('cliente', omarId));
       try{
         let pdfM = null;
-        if(typeof _lote5cUltima === 'function'){
+        if(typeof generarPDFBm === 'function'){
+          pdfM = await _pdfCaptureOutput(() => generarPDFBm(omarId));
+        }
+        if(!pdfM && typeof _lote5cUltima === 'function'){
           const ver = await _lote5cUltima(plan.id, omarId, 'bm');
           if(ver && ver.pdf) pdfM = ver.pdf;
         }
