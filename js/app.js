@@ -4877,7 +4877,7 @@ async function generarPDFLVAR(){
   // ════════ DATOS GENERALES ════════
   y = sectionTitle('DATOS GENERALES', y);
   const r1H = 22;
-  textCell(M,         y, CW*0.30, r1H, 'FECHA',         data.fecha || '');
+  textCell(M,         y, CW*0.30, r1H, 'FECHA',         fmtFDoc(data.fecha));
   textCell(M+CW*0.30, y, CW*0.40, r1H, 'CIUDAD',        data.ciudad || '');
   textCell(M+CW*0.70, y, CW*0.30, r1H, 'NORMA',         data.norma  || '');
   y += r1H;
@@ -4961,7 +4961,7 @@ async function generarPDFLVAR(){
     ensureSpace(dH+2);
     const s = dis[d.key] || {};
     if(typeof _filaPrem === 'function'){
-      y = _filaPrem(doc, [asci(d.pdfLabel || d.label), asci(s.lote||''), asci(s.cad||'')], M, y, disCws, dH, idx, {
+      y = _filaPrem(doc, [asci(d.pdfLabel || d.label), asci(s.lote||''), asci(fmtFDoc(s.cad))], M, y, disCws, dH, idx, {
         font:FONT, fontSize:7.2, maxCharsArr:[40, 16, 14]
       });
     } else {
@@ -4972,7 +4972,7 @@ async function generarPDFLVAR(){
       doc.setTextColor(...DGRAY); doc.setFont(FONT,'normal');
       doc.text(asci(d.pdfLabel || d.label), M+5, y+9);
       doc.text(asci(valStyle(s.lote)), M+CW*0.55, y+9);
-      doc.text(asci(valStyle(s.cad)),  M+CW*0.78, y+9);
+      doc.text(asci(valStyle(fmtFDoc(s.cad))),  M+CW*0.78, y+9);
       y += dH;
     }
   });
@@ -4999,7 +4999,7 @@ async function generarPDFLVAR(){
     ensureSpace(dH+2);
     const s = reac[r.key] || {};
     if(typeof _filaPrem === 'function'){
-      y = _filaPrem(doc, [asci(r.pdfLabel || r.label), asci(s.lote||''), asci(s.marca||''), asci(s.cad||'')], M, y, reacCws, dH, idx, {
+      y = _filaPrem(doc, [asci(r.pdfLabel || r.label), asci(s.lote||''), asci(s.marca||''), asci(fmtFDoc(s.cad))], M, y, reacCws, dH, idx, {
         font:FONT, fontSize:7.2, maxCharsArr:[32, 14, 14, 12]
       });
     } else {
@@ -5011,7 +5011,7 @@ async function generarPDFLVAR(){
       doc.text(asci(r.pdfLabel || r.label), M+5, y+9);
       doc.text(asci(valStyle(s.lote)),  M+CW*0.45, y+9);
       doc.text(asci(valStyle(s.marca)), M+CW*0.65, y+9);
-      doc.text(asci(valStyle(s.cad)),   M+CW*0.85, y+9);
+      doc.text(asci(valStyle(fmtFDoc(s.cad))),   M+CW*0.85, y+9);
       y += dH;
     }
   });
@@ -5042,7 +5042,7 @@ async function generarPDFLVAR(){
       y = _filaPrem(doc, [
         asci(p.pdfLabel || p.label),
         asci(p.conValor ? (s.valor||'') : ''),
-        asci(s.lote||''), asci(s.marca||''), asci(s.cad||'')
+        asci(s.lote||''), asci(s.marca||''), asci(fmtFDoc(s.cad))
       ], M, y, patCws, dH, idx, {
         font:FONT, fontSize:7.0, maxCharsArr:[30, 10, 12, 14, 12]
       });
@@ -5056,7 +5056,7 @@ async function generarPDFLVAR(){
       doc.text(asci(valStyle(p.conValor ? s.valor : '')), M+CW*0.42, y+9);
       doc.text(asci(valStyle(s.lote)),  M+CW*0.55, y+9);
       doc.text(asci(valStyle(s.marca)), M+CW*0.72, y+9);
-      doc.text(asci(valStyle(s.cad)),   M+CW*0.89, y+9);
+      doc.text(asci(valStyle(fmtFDoc(s.cad))),   M+CW*0.89, y+9);
       y += dH;
     }
   });
@@ -5280,7 +5280,7 @@ async function generarPDFLVAR(){
   doc.setFont(FONT,'bold'); doc.setTextColor(...ACCENT); doc.setFontSize(8.5);
   doc.text(asci(data.asig||'-'), M+4, y+15);
   doc.setFontSize(6.8); doc.setTextColor(100,110,130); doc.setFont(FONT,'normal');
-  doc.text(`Fecha: ${data.asigFecha||'-'}    Hora: ${data.asigHora||'-'}`, M+4, y+22);
+  doc.text(`Fecha: ${fmtFDoc(data.asigFecha)||'-'}    Hora: ${data.asigHora||'-'}`, M+4, y+22);
   // Supervisor
   doc.setFillColor(...LGRAY); doc.rect(M+CW*0.5, y, CW*0.5, respH, 'F');
   bordeRect(M+CW*0.5, y, CW*0.5, respH);
@@ -5289,7 +5289,7 @@ async function generarPDFLVAR(){
   doc.setFont(FONT,'bold'); doc.setTextColor(...ACCENT); doc.setFontSize(8.5);
   doc.text(asci(data.sup||'-'), M+CW*0.5+4, y+15);
   doc.setFontSize(6.8); doc.setTextColor(100,110,130); doc.setFont(FONT,'normal');
-  doc.text(`Fecha: ${data.supFecha||'-'}    Hora: ${data.supHora||'-'}`, M+CW*0.5+4, y+22);
+  doc.text(`Fecha: ${fmtFDoc(data.supFecha)||'-'}    Hora: ${data.supHora||'-'}`, M+CW*0.5+4, y+22);
   y += respH;
 
   // AARMS lote4bc: el recuadro de la pág. 2 existe siempre. Vacío: diagonal. Con texto: sin tacha.
@@ -9007,8 +9007,8 @@ async function buildPDF(omarIdPedido){
 
   const hw=CW/2,qw=CW/4,tw=CW*0.6,fw=CW*0.4,sw=CW*0.3;
   drawDataRow([['Compañía:',gv('h_emp'),hw],['Atención a:',gv('h_ate'),hw]],y); y+=rH;
-  drawDataRow([['Dirección:',gv('h_dir'),tw],['Fecha inicial:',gv('h_ini').replace('T',' '),fw]],y); y+=rH;
-  drawDataRow([['ID de la muestra:',puntoDoc,tw],['Fecha final:',gv('h_fin').replace('T',' '),fw]],y); y+=rH;
+  drawDataRow([['Dirección:',gv('h_dir'),tw],['Fecha inicial:',fmtFH(gv('h_ini')),fw]],y); y+=rH;
+  drawDataRow([['ID de la muestra:',puntoDoc,tw],['Fecha final:',fmtFH(gv('h_fin')),fw]],y); y+=rH;
   drawDataRow([['Matriz:',gv('h_mat'),hw],['Tipo:',tipoDoc,qw],['Intervalo:',gv('h_int'),qw]],y); y+=rH;
   drawDataRow([['Ref. BPM Folio:',gv('h_plan'),qw],['Cond. climatológicas:',gv('h_clima'),CW-qw]],y); y+=rH;
 
@@ -9230,8 +9230,8 @@ async function buildPDF(omarIdPedido){
 
   const gpsFields=[
     ['Coord. N:',gv('gps_n'),CW*0.18],['Coord. W:',gv('gps_w'),CW*0.18],
-    ['Mtra. compuesta:',gv('h_comp')||'—',CW*0.18],['Fecha:',gv('h_cdt').replace('T',' '),CW*0.23],
-    ['Mtra. resguardo:',gv('h_resg')||'—',CW*0.12],['Hora:',gv('h_rdt').replace('T',' '),CW*0.11],
+    ['Mtra. compuesta:',gv('h_comp')||'—',CW*0.18],['Fecha:',fmtFH(gv('h_cdt')),CW*0.23],
+    ['Mtra. resguardo:',gv('h_resg')||'—',CW*0.12],['Hora:',fmtFH(gv('h_rdt')),CW*0.11],
   ];
   let gx=M;
   gpsFields.forEach(([l,v,w])=>{
@@ -9327,7 +9327,7 @@ async function buildPDF(omarIdPedido){
     const infoItems=[
       ['Empresa:',gv('h_emp')],['Sitio:',lugarDoc],
       ['Dirección:',gv('h_dir').substring(0,35)],
-      ['Fecha inicial:',gv('h_ini').replace('T',' ')],
+      ['Fecha inicial:',fmtFH(gv('h_ini'))],
       ['Tipo muestreo:',tipoDoc],
       ['Coord. N:','Sin GPS'],['Coord. W:','Sin GPS'],
       ['Muestreador:',nombreMuest],
@@ -9406,7 +9406,7 @@ async function buildPDF(omarIdPedido){
 
   // Date
   const now=new Date();
-  const nowStr=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const nowStr=fmtF(_lote21HoyFecha());
   const timeStr=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
   doc.setTextColor(...DGRAY);doc.setFont('helvetica','normal');doc.setFontSize(8);
   doc.text('Fecha: '+nowStr+'    Hora: '+timeStr,M+8,y2+sigBoxH-8);
@@ -9509,7 +9509,7 @@ async function buildPDFCliente(omarIdPedido){
   };
 
   const now=new Date();
-  const dStr=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const dStr=fmtF(_lote21HoyFecha());
   const tStr=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
 
   // ── HELPERS ──
@@ -9668,7 +9668,7 @@ async function buildPDFCliente(omarIdPedido){
     doc.text('INFORMACIÓN DEL PUNTO',rX+5,y+9);
     const infoList=[
       ['Empresa',gv('h_emp')],['Sitio',lugarDoc],['Muestreador',nombreMuest],
-      ['Fecha inicio',gv('h_ini').replace('T',' ').substring(0,16)],
+      ['Fecha inicio',fmtFH(gv('h_ini'))],
       ['Tipo',tipoDoc],['Coord. N','Sin GPS'],['Coord. W','Sin GPS'],
     ];
     infoList.forEach(([l,v],i)=>{
@@ -10009,7 +10009,7 @@ async function buildPDFCadena(omarIdPedido){
   const AMBER_TXT=[80,60,0],BLACK=[0,0,0];
 
   const now=new Date();
-  const dStr=now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const dStr=fmtF(_lote21HoyFecha());
   const tStr=now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
 
   // ── DATA ──
@@ -10275,9 +10275,8 @@ async function buildPDFCadena(omarIdPedido){
 
   const fmtDate=v=>{
     if(!v)return'';
-    // ISO AAAA-MM-DD → DD/MM/AAAA
-    if(v.includes('-')&&v.indexOf('-')===4)return v.split('-').reverse().join('/');
-    return v;
+    const f = fmtFDoc(v);
+    return f || String(v);
   };
   const fmtTime=v=>v||'';
 

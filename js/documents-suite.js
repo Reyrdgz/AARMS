@@ -1171,7 +1171,7 @@ async function generarPDFPh2644H1(){
     filaIdx++;
     return yy+15;
   };
-  y=row('Fecha / Hora / Folio', [h.fecha,h.hora,h.folio].filter(Boolean).join(' | '), y);
+  y=row('Fecha / Hora / Folio', [fmtFDoc(h.fecha),h.hora,h.folio].filter(Boolean).join(' | '), y);
   y=row('Lote / Marca / Buffer', [h.lote,h.marca,h.buffer].join(' | '), y);
   y=row('Calibracion Lab L1-L3', [h.cal_l1,h.cal_l2,h.cal_l3].join(' | '), y);
   y=row('Comprobacion calibracion Lab', [h.comp_l1,h.comp_l2,h.comp_l3].join(' | '), y);
@@ -1366,7 +1366,7 @@ function _bmSnapshotOrigen(){
     bm_s2_bucc_fol: _lote3aFolioPh(p),
     bm_s2_ph_clave: _lote3aClave('potenciometros'),
     bm_s2_blmp_fol: _lote3aFolioBlmp(p),
-    bm_s2_blmp: typeof _codigoBitacora === 'function' ? _codigoBitacora('BLMP', 'potenciometros') : `Phmetro limpieza · OMAR ${omar.folio||omar.ts}${bl.fecha?' · fecha '+bl.fecha:''}`,
+    bm_s2_blmp: typeof _codigoBitacora === 'function' ? _codigoBitacora('BLMP', 'potenciometros') : `Phmetro limpieza · OMAR ${omar.folio||omar.ts}${bl.fecha?' · fecha '+fmtFDoc(bl.fecha):''}`,
     bm_s2_cond_ref: typeof _codigoBitacora === 'function' ? _codigoBitacora('BLMCCVUC', 'conductimetros') : `Conductímetro lab · ${co.marca||''} ${co.clave||''}`.trim(),
     bm_s3_arribo_d: fe,
     bm_s3_arribo_h: _lote3aHora(c.arribo),
@@ -2002,27 +2002,12 @@ function _bmPdfValStyle(doc, txt, ACCENT){
   return isEmpty ? '' : String(txt);
 }
 
-// AARMS sub53-fino: fecha oficial DD MM AA (espacios)
+// AARMS lote24f3: aa/mm/dd. El 29 de octubre de 2026 es 26/10/29.
 function _pdfBmFechaOficial(raw){
   if(raw == null) return '';
   const s = String(raw).trim();
   if(!s || s === '—' || s === '-') return '';
-  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(iso) return `${iso[3]} ${iso[2]} ${iso[1].slice(-2)}`;
-  const dmy = s.match(/^(\d{1,2})[\/\-.\s]+(\d{1,2})[\/\-.\s]+(\d{2,4})$/);
-  if(dmy){
-    const dd = String(dmy[1]).padStart(2, '0');
-    const mm = String(dmy[2]).padStart(2, '0');
-    const yy = dmy[3].length === 4 ? dmy[3].slice(-2) : dmy[3].padStart(2, '0');
-    return `${dd} ${mm} ${yy}`;
-  }
-  const dt = new Date(s);
-  if(!isNaN(dt.getTime()) && /[T\-]/.test(s)){
-    const dd = String(dt.getDate()).padStart(2, '0');
-    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-    const yy = String(dt.getFullYear()).slice(-2);
-    return `${dd} ${mm} ${yy}`;
-  }
+  if(typeof fmtFDoc === 'function') return fmtFDoc(s) || '';
   return s;
 }
 window._pdfBmFechaOficial = _pdfBmFechaOficial;
@@ -2111,7 +2096,7 @@ function _pdfEstamparFirma(doc, firma, cx, lineaY, fuente, opts){
   }
   if(firma && firma.fecha){
     doc.setFont(fuente, 'normal'); doc.setFontSize(6.5); doc.setTextColor(120);
-    doc.text('Revisado ' + firma.fecha + (firma.hora ? (' ' + firma.hora) : ''), cx, lineaY + 28, {align:'center'});
+    doc.text('Revisado ' + ((typeof fmtFDoc === 'function') ? (fmtFDoc(firma.fecha) || firma.fecha) : firma.fecha) + (firma.hora ? (' ' + firma.hora) : ''), cx, lineaY + 28, {align:'center'});
   }
   doc.setTextColor(0);
 }
@@ -3627,11 +3612,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   const WHITE = (window.STD && STD.WHITE) || [255,255,255];
   const DARK = (window.STD && STD.DARK) || NAVY;
 
-  const fmtFecha = (s) => {
-    if(!s) return '';
-    const p = String(s).split('-');
-    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0].slice(-2)}` : String(s).substring(0, 10);
-  };
+  const fmtFecha = (s) => (typeof fmtFDoc === 'function') ? fmtFDoc(s) : (s || '');
   const cell = (v) => (v == null || v === '') ? '' : String(v);
   const asci = (v) => (typeof jsPdfAscii === 'function') ? jsPdfAscii(String(v == null ? '' : v)) : String(v == null ? '' : v);
   const actOficial = (a) => {
@@ -4403,7 +4384,7 @@ async function _pdfODPag1(doc, plan, logo){
   }, FONT);
   y = _pdfSeccionStd(doc, 'Reactivos / estandares', M, y, CW, (yy) => {
     const R = bit.reactivos || {};
-    [['Lote 0 mg/L:', R.lote_zero],['Cad. 0 mg/L:', R.cad_zero],['Lote 100% sat:', R.lote_sat],['Cad. 100% sat:', R.cad_sat],['Agua reactivo:', R.agua_reactivo_lote]].forEach(([lab, val]) => {
+    [['Lote 0 mg/L:', R.lote_zero],['Cad. 0 mg/L:', fmtFDoc(R.cad_zero)],['Lote 100% sat:', R.lote_sat],['Cad. 100% sat:', fmtFDoc(R.cad_sat)],['Agua reactivo:', R.agua_reactivo_lote]].forEach(([lab, val]) => {
       _lv(doc, lab, jsPdfAscii(String(val || '-')), M + 4, yy + 4, 100, FONT);
       yy += 14;
     });
@@ -4424,10 +4405,10 @@ async function _pdfODPag2(doc, plan, logo){
   const z = bit.calibLab?.zero || {}, s = bit.calibLab?.sat100 || {};
   y = _pdfSeccionStd(doc, 'Tabla 1 — Calibracion laboratorio', M, y, CW, (yy) =>
     _pdfODTablaSimple(doc, yy, ['Punto','Fecha','Hora','Temp','Lectura','Criterio','Acepta'], [
-      ['0 mg/L', z.fecha, z.hora, z.temp, z.lectura, z.criterio, z.acepta],
-      ['100% sat', s.fecha, s.hora, s.temp, s.lectura, s.criterio, s.acepta]
+      ['0 mg/L', fmtFDoc(z.fecha), z.hora, z.temp, z.lectura, z.criterio, z.acepta],
+      ['100% sat', fmtFDoc(s.fecha), s.hora, s.temp, s.lectura, s.criterio, s.acepta]
     ], M, CW, NAVY, ACCENT, LGRAY, WHITE, MGRAY), FONT);
-  const vrows = (bit.verifLab || []).map((r,i) => [String(i+1), r.fecha, r.hora, r.temp, r.lectura, r.criterio, r.acepta]);
+  const vrows = (bit.verifLab || []).map((r,i) => [String(i+1), fmtFDoc(r.fecha), r.hora, r.temp, r.lectura, r.criterio, r.acepta]);
   if(!vrows.length) vrows.push(['-','-','-','-','-','-','-']);
   y = _pdfSeccionStd(doc, 'Tabla 2 — Verificacion laboratorio', M, y, CW, (yy) =>
     _pdfODTablaSimple(doc, yy, ['#','Fecha','Hora','Temp','Lectura','Criterio','Acepta'], vrows, M, CW, NAVY, ACCENT, LGRAY, WHITE, MGRAY), FONT);
@@ -4445,10 +4426,10 @@ async function _pdfODPag3(doc, plan, logo){
   const z = bit.calibCampo?.zero || {}, s = bit.calibCampo?.sat100 || {};
   y = _pdfSeccionStd(doc, 'Tabla 3 — Calibracion campo', M, y, CW, (yy) =>
     _pdfODTablaSimple(doc, yy, ['Punto','Fecha','Hora','Temp','Lectura','Criterio','Acepta'], [
-      ['0 mg/L', z.fecha, z.hora, z.temp, z.lectura, z.criterio, z.acepta],
-      ['100% sat', s.fecha, s.hora, s.temp, s.lectura, s.criterio, s.acepta]
+      ['0 mg/L', fmtFDoc(z.fecha), z.hora, z.temp, z.lectura, z.criterio, z.acepta],
+      ['100% sat', fmtFDoc(s.fecha), s.hora, s.temp, s.lectura, s.criterio, s.acepta]
     ], M, CW, NAVY, ACCENT, LGRAY, WHITE, MGRAY), FONT);
-  const vrows = (bit.verifCampo || []).map((r,i) => [String(i+1), r.fecha, r.hora, r.temp, r.lectura, r.criterio, r.acepta]);
+  const vrows = (bit.verifCampo || []).map((r,i) => [String(i+1), fmtFDoc(r.fecha), r.hora, r.temp, r.lectura, r.criterio, r.acepta]);
   if(!vrows.length) vrows.push(['-','-','-','-','-','-','-']);
   y = _pdfSeccionStd(doc, 'Tabla 4 — Verificacion campo', M, y, CW, (yy) =>
     _pdfODTablaSimple(doc, yy, ['#','Fecha','Hora','Temp','Lectura','Criterio','Acepta'], vrows, M, CW, NAVY, ACCENT, LGRAY, WHITE, MGRAY), FONT);
@@ -4470,7 +4451,7 @@ async function _pdfODPag4(doc, plan, logo){
       const tv = _bitTempPromAguaPorToma(r.omarTs, r.toma);
       if(!isNaN(tv)) temp = tv.toFixed(1);
     }
-    return [String(r.toma), r.fecha||'', r.hora||'', r.folioOmar||'', temp, r.lectura1||'', r.lectura2||'', isNaN(prom)?'':prom.toFixed(2), r.horaFinal||''];
+    return [String(r.toma), fmtFDoc(r.fecha), r.hora||'', r.folioOmar||'', temp, r.lectura1||'', r.lectura2||'', isNaN(prom)?'':prom.toFixed(2), r.horaFinal||''];
   });
   if(!rows.length) rows.push(['-','-','-','-','-','-','-','-','-']);
   y = _pdfSeccionStd(doc, 'Tabla 5 — Lecturas OD por toma', M, y, CW, (yy) =>
@@ -4534,7 +4515,7 @@ async function _lote17GenerarPDFOD(plan){
     });
     y += 28;
     filas.forEach(f => {
-      const vals = [f.fecha||'', f.hora||'', f.op, f.ini||'', f.ajuste||'', f.fin||'', '%'];
+      const vals = [fmtFDoc(f.fecha), f.hora||'', f.op, f.ini||'', f.ajuste||'', f.fin||'', '%'];
       x = M;
       doc.setFont(fuente, 'normal'); doc.setFontSize(9);
       const alto = 36;
@@ -4566,7 +4547,7 @@ async function _lote17GenerarPDFOD(plan){
       x += ws[i];
     });
     y += headH;
-    const vals = [v.fecha||'', v.hora||'', 'Control', v.l1||'', v.l2||'', Number.isFinite(prom) ? prom.toFixed(2) : '', '0 – 1.6', '%', dic];
+    const vals = [fmtFDoc(v.fecha), v.hora||'', 'Control', v.l1||'', v.l2||'', Number.isFinite(prom) ? prom.toFixed(2) : '', '0 – 1.6', '%', dic];
     x = M;
     doc.setFont(fuente, 'normal'); doc.setFontSize(9);
     vals.forEach((val, i) => { doc.rect(x, y, ws[i], 26); doc.text(String(val), x + 2, y + 16, { maxWidth: ws[i] - 3 }); x += ws[i]; });
@@ -4601,7 +4582,7 @@ async function _lote17GenerarPDFOD(plan){
   doc.text('NMX-AA-012-SCFI-2001', W / 2, y, { align:'center' });
   y += 28;
   doc.setFont(fuente, 'bold'); doc.setFontSize(11);
-  doc.text('FECHA: ' + (plan.fecha || ''), W - M, y, { align:'right' });
+  doc.text('FECHA: ' + (fmtFDoc(plan.fecha) || ''), W - M, y, { align:'right' });
   y += 24;
   y = txt('FOLIOS OMAR: ' + omarFolios.join(', '), M, y, CW, cuerpo, lead) + 18;
   y = txt('Código del procedimiento utilizado: ' + (b.proc || '') + ', el Procedimiento para este analito se encuentra en la bitácora BPA/AA/N-3/' + anio + ' en los folios ' + (b.bpaDesde || '') + ' al ' + (b.bpaHasta || '') + '.', M, y, CW, cuerpo, lead) + 18;
@@ -4693,7 +4674,7 @@ async function _lote17GenerarPDFOD(plan){
         if(typeof _pdfTacharFila === 'function') _pdfTacharFila(doc, M, y, CW, cabe);
       }else{
         const prom = (typeof _lote17OdProm === 'function') ? _lote17OdProm(r.l1, r.l2) : NaN;
-        const vals = [r.fecha||'', r.hora||'', r.folioOmar||'', r.idMuestra||'', r.tiempo||'', r.l1||'', r.l2||'', Number.isFinite(prom) ? prom.toFixed(2) : ''];
+        const vals = [fmtFDoc(r.fecha), r.hora||'', r.folioOmar||'', r.idMuestra||'', r.tiempo||'', r.l1||'', r.l2||'', Number.isFinite(prom) ? prom.toFixed(2) : ''];
         x = M;
         doc.setFont(fuente, 'normal'); doc.setFontSize(8);
         vals.forEach((val, k) => { doc.rect(x, y, ws[k], cabe); doc.text(String(val), x + 2, y + cabe / 2 + 3, { maxWidth: ws[k] - 3 }); x += ws[k]; });
@@ -4924,7 +4905,7 @@ window._blmpGenerarPdfFiel = async function _blmpGenerarPdfFiel(rec){
     { t: 'Siendo las ' },
     { t: (rec.hora || '____'), accent: true },
     { t: ' hrs del día ' },
-    { t: (rec.fecha || '________'), accent: true },
+    { t: (fmtFDoc(rec.fecha) || '________'), accent: true },
     { t: ' se procede a realizar la verificación visual del cuerpo del pHmetro y su electrodo.' }
   ], M, y, CW, 8);
   y += 10;
@@ -5013,7 +4994,7 @@ window._blmpGenerarPdfFiel = async function _blmpGenerarPdfFiel(rec){
     doc.setFont(FONT, acts[i] ? 'bold' : 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(...(acts[i] ? ACCENT : STD.MUTED));
-    const vals = [a.hora || '', a.fecha || '', a.codigo || '', a.justificacion || ''];
+    const vals = [a.hora || '', fmtFDoc(a.fecha), a.codigo || '', a.justificacion || ''];
     x0 = M;
     [cH, cF, cC, cJ].forEach((w, vi) => {
       const t = T(vals[vi]).substring(0, vi === 3 ? 42 : 12);
@@ -5125,11 +5106,7 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
   const TEXT = STD.TEXT, WHITE = STD.WHITE, DARK = STD.DARK;
   const T = (t) => (typeof jsPdfAscii === 'function') ? jsPdfAscii(String(t == null ? '' : t)) : String(t == null ? '' : t);
   const cell = (v) => (v == null || v === '') ? '' : String(v);
-  const fmtFecha = (s) => {
-    if(!s) return '';
-    const p = String(s).split('-');
-    return p.length === 3 ? `${p[2]}/${p[1]}/${p[0].slice(-2)}` : String(s).substring(0, 10);
-  };
+  const fmtFecha = (s) => (typeof fmtFDoc === 'function') ? fmtFDoc(s) : (s || '');
   const clave = String(c.clave || '').trim() || 'AA/CO/____';
   const vnPm = (vn, inc) => {
     if(typeof window._condVnPm === 'function') return window._condVnPm(vn, inc);
