@@ -9222,7 +9222,7 @@ async function buildPDF(omarIdPedido){
     doc.rect(M,y,photoBoxW,cboxH,'S');
   } else {
     doc.setTextColor(...MGRAY);doc.setFont('helvetica','italic');doc.setFontSize(8);
-    doc.text('[Sin foto — tomar foto desde la app]',M+photoBoxW/2,y+cboxH/2,{align:'center'});
+    doc.text('Sin fotografía',M+photoBoxW/2,y+cboxH/2,{align:'center'});
   }
   // Photo label overlay at bottom
   doc.setFillColor(10,22,40,160);
@@ -9566,7 +9566,7 @@ async function buildPDFCliente(omarIdPedido){
     drawFittedImg(doc,imgFoto2,ML+5,pBY,pBW,pBH);
   }else{
     doc.setTextColor(136,136,136);doc.setFont('helvetica','italic');doc.setFontSize(8);
-    doc.text('[Sin foto — tomar foto desde la app]',ML+5+pBW/2,pBY+pBH/2,{align:'center'});
+    doc.text('Sin fotografía',ML+5+pBW/2,pBY+pBH/2,{align:'center'});
   }
   // Redraw photo box border on top always
   doc.setDrawColor(138,154,176);doc.setLineWidth(0.3);doc.rect(ML+5,pBY,pBW,pBH,'S');
