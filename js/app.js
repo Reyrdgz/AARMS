@@ -11134,6 +11134,20 @@ async function _blmpAsignarFolio(){
   return pair[0];
 }
 // AARMS blmpfolio2: reserva N folios consecutivos de la serie (ej. 2 = una por página PDF)
+async function _blmpSoltarParAjeno(){
+  const par = _blmpUi && _blmpUi._par;
+  if(!par || !par.length) return;
+  for(const f of par){
+    let rec = null;
+    try{ rec = await idbBlmpGetByFolio(f); }catch(_){}
+    if(rec && String(rec.id || '') !== String(_blmpUi.id || '')){
+      _blmpUi._par = null;
+      _blmpUi._pendiente = null;
+      _blmpUi.folioP2 = '';
+      return;
+    }
+  }
+}
 async function _blmpAsignarFolios(n){
   // AARMS lote2a: la serie BLMP sigue en el contador común, desde el último emitido
   const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
@@ -11267,6 +11281,7 @@ function _blmpPoblarForm(rec){
   set('blmp_obs', r.obs || '');
   _blmpUi.id = r.id || null;
   _blmpUi.folio = r.folio || '';
+  _blmpUi.folioP2 = r.folioP2 || '';
   _blmpUi.actividades = Array.isArray(r.actividades) ? r.actividades.slice() : [];
   _blmpRenderActividades();
   const pill = document.getElementById('blmpPill');
@@ -11415,6 +11430,10 @@ async function _blmpGuardarRegistro(){
   let folio = data.folio;
   let folioP2 = '';
   if(prev && prev.folioP2) folioP2 = String(prev.folioP2);
+  if(!folioP2 && _blmpUi.folioP2) folioP2 = String(_blmpUi.folioP2);
+  await _blmpSoltarParAjeno();
+  if(!folio && _blmpUi._par && _blmpUi._par[0]) folio = _blmpUi._par[0];
+  if(!folioP2 && _blmpUi._par && _blmpUi._par[1]) folioP2 = _blmpUi._par[1];
   // AARMS blmpfolio2: documento nuevo = 2 folios (pág1 + pág2); legado con solo folio → asignar folioP2
   if(!folio){
     // AARMS lote2a: doble toque comparte la misma reserva
@@ -11482,10 +11501,25 @@ async function abrirPagBlmp(){
   const pgBlmp = document.getElementById('pgBlmp');
   if(pgBlmp && plan) pgBlmp.setAttribute('data-lote21-plan', plan.id);
   if(!rec){
+    await _blmpSoltarParAjeno();
+    _blmpUi.id = null;
+    _blmpUi.folio = '';
+    _blmpUi.folioP2 = '';
     const today = _lote21HoyFecha();
+    let folio = '';
+    let folioP2 = '';
+    if(_blmpUi._par && _blmpUi._par.length >= 2){
+      folio = _blmpUi._par[0];
+      folioP2 = _blmpUi._par[1];
+    } else {
+      const pair = await _blmpAsignarFolios(2);
+      folio = pair[0];
+      folioP2 = pair[1];
+    }
     rec = {
       id: null,
-      folio: '',
+      folio: folio,
+      folioP2: folioP2,
       aapt: '',
       fecha: today,
       hora: '',
