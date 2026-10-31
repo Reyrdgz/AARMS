@@ -17080,7 +17080,8 @@ window._supervisorActual = _supervisorActual;
 
 function _fechaDDMMAA(d){
   d = d || new Date();
-  return [String(d.getDate()).padStart(2,'0'), String(d.getMonth()+1).padStart(2,'0'), String(d.getFullYear()).slice(-2)].join(' ');
+  const p = n => String(n).padStart(2, '0');
+  return fmtF(d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()));
 }
 function _horaHHMM(d){
   d = d || new Date();
@@ -17254,7 +17255,7 @@ async function _estamparFirmaSupervisor(plan, supervisor, firmaPng){
     nombre: supervisor.nombre,
     cargo: supervisor.cargo || 'Supervisor',
     firmaPng: firmaPng || '',
-    fecha: _fechaDDMMAA(now),
+    fecha: _lote21HoyFecha(),
     hora: _horaHHMM(now),
     supId: supervisor.id,
     ts: now.getTime()
