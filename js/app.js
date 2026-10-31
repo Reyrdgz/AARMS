@@ -4581,6 +4581,8 @@ async function _lote21LvarFundirPantalla(plan){
   poner('norma', gv('lv_norma'));
   poner('obs', gv('lv_obs'));
   poner('asig', gv('lv_asig'));
+  poner('asigFecha', gv('lv_asigFecha'));
+  poner('asigHora', gv('lv_asigHora'));
   const tipo = _lvarTipoMuestreoParaUiYPdf(gv('lv_tipo'));
   if(limpio(tipo)) prev.tipo = tipo;
   const folio = limpio(gv('lv_folio'));
@@ -4901,8 +4903,14 @@ async function generarPDFLVAR(){
     const saved = equip[eq.key] || {};
     let val;
     if(eq.fixedValue) val = saved.val || eq.fixedValue;
-    else val = (saved.num ? `${eq.prefix}${saved.num}` : '');
-    const has = !!(saved.num && String(saved.num).trim()!=='') || !!(saved.val && saved.val.trim()!=='');
+    else {
+      // AARMS lote24b: la clave sale del inventario. Presente solo si el muestreador lo dejó guardado.
+      const numGuardado = saved.num && String(saved.num).trim();
+      const numCat = !numGuardado && typeof _lvarNumDesdeCatalogo === 'function' ? _lvarNumDesdeCatalogo(eq.key) : '';
+      const num = numGuardado || (numCat && String(numCat).trim()) || '';
+      val = num ? `${eq.prefix}${num}` : '';
+    }
+    const has = !!(saved.num && String(saved.num).trim()!=='') || !!(saved.val && String(saved.val).trim()!=='');
     if(typeof _filaPrem === 'function'){
       y = _filaPrem(doc, [asci(eq.label), asci(val||''), has?'SI':''], M, y, eqCws, eqH, idx, {
         font:FONT, fontSize:7.5, maxCharsArr:[36, 22, 6]
