@@ -11852,12 +11852,19 @@ function poblarColabForm(){
 let _condFlujoActivo = false;
 let _condFlujoOrigen = 'plan';
 
-function _colabLabMinimoListo(){
-  const c = omar?.colabLab || {};
+function _colabLabMinimoDe(c){
+  c = c || {};
   const hasId = !!(String(c.fecha||'').trim() && (String(c.marca||'').trim() || String(c.clave||'').trim()));
   // AARMS condfiel: mínimo = ID + (cal lectura o comprobación L1–L3 legado) + mant 4
   const hasCal = !!(String(c.cal_lect||'').trim() || (String(c.comp_l1||c.mrc_l1||'').trim() && String(c.comp_l2||c.mrc_l2||'').trim() && String(c.comp_l3||c.mrc_l3||'').trim()));
   return hasId && hasCal && _colabMantCompleto(c);
+}
+function _colabLabMinimoListo(){
+  // AARMS lote24b: el laboratorio es del plan. Se abre entre tomas desde cualquier OMAR.
+  if(_colabLabMinimoDe(omar && omar.colabLab)) return true;
+  const plan = typeof _planActivo === 'function' ? _planActivo() : null;
+  const oms = plan && typeof _planOmarData === 'function' ? _planOmarData(plan) : [];
+  return oms.some(om => _colabLabMinimoDe(om && om.o && om.o.colabLab));
 }
 
 function _renderCondFlujoStepper(pasoActivo){

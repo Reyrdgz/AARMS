@@ -5417,7 +5417,7 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
   doc.setFont(FONT, 'bold'); doc.setFontSize(7.5); doc.setTextColor(...NAVY);
   doc.text(T('MANTENIMIENTO'), M, y + 8); y += 10;
   const mantVal = (campo, key) => {
-    if(c.mant_na && c.mant_na[campo]) return 'NO'; // N.A. explicito = respondido NO
+    if(c.mant_na && c.mant_na[campo]) return ''; // N.A. = cancelado, las dos celdas tachadas
     if(chk(c[key])) return 'SI';
     if(c[key] === 'NO' || c[key] === 'SI') return String(c[key]).toUpperCase();
     // AARMS condcancelado: checkbox sin marcar = sin respuesta → cancelar
