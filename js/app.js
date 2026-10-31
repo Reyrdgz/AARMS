@@ -1438,15 +1438,10 @@ function _lote21AhoraLocal(){
   return _lote21HoyFechaHoraLocal() + ':' + p(n.getSeconds());
 }
 function _lote21FechaPantalla(src){
-  // AARMS lote21b: AAAA-MM-DD se parte. new Date("AAAA-MM-DD") es UTC y retrocede un día.
+  // AARMS lote21b / lote24f3: se parte el texto. new Date("AAAA-MM-DD") es UTC y retrocede un día.
   if(src == null || src === '') return '';
-  const s = String(src).trim();
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if(m) return fmtF(m[1] + '-' + m[2] + '-' + m[3]);
-  const d = new Date(s);
-  if(isNaN(d.getTime())) return s.substring(0, 10);
-  const p = n => String(n).padStart(2, '0');
-  return p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear();
+  const f = fmtF(src);
+  return (f && f !== '—') ? f : '';
 }
 function _lote21MsLocal(src){
   if(src == null || src === '' || src === 0) return 0;
@@ -5327,7 +5322,7 @@ async function generarPDFLVAR(){
 
   // Entregar PDF
   const empresaSlug = _slug(plan.muestreador || 'AARMS').substring(0,20);
-  const fechaCorta = (data.fecha || plan.fecha || _lote21HoyFecha()).replace(/-/g,'');
+  const fechaCorta = fmtFArchivo(data.fecha || plan.fecha || _lote21HoyFecha());
   const fileName = `LVAR_${data.folio||'sinFolio'}_${empresaSlug}_${fechaCorta}.pdf`;
 
   try {
@@ -5382,7 +5377,7 @@ async function descargarMuestreoCompleto(){
     if(o.empresa){ empresa = o.empresa; break; }
   }
   empresa = _slug(empresa || 'sinEmpresa');
-  const fechaCorta = (plan.fecha || _lote21HoyFecha()).replace(/-/g,'');
+  const fechaCorta = fmtFArchivo(plan.fecha || _lote21HoyFecha());
   const prefix = `Plan-${folioP}_${empresa}_${fechaCorta}`;
 
   // Construir lista de items disponibles
@@ -9464,7 +9459,7 @@ async function buildPDF(omarIdPedido){
 
   // ── SAVE ──
   const folio=gv('h_omar')||'000';
-  const fecha=_lote21HoyFecha();
+  const fecha=fmtFArchivo();
   const empresa_lab=(omar.empresa||gv('h_emp')||'Cliente').substring(0,25).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
   const fileName=buildFileName(empresa_lab,'Hoja de Campo',fecha);
   
@@ -9958,7 +9953,7 @@ async function buildPDFCliente(omarIdPedido){
 
   // ════════ SAVE ════════
   const folio=gv('h_omar')||'000';
-  const fecha=_lote21HoyFecha();
+  const fecha=fmtFArchivo();
   const empresa_c=(omar.empresa||gv('h_emp')||'Cliente').substring(0,25).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
   const fname=buildFileName(empresa_c,'Reporte de Muestreo',fecha);
   const blob=doc.output('blob');
@@ -10533,7 +10528,7 @@ async function buildPDFCadena(omarIdPedido){
 
   // ── SAVE ──
   const folio=gv('h_omar')||'000';
-  const fecha=_lote21HoyFecha();
+  const fecha=fmtFArchivo();
   const empresa=(omar.empresa||gv('h_emp')||'').substring(0,20).replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,'').trim();
   const fname=buildFileName(empresa,'Cadena de Custodia',fecha);
   const blob=doc.output('blob');
@@ -10545,7 +10540,77 @@ async function buildPDFCadena(omarIdPedido){
   const sr3=document.getElementById('shareRow'); if(sr3)sr3.style.display='flex';
 }
 
-function fmtF(iso){if(!iso)return'—';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`;}
+// AARMS lote24f3: una sola forma de escribir la fecha. Guardado sigue en AAAA-MM-DD.
+// aa/mm/dd (26/10/29). No usar new Date("AAAA-MM-DD"): en Hermosillo corre el día.
+function fmtF(iso){
+  if(iso == null) return '—';
+  const s = String(iso).trim();
+  if(!s || s === '—' || s === '-') return '—';
+  let y, m, d, mm;
+  if((mm = s.match(/^(\d{4})-(\d{2})-(\d{2})/))){
+    y = mm[1].slice(-2); m = mm[2]; d = mm[3];
+  } else if((mm = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/))){
+    d = mm[1]; m = mm[2]; y = mm[3].slice(-2);
+  } else if((mm = s.match(/^(\d{2})\/(\d{2})\/(\d{2})$/))){
+    y = mm[1]; m = mm[2]; d = mm[3];
+  } else if((mm = s.match(/^(\d{2})\s+(\d{2})\s+(\d{2})$/))){
+    d = mm[1]; m = mm[2]; y = mm[3];
+  } else return s;
+  return `${y}/${m}/${d}`;
+}
+function fmtFDoc(iso){
+  if(iso == null || String(iso).trim() === '' || iso === '—' || iso === '-') return '';
+  const f = fmtF(iso);
+  return f === '—' ? '' : f;
+}
+function fmtFH(fecha, hora){
+  if(hora != null && String(hora).trim()){
+    const f = fmtFDoc(fecha);
+    const h = String(hora).trim().slice(0, 5);
+    return f ? `${f} ${h}` : h;
+  }
+  const s = String(fecha == null ? '' : fecha).trim();
+  if(!s) return '';
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  if(m){
+    const f = fmtF(m[1]);
+    return (f && f !== '—') ? `${f} ${m[2]}` : m[2];
+  }
+  return fmtFDoc(s);
+}
+function fmtFArchivo(iso){
+  const base = (iso == null || String(iso).trim() === '') ? _lote21HoyFecha() : iso;
+  const f = fmtF(base);
+  if(!f || f === '—' || !/^\d{2}\/\d{2}\/\d{2}$/.test(f)){
+    const h = _lote21HoyFecha();
+    return h.slice(2, 4) + h.slice(5, 7) + h.slice(8, 10);
+  }
+  return f.replace(/\//g, '');
+}
+function fmtFIso(texto){
+  if(texto == null) return '';
+  const s = String(texto).trim();
+  if(!s) return '';
+  let y, m, d, mm;
+  if((mm = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))){
+    y = +mm[1]; m = +mm[2]; d = +mm[3];
+  } else if((mm = s.match(/^(\d{2})\/(\d{2})\/(\d{2})$/))){
+    y = 2000 + (+mm[1]); m = +mm[2]; d = +mm[3];
+  } else if((mm = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/))){
+    d = +mm[1]; m = +mm[2]; y = +mm[3];
+  } else return null;
+  if(m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(y, m - 1, d);
+  if(dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  const p = n => String(n).padStart(2, '0');
+  return `${y}-${p(m)}-${p(d)}`;
+}
+function fmtFAhora(){
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  const iso = `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  return `${fmtF(iso)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 // Store last PDF blob for sharing
 
 // Helper universal para entregar un PDF al usuario.
@@ -16715,7 +16780,7 @@ async function generarTodosLosPDFs(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   const folio = plan.folio || plan.id;
-  const fecha = _lote21HoyFecha();
+  const fecha = fmtFArchivo();
   a.href = url;
   a.download = `AARMS_Plan_${folio}_${fecha}.zip`;
   a.click();

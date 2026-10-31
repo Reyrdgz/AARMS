@@ -3403,7 +3403,7 @@ async function generarPDFBm(omarId){
 
   // AARMS sub53-fino: nombre por folio OMAR (no del plan)
   const folio = omar.folio || omar.ts;
-  const fecha = (typeof _lote21HoyFecha==='function'?_lote21HoyFecha():_lote4hoy().fecha);
+  const fecha = (typeof fmtFArchivo==='function') ? fmtFArchivo() : (typeof _lote21HoyFecha==='function'?_lote21HoyFecha():_lote4hoy().fecha);
   const fname = `Bitacora_Muestreo_${folio}_${fecha}.pdf`;
   // AARMS sub53-fino: save (captura envuelve constructor) + fallback output
   if(typeof doc.save === 'function') doc.save(fname);
@@ -4739,7 +4739,7 @@ async function generarPDFBitOD(){
   doc.addPage();
   await _pdfODPag4(doc, plan, logo);
   const folio = plan.bitOD.folio || plan.folio || 'sin-folio';
-  const fecha = (typeof _lote21HoyFecha==='function'?_lote21HoyFecha():_lote4hoy().fecha);
+  const fecha = (typeof fmtFArchivo==='function') ? fmtFArchivo() : (typeof _lote21HoyFecha==='function'?_lote21HoyFecha():_lote4hoy().fecha);
   doc.save(`Bitacora_OD_${folio}_${fecha}.pdf`);
   toast('PDF Bitacora OD (4 paginas) generado','g');
   if(typeof _maybeMarcarPlanDoc === 'function') await _maybeMarcarPlanDoc('bitod');
