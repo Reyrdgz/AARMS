@@ -2316,7 +2316,9 @@ function abrirModalNuevoMuestreo(){
   const d = _lote21HoyFecha();
   const nmFol = document.getElementById('nm_folio'); if(nmFol) nmFol.value = '—';
   document.getElementById('nm_fecha').value = d;
-  document.getElementById('nm_muest').value = '';
+  const nmMuest = document.getElementById('nm_muest');
+  const nombreAjustes = (typeof _muestreadorActual === 'function' && _muestreadorActual().nombre) || '';
+  if(nmMuest) nmMuest.value = nombreAjustes;
   const nmN = document.getElementById('nm_num_omars');
   if(nmN) nmN.value = '1';
   const nmE = document.getElementById('nm_empresa');
