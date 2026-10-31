@@ -16741,7 +16741,7 @@ async function generarTodosLosPDFs(){
   await meter('BLMP_LimpiezaPHmetro.pdf', () => _pdfABlob('blmp'));
   await meter('pH_F-AA-264-4.pdf', () => _pdfABlob('phlab'));
   await meter('Conductimetro_F-AA-289-2.pdf', () => _pdfABlob('colab'));
-  if(odAplica) await meter('OD_F-AA-114-18.pdf', () => _pdfABlob('bitod'));
+  if(odAplica) await meter('OD_ODC-1.pdf', () => _pdfABlob('bitod'));
   const pgHoja = document.getElementById('pg1');
   const attrHoja = pgHoja ? pgHoja.getAttribute('data-lote21-omar') : null;
   if(pgHoja) pgHoja.setAttribute('data-lote21-omar', 'zip');
