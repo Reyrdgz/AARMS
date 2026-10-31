@@ -2284,6 +2284,20 @@ function goPage(id){
   }
   // AARMS lote5a: al regresar, el resumen se recalcula con los datos de este OMAR.
   if(id === 'pgBm' && typeof _lote5aPintar === 'function') _lote5aPintar();
+  // AARMS lote24b: al volver de cualquier documento, la ficha y los títulos salen del registro ya guardado.
+  if(id === 'pgPlan') void _lote24RecalcularPlan();
+}
+
+async function _lote24RecalcularPlan(){
+  try{ if(typeof refreshCache === 'function') await refreshCache(); }catch(e){}
+  try{ renderPlanDocs(); }catch(e){}
+  try{
+    const plan = typeof _planActivo === 'function' ? _planActivo() : null;
+    const progHost = document.getElementById('planProgresoHost');
+    if(progHost && plan && typeof _renderBarraProgreso === 'function'){
+      progHost.innerHTML = _renderBarraProgreso(plan) + _renderSiguientePaso(plan);
+    }
+  }catch(e){}
 }
 
 async function goHome(){
@@ -10821,9 +10835,10 @@ function updSig2(){
 function _instS(id,v){ const e=document.getElementById(id); if(!e) return; if(e.type==='checkbox') e.checked=!!v; else e.value=v!=null?String(v):''; }
 
 function cerrarPagInstrumento(){
-  try{ guardarBorradorActual(); }catch(_){}
-  goPage('pgPlan');
-  try{ renderPlanDocs(); }catch(_){}
+  void (async () => {
+    try{ if(typeof guardarBorradorActual === 'function') await guardarBorradorActual(); }catch(_){}
+    goPage('pgPlan');
+  })();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -16146,16 +16161,22 @@ function _lote22dFaltanDictamen(c){
   if(!_lote22dMarcado(lab.ver_acep)) faltan.push({ texto:'Verificación de laboratorio', id:'colab_ver_acep' });
   return faltan;
 }
-function _colabLabEstadoFromPlan(plan){
-  const om = _planOmarData(plan)[0];
-  const lab = (om && om.o && om.o.colabLab) || {};
+function _colabLabEstadoUno(lab){
+  lab = lab || {};
   const hasId = !!(String(lab.fecha||'').trim() && (String(lab.marca||'').trim() || String(lab.clave||'').trim()));
   const hasCal = !!(String(lab.cal_lect||'').trim() || (String(lab.comp_l1||lab.mrc_l1||'').trim() && String(lab.comp_l2||lab.mrc_l2||'').trim() && String(lab.comp_l3||lab.mrc_l3||'').trim()));
   const mantOk = _colabMantCompleto(lab);
   const dictamen = _lote22dFaltanDictamen(lab).length === 0;
-  // AARMS lote22d: sin Acepta o Rechaza en laboratorio, el conductímetro no queda completo.
   if(hasId && hasCal && mantOk && dictamen) return 'completo';
   if(lab.fecha || lab.marca || lab.cal_lect || lab.mrc_l1 || lab.m_bat || lab.mant_na || lab.cal_acep || lab.comp_acep || lab.ver_acep) return 'progreso';
+  return 'vacio';
+}
+function _colabLabEstadoFromPlan(plan){
+  // AARMS lote24b: el laboratorio vive en una OMAR del plan. La ficha mira todas, no solo la primera.
+  const oms = _planOmarData(plan);
+  const estados = oms.map(om => _colabLabEstadoUno(om && om.o && om.o.colabLab));
+  if(estados.includes('completo')) return 'completo';
+  if(estados.includes('progreso')) return 'progreso';
   return 'vacio';
 }
 
