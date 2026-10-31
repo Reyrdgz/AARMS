@@ -8850,6 +8850,25 @@ async function _lote21HojaFuente(omarIdPedido){
   };
 }
 
+// AARMS lote24a: la Hoja imprime la firma guardada en Ajustes, no el lienzo vacío.
+function _lote24FirmaAjustes(){
+  try{
+    const m = typeof _muestreadorActual === 'function' ? _muestreadorActual() : null;
+    return {
+      nombre: m && m.nombre ? String(m.nombre).trim() : '',
+      png: m && m.firmaPng ? String(m.firmaPng) : ''
+    };
+  }catch(e){
+    return { nombre:'', png:'' };
+  }
+}
+// AARMS lote24a: promedio de la bitácora de esa toma. Sin lecturas, la celda queda vacía.
+function _lote24TxtBit(n, dec, enteroSiCierra){
+  if(typeof n !== 'number' || isNaN(n)) return '';
+  if(enteroSiCierra && Math.abs(n - Math.round(n)) < 0.0001) return String(Math.round(n));
+  return Number(n).toFixed(dec);
+}
+
 async function buildPDF(omarIdPedido){
   const fuente = await _lote21HojaFuente(omarIdPedido);
   if(!fuente){ toast('No hay OMAR para la Hoja de Campo','w'); return; }
@@ -8859,12 +8878,19 @@ async function buildPDF(omarIdPedido){
   const tomas = fuente.tomas;
   const omar = fuente.omar;
   const gv = id => fuente.campos[id] != null ? String(fuente.campos[id]) : '';
+  // AARMS lote24a: tipo, lugar y punto salen del registro de esta OMAR, igual que el Machiote.
+  const tipoDoc = String((omar && omar.tipo) || '').trim() || gv('h_tipo');
+  const lugarDoc = String((omar && omar.sitio) || '').trim();
+  const puntoDoc = String((omar && omar.idmuestra) || '').trim() || gv('h_idm');
+  const ajFirma = _lote24FirmaAjustes();
+  const firmaMuestPng = ajFirma.png || (sigData2 && sigData2 !== 'p' ? sigData2 : '');
+  const nombreMuest = ajFirma.nombre || gv('mn_nom');
   const {jsPDF}=window.jspdf;
   // PRE-LOAD all images before drawing
   const [imgFoto,imgSigCli,imgSigMuest,logoPDF]=await Promise.all([
     preloadImg(photoData&&photoData!=='p'?photoData:null),
     preloadImg(sigData&&sigData!=='p'?sigData:null),
-    preloadImg(sigData2&&sigData2!=='p'?sigData2:null),
+    preloadImg(firmaMuestPng || null),
     loadLogo(LOGO_PDF_URI),
   ]);
   // Landscape US Letter: 792 x 612 pt
@@ -8938,8 +8964,8 @@ async function buildPDF(omarIdPedido){
   const hw=CW/2,qw=CW/4,tw=CW*0.6,fw=CW*0.4,sw=CW*0.3;
   drawDataRow([['Compañía:',gv('h_emp'),hw],['Atención a:',gv('h_ate'),hw]],y); y+=rH;
   drawDataRow([['Dirección:',gv('h_dir'),tw],['Fecha inicial:',gv('h_ini').replace('T',' '),fw]],y); y+=rH;
-  drawDataRow([['ID de la muestra:',gv('h_idm'),tw],['Fecha final:',gv('h_fin').replace('T',' '),fw]],y); y+=rH;
-  drawDataRow([['Matriz:',gv('h_mat'),hw],['Tipo:',gv('h_tipo'),qw],['Intervalo:',gv('h_int'),qw]],y); y+=rH;
+  drawDataRow([['ID de la muestra:',puntoDoc,tw],['Fecha final:',gv('h_fin').replace('T',' '),fw]],y); y+=rH;
+  drawDataRow([['Matriz:',gv('h_mat'),hw],['Tipo:',tipoDoc,qw],['Intervalo:',gv('h_int'),qw]],y); y+=rH;
   drawDataRow([['Ref. BPM Folio:',gv('h_plan'),qw],['Cond. climatológicas:',gv('h_clima'),CW-qw]],y); y+=rH;
 
   // ── TOMAS TABLE ──
@@ -8991,9 +9017,12 @@ async function buildPDF(omarIdPedido){
     if(t){
       // AARMS lote11b: T.AMB y T.AGU = Report B y Report A del Machiote. Sin bitácora, en blanco.
       const rep = _lote11TempHoja(idx + 1, fuente.id);
-      const fixVals=[`T${idx+1}`,t.hora||'',t.pct?t.pct+'%':'',t.ls||'',
-        rep.amb?rep.amb+'°':'',rep.agua?rep.agua+'°':'',t.ph||'',t.mat||'',
-        t.cond||'',t.od||'',t.color||'',t.olor===true?'SI':t.olor===false?'NO':'',
+      const phBit = _lote24TxtBit(_bitPhPromPorToma(fuente.id, idx + 1), 2, false);
+      const condBit = _lote24TxtBit(_bitCondPromPorToma(fuente.id, idx + 1), 1, true);
+      const flujoBit = _lote24TxtBit(_bitFlujosPromPorToma(fuente.id, idx + 1), 2, false);
+      const fixVals=[`T${idx+1}`,t.hora||'',t.pct?t.pct+'%':'',flujoBit,
+        rep.amb?rep.amb+'°':'',rep.agua?rep.agua+'°':'',phBit,t.mat||'',
+        condBit,t.od||'',t.color||'',t.olor===true?'SI':t.olor===false?'NO':'',
         t.cloro===true?'SI':t.cloro===false?'NO':''];
       fixVals.forEach((v,i)=>{
         doc.setFillColor(...(i===0?ACCENT:bg));
@@ -9179,7 +9208,7 @@ async function buildPDF(omarIdPedido){
 
   doc.setFillColor(...TEAL);doc.rect(M,y,CW,11,'F');
   doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(8);
-  doc.text('CROQUIS DEL PUNTO DE MUESTREO — ',M+4,y+7.5);
+  doc.text('CROQUIS DEL PUNTO DE MUESTREO — '+(lugarDoc||''),M+4,y+7.5);
   y+=11;
 
   const cboxH=remainH-11;
@@ -9252,12 +9281,12 @@ async function buildPDF(omarIdPedido){
     doc.text('Información del punto de muestreo',mx+mapBoxW/2,y+14,{align:'center'});
     doc.setDrawColor(...LGRAY);doc.setLineWidth(0.5);doc.line(mx+10,y+18,mx+mapBoxW-10,y+18);
     const infoItems=[
-      ['Empresa:',gv('h_emp')],['Sitio:',gv('h_idm')],
+      ['Empresa:',gv('h_emp')],['Sitio:',lugarDoc],
       ['Dirección:',gv('h_dir').substring(0,35)],
       ['Fecha inicial:',gv('h_ini').replace('T',' ')],
-      ['Tipo muestreo:',gv('h_tipo')],
+      ['Tipo muestreo:',tipoDoc],
       ['Coord. N:','Sin GPS'],['Coord. W:','Sin GPS'],
-      ['Muestreador:',gv('mn_nom')],
+      ['Muestreador:',nombreMuest],
     ];
     infoItems.forEach(([l,v],i)=>{
       const iy=y+26+i*16;
@@ -9350,7 +9379,7 @@ async function buildPDF(omarIdPedido){
   doc.setDrawColor(...MGRAY);doc.setLineWidth(0.5);doc.rect(mx2,ry,sigBoxW,sigBoxH,'S');
 
   doc.setTextColor(...DGRAY);doc.setFont('helvetica','normal');doc.setFontSize(9);
-  doc.text('Nombre: '+gv('mn_nom'),mx2+8,ry+14);
+  doc.text('Nombre: '+nombreMuest,mx2+8,ry+14);
   doc.setDrawColor(220,228,236);doc.setLineWidth(0.3);doc.line(mx2+8,ry+16,mx2+sigBoxW-8,ry+16);
   doc.text('Cargo:    '+gv('mn_car'),mx2+8,ry+26);
   doc.line(mx2+8,ry+28,mx2+sigBoxW-8,ry+28);
