@@ -349,9 +349,29 @@ function _catalogoLoteVencido(item, fecha){
   if(!cad) return false;
   return cad < _lote10FechaRef(fecha);
 }
+/** Días hasta la caducidad (0 = hoy, 1 = mañana). null si no hay fecha o ya venció. */
+function _lote10DiasHastaCad(item, fecha){
+  const cad = _lote10CadIso(item);
+  if(!cad) return null;
+  const ref = _lote10FechaRef(fecha);
+  if(cad < ref) return null;
+  const a = cad.split('-').map(Number);
+  const b = ref.split('-').map(Number);
+  const da = new Date(a[0], a[1] - 1, a[2]);
+  const db = new Date(b[0], b[1] - 1, b[2]);
+  return Math.round((da - db) / 86400000);
+}
 function _lote10InsigniaCad(item){
+  // AARMS lote24f5 A: Vence hoy / Vence mañana, además de CADUCA PRONTO (30 días) y VENCIDO.
   if(_catalogoLoteVencido(item)){
     return '<span style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);color:#f87171;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">VENCIDO</span>';
+  }
+  const dias = _lote10DiasHastaCad(item);
+  if(dias === 0){
+    return '<span data-lote24f5-hoy="1" style="background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.45);color:#f87171;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">Vence hoy</span>';
+  }
+  if(dias === 1){
+    return '<span data-lote24f5-manana="1" style="background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.6);color:#fbbf24;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">Vence mañana</span>';
   }
   if(_lote10PorVencer(item)){
     return '<span data-lote10-pronto="1" style="background:rgba(245,158,11,.18);border:1px solid rgba(245,158,11,.55);color:#fbbf24;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700">CADUCA PRONTO</span>';
@@ -365,6 +385,39 @@ function _lote10PorVencer(item, fecha){
   if(cad < ref) return false;
   return cad <= _lote10SumarDias(ref, 30);
 }
+/** Elementos del inventario que vencen hoy o mañana (para aviso y tarjeta). */
+function _lote10CadHoyManana(){
+  const out = [];
+  const push = (nombre, item, ir) => {
+    if(!item || !_lote10CadIso(item)) return;
+    if(_catalogoLoteVencido(item)) return;
+    const dias = _lote10DiasHastaCad(item);
+    if(dias !== 0 && dias !== 1) return;
+    out.push({
+      nombre: nombre,
+      item: item,
+      dias: dias,
+      txt: dias === 0 ? 'Vence hoy' : 'Vence mañana',
+      ir: ir || { tipo: 'ancla', id: 'catDisoluciones' }
+    });
+  };
+  if(!_catalogoCache) return out;
+  const cal = (_catalogoCache.buffers && _catalogoCache.buffers.calibracion) || [];
+  const ver = (_catalogoCache.buffers && _catalogoCache.buffers.verificacion) || [];
+  ver.forEach((b, i) => push('Patrón de referencia ' + (b && b.ph != null ? Number(b.ph).toFixed(2) : ''), b, { tipo: 'ancla', id: 'catBuffersVer', idx: i }));
+  cal.forEach((b, i) => push('Patrón de trabajo ' + (b && b.ph != null ? Number(b.ph).toFixed(2) : ''), b, { tipo: 'ancla', id: 'catBuffersCal', idx: i }));
+  ((_catalogoCache.disoluciones) || []).forEach((d, i) => {
+    if(/\(lote alterno\)/i.test(d && d.nombre || '')) return;
+    push(d.nombre || ('Disolución ' + (i + 1)), d, { tipo: 'ancla', id: 'catDisoluciones', idx: i });
+  });
+  ((_catalogoCache.conductividad) || []).forEach((d, i) => push(d.nombre || ('KCl ' + (i + 1)), d, { tipo: 'ancla', id: 'catConductividad', idx: i }));
+  const agua = (typeof _catalogoAguaReactivo === 'function') ? _catalogoAguaReactivo() : null;
+  if(agua) push('Agua reactivo', agua, { tipo: 'ancla', id: 'catOtros' });
+  ((_catalogoCache.odDisoluciones) || []).forEach((d, i) => push(d.nombre || ('OD 0 mgO₂/L ' + (i + 1)), d, { tipo: 'ancla', id: 'catOdDisol', idx: i }));
+  return out;
+}
+window._lote10DiasHastaCad = _lote10DiasHastaCad;
+window._lote10CadHoyManana = _lote10CadHoyManana;
 function _lote10BaseNombre(nombre){
   return String(nombre || '').replace(/\s*\(lote alterno\)\s*/ig, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 }
@@ -1307,7 +1360,10 @@ window.addEventListener('DOMContentLoaded',async ()=>{
   renderHome();
   loadSaved();
   // AARMS v65: cargar catálogo al inicio
-  _catalogoCargar().catch(e => errorUsuario('No se pudo cargar el inventario.', e));
+  _catalogoCargar().then(() => {
+    try{ if(typeof _lote10PintarArranque === 'function') void _lote10PintarArranque(); }catch(_){}
+    try{ if(typeof _lote24f5AvisoCadDia === 'function') void _lote24f5AvisoCadDia(); }catch(_){}
+  }).catch(e => errorUsuario('No se pudo cargar el inventario.', e));
   _lote22fPedirPersistente();
   // Autoguardado en cualquier cambio de input de los formularios de OMAR y Hoja de Campo
   // Los inputs de tomas se manejan aparte (delegación) en attachTomasAutosave().
@@ -4236,10 +4292,12 @@ function buildLvarLoteCadList(containerId, items, section){
     const cad = guardado ? (s.cad || '') : (cat.caducidad || '');
     const hasData = !!(String(lote).trim() || String(cad).trim());
     const esc = (v) => String(v || '').replace(/"/g, '&quot;');
+    const insignia = (!guardado && cat && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(cat) : '';
     return `
       <div data-lv-row="${it.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
           <div style="flex:1;font-size:12.5px;color:var(--w);font-weight:600">${it.label}</div>
+          ${insignia}
           ${_lvCheckBadge(hasData)}
         </div>
         <div class="g2">
@@ -4277,10 +4335,12 @@ function buildLvarReactivos(){
     const marca = (s.marca && String(s.marca).trim()) ? s.marca : (cat ? (cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '') : '');
     const hasData = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
     const esc = (v) => String(v || '').replace(/"/g, '&quot;');
+    const insignia = (!guardado && cat && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(cat) : '';
     return `
       <div data-lv-row="${r.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
           <div style="flex:1;font-size:12.5px;color:var(--w);font-weight:600">${r.label}</div>
+          ${insignia}
           ${_lvCheckBadge(hasData)}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
@@ -4331,6 +4391,7 @@ function buildLvarPatrones(){
     const tieneLote = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
     const hasData = tieneLote;
     const aviso = tieneLote ? (res.vencido ? _lote10MsgVencido(p.label) : '') : _lote10MsgFalta(p.label);
+    const insignia = (res.item && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(res.item) : '';
     const grid = p.conValor
       ? 'grid-template-columns:70px 1fr 1fr 1fr'
       : 'grid-template-columns:1fr 1fr 1fr';
@@ -4345,6 +4406,7 @@ function buildLvarPatrones(){
       <div data-lv-row="${p.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
           <div style="flex:1;font-size:12.5px;color:var(--w);font-weight:600">${p.label}</div>
+          ${insignia}
           ${_lvCheckBadge(hasData)}
         </div>
         <div style="display:grid;${grid};gap:6px">
@@ -17776,15 +17838,26 @@ async function _lote10PintarArranque(){
   try { if(!_catalogoCache && typeof _catalogoCargar === 'function') await _catalogoCargar(); } catch(e){}
   const filas = _lote10Pendientes();
   const faltan = filas.filter(f => !f.ok);
-  if(!faltan.length){ host.style.display = 'none'; host.innerHTML = ''; return; }
+  const cadProx = (typeof _lote10CadHoyManana === 'function') ? _lote10CadHoyManana() : [];
+  if(!faltan.length && !cadProx.length){ host.style.display = 'none'; host.innerHTML = ''; return; }
   host.style.display = 'block';
   const abierto = !!_lote22fArranqueAbierto;
-  // AARMS lote22f: recogida por defecto. El plan y Nuevo Muestreo quedan a la vista.
+  // AARMS lote24f5 A: aviso de «Vence hoy/mañana» visible aunque la tarjeta esté recogida.
+  const avisoCad = cadProx.length ? `
+    <div data-lote24f5-arranque-cad="1" style="margin:0 14px 10px;padding:8px 10px;border-radius:9px;border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.1);font-size:12px;color:#fbbf24;line-height:1.4">
+      ${cadProx.map(c => `<div style="margin:2px 0"><b>${_lote10EscHtml(c.txt)}</b> · ${_lote10EscHtml(c.nombre)}</div>`).join('')}
+      <button type="button" onclick="abrirCatalogo()" style="margin-top:8px;background:transparent;border:1px solid rgba(245,158,11,.5);color:#fbbf24;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-weight:700">Ir al inventario</button>
+    </div>` : '';
+  const titulo = faltan.length
+    ? (`Configuración inicial: faltan ${faltan.length}`)
+    : ('Configuración inicial');
   host.innerHTML = `
     <div class="card" id="lote10ArranqueCard" style="margin:0 0 16px">
       <button type="button" id="lote22fArranqueToggle" aria-expanded="${abierto ? 'true' : 'false'}" onclick="_lote22fToggleArranque()" style="display:flex;width:100%;align-items:center;gap:8px;background:transparent;border:none;color:var(--w);padding:12px 14px;cursor:pointer;text-align:left;font-family:var(--syne);font-weight:800;font-size:13px">
-        <span style="flex:1">Configuración inicial: faltan ${faltan.length} ${abierto ? '▾' : '▸'}</span>
+        <span style="flex:1">${_lote10EscHtml(titulo)} ${abierto ? '▾' : '▸'}</span>
+        ${cadProx.length && !abierto ? `<span style="font-size:10px;font-weight:800;color:#fbbf24">${cadProx.length} por vencer</span>` : ''}
       </button>
+      ${avisoCad}
       ${abierto ? `<div class="cb" style="padding:6px 0">
         ${filas.map((f, i) => `
           <button type="button" data-lote10-ir="${i}" style="display:flex;width:100%;align-items:center;gap:10px;background:transparent;border:none;border-bottom:1px solid var(--ln);color:var(--w);padding:10px 14px;cursor:pointer;text-align:left">
@@ -17797,6 +17870,27 @@ async function _lote10PintarArranque(){
     btn.addEventListener('click', () => _lote10Ir(filas[Number(btn.getAttribute('data-lote10-ir'))]));
   });
 }
+/** Aviso una sola vez al día si hay lotes que vencen hoy o mañana. */
+async function _lote24f5AvisoCadDia(){
+  try { if(!_catalogoCache && typeof _catalogoCargar === 'function') await _catalogoCargar(); } catch(e){}
+  const lista = (typeof _lote10CadHoyManana === 'function') ? _lote10CadHoyManana() : [];
+  if(!lista.length) return;
+  const hoy = (typeof _lote21HoyFecha === 'function') ? _lote21HoyFecha() : _lote10FechaRef();
+  let ya = '';
+  try { ya = localStorage.getItem('aarms_lote24f5_aviso_cad') || ''; } catch(_){}
+  if(ya === hoy) return;
+  try { localStorage.setItem('aarms_lote24f5_aviso_cad', hoy); } catch(_){}
+  const cuerpo = lista.map(c => '· ' + c.txt + ': ' + c.nombre).join('\n');
+  const ok = await confirmAction({
+    title: 'Caducidades próximas',
+    message: cuerpo + '\n\nRevisa el inventario y registra el lote nuevo si hace falta.',
+    okText: 'Ir al inventario',
+    okDanger: false,
+    cancelText: 'Cerrar'
+  });
+  if(ok && typeof abrirCatalogo === 'function') await abrirCatalogo();
+}
+window._lote24f5AvisoCadDia = _lote24f5AvisoCadDia;
 async function _lote10Ir(fila){
   if(!fila || !fila.ir) return;
   const ir = fila.ir;
