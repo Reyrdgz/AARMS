@@ -1376,14 +1376,15 @@ function _phPromedio(l1, l2, l3){
   return Ls.reduce((a,b)=>a+b,0)/3;
 }
 function _phRedondeo25(prom){
+  // AARMS lote24f4 C: siempre dos decimales (7.10, no 7.1).
   if(prom==null||isNaN(prom)) return '';
-  return (Math.round(prom*10)/10).toFixed(1);
+  return (Math.round(Number(prom)*100)/100).toFixed(2);
 }
-/** pH a 25°C = promedio de L1–L3 redondeado a 1 decimal. */
+/** pH a 25°C = promedio de L1–L3 con dos decimales. */
 function _phA25(l1, l2, l3){
   const ls=[l1,l2,l3].filter(v=>v!=null&&v!=='').map(Number).filter(n=>!isNaN(n));
   if(!ls.length) return '';
-  return (Math.round((ls.reduce((a,b)=>a+b,0)/ls.length)*10)/10).toFixed(1);
+  return (Math.round((ls.reduce((a,b)=>a+b,0)/ls.length)*100)/100).toFixed(2);
 }
 /**
  * Acepta/Rechaza según formato F-AA-264-4.

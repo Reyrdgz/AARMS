@@ -3632,9 +3632,10 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
     return '';
   };
   const ph25Calc = (l1, l2, l3) => {
+    // AARMS lote24f4 C: pH a 25 °C siempre con dos decimales.
     if(typeof _phA25 === 'function') return _phA25(l1, l2, l3);
     const p = prom3(l1, l2, l3);
-    return p != null ? (Math.round(p * 10) / 10).toFixed(1) : '';
+    return p != null ? (Math.round(p * 100) / 100).toFixed(2) : '';
   };
 
   const subPlan = planPh && planPh.id
