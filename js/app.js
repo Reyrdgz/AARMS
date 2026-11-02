@@ -1406,8 +1406,16 @@ function _phAceptaRechaza(l1, l2, l3, bufferNominal){
   const difPatron=Math.abs(prom-b);
   return (difLecturas<=0.03+1e-9 && difPatron<=0.05+1e-9) ? 'Acepta' : 'Rechaza';
 }
+/** Lecturas de la muestra (no del patrón): solo Δ ≤ 0.03 entre las tres. */
+function _phAceptaMuestra(l1, l2, l3){
+  const ls=[l1,l2,l3].filter(v=>v!=null&&v!=='').map(Number).filter(n=>!isNaN(n));
+  if(ls.length < 3) return 'PENDIENTE';
+  const dif=Math.max(...ls)-Math.min(...ls);
+  return dif<=0.03+1e-9 ? 'Acepta' : 'Rechaza';
+}
 window._phA25=_phA25;
 window._phAceptaRechaza=_phAceptaRechaza;
+window._phAceptaMuestra=_phAceptaMuestra;
 window._phPromedio=_phPromedio;
 window._phRedondeo25=_phRedondeo25;
 
@@ -14909,7 +14917,9 @@ function bitPhUpdatePromedioFila(idx){
     // AARMS lote24f4: dictamen solo calculado (misma función que el PDF); sin patrón no hay Acepta.
     const sug=_bitPhDictamenFila(r);
     r.ar=(sug==='Acepta'||sug==='Rechaza')?sug:'';
-    if(r.promedio && r.omarId && r.toma && !r.calibGrupo && !_bitPhEsIntentoRechazado(r) && sug==='Acepta'){
+    // AARMS lote24f4 B: a la muestra solo si Δ≤0.03; nunca desde una V sin patrón.
+    if(r.promedio && r.omarId && r.toma && !r.calibGrupo && !_bitPhEsIntentoRechazado(r)
+      && !_bitPhFaltaPatron(r) && _phAceptaMuestra(r.l1, r.l2, r.l3)==='Acepta'){
       _aplicarPromedioABm(r.omarId, parseInt(r.toma, 10), 'ph', r.promedio);
     }
   }else{
@@ -15828,6 +15838,12 @@ function _bitAplicarPromediosAToma(tipo /* 'ph' | 'cond' */){
   const porOmar = {};
   fuente.forEach(r=>{
     if(!r.toma || r.calibGrupo) return;
+    if(tipo==='ph'){
+      // AARMS lote24f4 B: no hay camino de muestra con V sin patrón; criterio de muestra = solo Δ≤0.03.
+      if(typeof _bitPhEsIntentoRechazado === 'function' && _bitPhEsIntentoRechazado(r)) return;
+      if(typeof _bitPhFaltaPatron === 'function' && _bitPhFaltaPatron(r)) return;
+      if(typeof _phAceptaMuestra === 'function' && _phAceptaMuestra(r.l1, r.l2, r.l3) !== 'Acepta') return;
+    }
     const rid = (r.omarId!=null && r.omarId!=='') ? String(r.omarId) : activeTs;
     const Ls=[r.l1,r.l2,r.l3].map(x=>parseFloat(x)).filter(x=>!isNaN(x));
     if(Ls.length===0) return;
