@@ -412,7 +412,10 @@ function _lote10CadHoyManana(){
   });
   ((_catalogoCache.conductividad) || []).forEach((d, i) => push(d.nombre || ('KCl ' + (i + 1)), d, { tipo: 'ancla', id: 'catConductividad', idx: i }));
   const agua = (typeof _catalogoAguaReactivo === 'function') ? _catalogoAguaReactivo() : null;
-  if(agua) push('Agua reactivo', agua, { tipo: 'ancla', id: 'catOtros' });
+  if(agua){
+    const ai = ((_catalogoCache.otros) || []).findIndex(o => o === agua || (o && /agua\s*reactivo/i.test(o.nombre || '')));
+    push('Agua reactivo', agua, { tipo: 'ancla', id: 'catOtros', idx: ai >= 0 ? ai : 0 });
+  }
   ((_catalogoCache.odDisoluciones) || []).forEach((d, i) => push(d.nombre || ('OD 0 mgO₂/L ' + (i + 1)), d, { tipo: 'ancla', id: 'catOdDisol', idx: i }));
   return out;
 }
@@ -810,13 +813,45 @@ function _lote10EscHtml(s){
 function _lote10MsgFalta(nombre){
   return '<div data-lote10-falta="1" style="margin-top:6px;font-size:12px;color:#fbbf24;line-height:1.45">Falta registrar en Inventario: '+_lote10EscHtml(nombre)+'. <button type="button" onclick="abrirCatalogo()" style="margin-left:6px;background:transparent;border:1px solid rgba(251,191,36,.45);color:#fbbf24;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>';
 }
-function _lote10MsgVencido(nombre, anclaId){
-  // AARMS lote24f5 B/C: el vencido no se imprime; enlace al inventario (ancla del elemento si se pasa).
-  const id = String(anclaId || '').replace(/'/g, '');
-  const onclick = id
-    ? `_lote10Ir({ir:{tipo:'ancla',id:'${id}'}})`
-    : 'abrirCatalogo()';
-  return '<div data-lote10-vencido="1" style="margin-top:6px;font-size:12px;color:#f87171;line-height:1.45">Vencido: registra el lote nuevo. <button type="button" data-lote24f5-ir-inv="1" onclick="'+onclick+'" style="margin-left:6px;background:transparent;border:1px solid rgba(248,113,113,.45);color:#f87171;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>';
+function _lote24f5ClickIr(btn){
+  let ir = null;
+  try { ir = JSON.parse(btn && btn.getAttribute('data-lote24f5-ir') || 'null'); } catch(_){ ir = null; }
+  if(ir) _lote10Ir({ ir: ir });
+  else if(typeof abrirCatalogo === 'function') abrirCatalogo();
+}
+window._lote24f5ClickIr = _lote24f5ClickIr;
+function _lote10MsgVencido(nombre, ir){
+  // AARMS lote24f5 B/C: el vencido no se imprime; enlace directo al elemento del inventario.
+  let irObj = ir;
+  if(typeof ir === 'string' && ir) irObj = { tipo: 'ancla', id: ir };
+  const attr = irObj ? String(JSON.stringify(irObj)).replace(/"/g, '&quot;') : '';
+  const btn = attr
+    ? `<button type="button" data-lote24f5-ir-inv="1" data-lote24f5-ir="${attr}" onclick="_lote24f5ClickIr(this)" style="margin-left:6px;background:transparent;border:1px solid rgba(248,113,113,.45);color:#f87171;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button>`
+    : `<button type="button" data-lote24f5-ir-inv="1" onclick="abrirCatalogo()" style="margin-left:6px;background:transparent;border:1px solid rgba(248,113,113,.45);color:#f87171;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button>`;
+  return '<div data-lote10-vencido="1" style="margin-top:6px;font-size:12px;color:#f87171;line-height:1.45">Vencido: registra el lote nuevo. ' + btn + '</div>';
+}
+function _lote24f5ItemDomId(anclaId, idx){
+  if(idx == null || idx === '') return String(anclaId || '');
+  return String(anclaId || 'cat') + '_i' + String(idx);
+}
+/** Índice del ítem principal en el catálogo (para el enlace directo). */
+function _lote24f5IrDisol(nombre){
+  const lista = (_catalogoCache && _catalogoCache.disoluciones) || [];
+  const base = _lote10BaseNombre(nombre);
+  let idx = lista.findIndex(d => d && _lote10BaseNombre(d.nombre) === base && !/\(lote alterno\)/i.test(d.nombre || ''));
+  if(idx < 0) idx = lista.findIndex(d => d && _lote10BaseNombre(d.nombre) === base);
+  return { tipo: 'ancla', id: 'catDisoluciones', idx: idx >= 0 ? idx : 0 };
+}
+function _lote24f5IrPatron(p){
+  const mapKey = (_LVAR_PATRON_CAT && _LVAR_PATRON_CAT[p.key]) || '';
+  if(mapKey.startsWith('ver-')) return { tipo:'ancla', id:'catBuffersVer', idx: parseInt(mapKey.split('-')[1], 10) };
+  if(mapKey.startsWith('cal-')) return { tipo:'ancla', id:'catBuffersCal', idx: parseInt(mapKey.split('-')[1], 10) };
+  if(mapKey.startsWith('cond-')) return { tipo:'ancla', id:'catConductividad', idx: parseInt(mapKey.split('-')[1], 10) };
+  if(mapKey === 'agua_reactivo'){
+    const ai = ((_catalogoCache && _catalogoCache.otros) || []).findIndex(o => o && /agua\s*reactivo/i.test(o.nombre || ''));
+    return { tipo:'ancla', id:'catOtros', idx: ai >= 0 ? ai : 0 };
+  }
+  return { tipo:'ancla', id:'catBuffersVer' };
 }
 /** Campos de lote/marca/cad para documentos: en blanco si el lote elegido está vencido. */
 function _lote10CamposDoc(res){
@@ -4308,25 +4343,25 @@ function buildLvarLoteCadList(containerId, items, section){
           <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="lote" data-field="lote" type="text" readonly tabindex="-1" value="">
           <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="caducidad" data-field="cad" type="text" readonly tabindex="-1" value="">
         </div>
-        ${_lote10MsgVencido(it.label, 'catDisoluciones')}
+        ${_lote10MsgVencido(it.label, _lote24f5IrDisol(it.pdfLabel || it.label || it.key))}
       </div>`;
     }
-    const guardado = !!((s.lote && String(s.lote).trim()) || (s.cad && String(s.cad).trim()));
     const cat = doc.item;
     const catLote = doc.lote;
     const catCad = doc.cad;
-    if(!guardado && !catLote && !catCad){
+    // AARMS lote24f5 C: el catálogo vigente manda (el LVAR regenerado toma el lote nuevo).
+    const lote = catLote || (s.lote || '');
+    const cad = catCad || (s.cad || '');
+    if(!String(lote).trim() && !String(cad).trim()){
       return `
       <div data-lv-row="${it.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="font-size:12.5px;color:var(--w);font-weight:600">${it.label}</div>
         ${_lote10MsgFalta(it.label)}
       </div>`;
     }
-    const lote = guardado ? (s.lote || '') : catLote;
-    const cad = guardado ? (s.cad || '') : catCad;
     const hasData = !!(String(lote).trim() || String(cad).trim());
     const esc = (v) => String(v || '').replace(/"/g, '&quot;');
-    const insignia = (!guardado && cat && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(cat) : '';
+    const insignia = (cat && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(cat) : '';
     return `
       <div data-lv-row="${it.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
@@ -4363,28 +4398,27 @@ function buildLvarReactivos(){
           <input data-lote8c="1" data-lv-react="${r.key}" data-campo="marca" type="text" readonly tabindex="-1" value="">
           <input data-lote8c="1" data-lv-react="${r.key}" data-campo="caducidad" type="text" readonly tabindex="-1" value="">
         </div>
-        ${_lote10MsgVencido(r.label, 'catDisoluciones')}
+        ${_lote10MsgVencido(r.label, _lote24f5IrDisol(r.pdfLabel || r.label || r.key))}
       </div>`;
     }
     const doc = _lote10CamposDoc(res);
-    const guardado = !!((s.lote && String(s.lote).trim()) || (s.cad && String(s.cad).trim()) || (s.marca && String(s.marca).trim()));
     const cat = doc.item;
     const catLote = doc.lote;
     const catCad = doc.cad;
     const catMarca = cat ? (cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '') : '';
-    if(!guardado && !catLote && !catCad && !String(catMarca).trim()){
+    const lote = catLote || (s.lote || '');
+    const cad = catCad || (s.cad || '');
+    const marca = catMarca || (s.marca || '');
+    if(!String(lote).trim() && !String(cad).trim() && !String(marca).trim()){
       return `
       <div data-lv-row="${r.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="font-size:12.5px;color:var(--w);font-weight:600">${r.label}</div>
         ${_lote10MsgFalta(r.label)}
       </div>`;
     }
-    const lote = guardado ? (s.lote || '') : catLote;
-    const cad = guardado ? (s.cad || '') : catCad;
-    const marca = (s.marca && String(s.marca).trim()) ? s.marca : catMarca;
     const hasData = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
     const esc = (v) => String(v || '').replace(/"/g, '&quot;');
-    const insignia = (!guardado && cat && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(cat) : '';
+    const insignia = (cat && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(cat) : '';
     return `
       <div data-lv-row="${r.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
@@ -4432,7 +4466,7 @@ function buildLvarPatrones(){
     const s = d[p.key] || {};
     const res = _lote10PatronDe(p, _lote10FechaLvar());
     const catId = _LVAR_PATRON_CAT[p.key] || '';
-    const ancla = catId.startsWith('ver-') ? 'catBuffersVer' : (catId.startsWith('cal-') ? 'catBuffersCal' : (catId.startsWith('cond-') ? 'catConductividad' : (catId === 'agua_reactivo' ? 'catOtros' : 'catBuffersVer')));
+    const irPatron = _lote24f5IrPatron(p);
     const grid = p.conValor
       ? 'grid-template-columns:70px 1fr 1fr 1fr'
       : 'grid-template-columns:1fr 1fr 1fr';
@@ -4455,14 +4489,15 @@ function buildLvarPatrones(){
           <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="marca" type="text" value="" placeholder="Marca" readonly>
           <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="cad" type="text" value="" placeholder="Cad." readonly>
         </div>
-        ${_lote10MsgVencido(p.label, ancla)}
+        ${_lote10MsgVencido(p.label, irPatron)}
       </div>`;
     }
     const doc = _lote10CamposDoc(res);
     const cat = doc.item || {};
-    const lote = (s.lote && String(s.lote).trim()) ? s.lote : doc.lote;
-    const marca = (s.marca && String(s.marca).trim()) ? s.marca : doc.marca;
-    const cad = (s.cad && String(s.cad).trim()) ? s.cad : doc.cad;
+    // AARMS lote24f5 C: catálogo vigente manda al regenerar.
+    const lote = doc.lote || ((s.lote && String(s.lote).trim()) ? s.lote : '');
+    const marca = doc.marca || ((s.marca && String(s.marca).trim()) ? s.marca : '');
+    const cad = doc.cad || ((s.cad && String(s.cad).trim()) ? s.cad : '');
     const valor = (s.valor && String(s.valor).trim()) ? s.valor : (p.conValor && cat.ph != null && cat.ph !== '' ? Number(cat.ph).toFixed(2) : (s.valor || ''));
     const tieneLote = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
     const hasData = tieneLote;
@@ -4781,13 +4816,9 @@ async function generarPDFLVAR(){
       }
       const docC = _lote10CamposDoc(res);
       if(!docC.item) return;
-      if(res.usoAlterno){
-        actual.lote = docC.lote;
-        actual.cad = docC.cad;
-      } else {
-        if(!actual.lote && docC.lote) actual.lote = docC.lote;
-        if(!actual.cad && docC.cad) actual.cad = docC.cad;
-      }
+      // AARMS lote24f5 C: la copia del PDF toma el catálogo vigente; el plan no se escribe.
+      actual.lote = docC.lote;
+      actual.cad = docC.cad;
       data.disol[it.key] = actual;
     });
     data.react = data.react || {};
@@ -4805,16 +4836,9 @@ async function generarPDFLVAR(){
       }
       const docC = _lote10CamposDoc(res);
       if(!docC.item) return;
-      const marcaCat = docC.marca || _catalogoMarcaDesdeNombre(docC.item.nombre) || '';
-      if(res.usoAlterno){
-        actual.lote = docC.lote;
-        actual.marca = marcaCat;
-        actual.cad = docC.cad;
-      } else {
-        if(!actual.lote && docC.lote) actual.lote = docC.lote;
-        if(!actual.marca) actual.marca = marcaCat;
-        if(!actual.cad && docC.cad) actual.cad = docC.cad;
-      }
+      actual.lote = docC.lote;
+      actual.marca = docC.marca || _catalogoMarcaDesdeNombre(docC.item.nombre) || '';
+      actual.cad = docC.cad;
       data.react[it.key] = actual;
     });
     data.patrones = data.patrones || {};
@@ -4833,18 +4857,12 @@ async function generarPDFLVAR(){
       }
       const docC = _lote10CamposDoc(resP);
       if(!docC.item) return;
-      if(!actual.valor && docC.item.ph != null){
+      if(docC.item.ph != null){
         actual.valor = (typeof docC.item.ph === 'number') ? docC.item.ph.toFixed(2) : (docC.item.ph || '');
       }
-      if(resP.usoAlterno){
-        actual.lote = docC.lote;
-        actual.marca = docC.marca;
-        actual.cad = docC.cad;
-      } else {
-        if(!actual.lote && docC.lote) actual.lote = docC.lote;
-        if(!actual.marca && docC.marca) actual.marca = docC.marca;
-        if(!actual.cad && docC.cad) actual.cad = docC.cad;
-      }
+      actual.lote = docC.lote;
+      actual.marca = docC.marca;
+      actual.cad = docC.cad;
       data.patrones[p.key] = actual;
     });
   }
@@ -13908,8 +13926,11 @@ function catalogoRenderOdDisol(){
   if(!c || !_catalogoCache) return;
   const lista = _catalogoCache.odDisoluciones || [];
   c.innerHTML = lista.map((d, idx) => `
-    <div style="background:var(--bg2);border:1px solid var(--ln);border-radius:9px;padding:10px;margin-bottom:8px">
-      <div style="font-family:var(--syne);font-weight:800;font-size:12px;color:var(--w);margin-bottom:8px">${_odEsc(d.nombre || '')}</div>
+    <div id="${_lote24f5ItemDomId('catOdDisol', idx)}" data-lote24f5-item="1" style="background:var(--bg2);border:1px solid var(--ln);border-radius:9px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <div style="font-family:var(--syne);font-weight:800;font-size:12px;color:var(--w);flex:1">${_odEsc(d.nombre || '')}</div>
+        ${_lote10InsigniaCad(d)}
+      </div>
       <div class="g2">
         <div class="f" style="margin:0"><label>Lote</label><input type="text" value="${_odEsc(d.lote)}" oninput="catalogoUpOdDisol(${idx},'lote',this.value)"></div>
         <div class="f" style="margin:0"><label>Caducidad</label><input type="date" value="${_odEsc(d.caducidad)}" oninput="catalogoUpOdDisol(${idx},'caducidad',this.value)"></div>
@@ -16138,11 +16159,16 @@ function catalogoRenderBuffers(containerId, lista, tipo){
   c.innerHTML = lista.map((b, idx) => {
     const venc = _catalogoLoteVencido(b);
     const borde = venc ? 'rgba(248,113,113,.5)' : (_lote10PorVencer(b) ? 'rgba(245,158,11,.55)' : 'var(--ln)');
+    const principalIdx = lista.findIndex(x => x && Number(x.ph) === Number(b.ph));
+    const esAlternoBuf = principalIdx >= 0 && idx !== principalIdx && String(b.lote || '').trim() && !venc;
+    const itemId = _lote24f5ItemDomId(containerId, idx);
     return `
-    <div style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+    <div id="${itemId}" data-lote24f5-item="1" style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
         <div style="font-family:var(--syne);font-weight:800;font-size:14px;color:var(--w)">pH ${b.ph.toFixed(2)}</div>
+        ${esAlternoBuf ? '<span style="background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3);color:#94a3b8;padding:2px 8px;border-radius:20px;font-size:9.5px;font-weight:700;letter-spacing:.04em">ALTERNO</span>' : ''}
         ${_lote10InsigniaCad(b)}
+        ${esAlternoBuf ? `<button type="button" onclick="_lote24f5PromoverBuffer('${tipo}',${idx})" style="margin-left:auto;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.4);color:#34d399;padding:4px 8px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:700">Usar como principal</button>` : ''}
       </div>
       <div class="g2" style="margin-bottom:6px">
         <div class="f" style="margin:0"><label>Lote</label><input type="text" value="${(b.lote||'').replace(/"/g,'&quot;')}" oninput="catalogoUpBuffer('${tipo}',${idx},'lote',this.value)"></div>
@@ -16167,12 +16193,15 @@ function catalogoRenderDisoluciones(){
     const borde = venc ? 'rgba(248,113,113,.5)' : (_lote10PorVencer(d) ? 'rgba(245,158,11,.55)' : 'var(--ln)');
     // AARMS v66-p2: badge ALTERNO para lotes de respaldo en catálogo
     const esAlterno = /\(lote alterno\)/i.test(d.nombre || '');
+    const puedePromover = esAlterno && String(d.lote || '').trim() && !venc;
+    const itemId = _lote24f5ItemDomId('catDisoluciones', idx);
     return `
-    <div style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <input type="text" value="${(d.nombre||'').replace(/"/g,'&quot;')}" oninput="catalogoUpDisolucion(${idx},'nombre',this.value)" style="font-family:var(--syne);font-weight:800;background:transparent;border:none;color:var(--w);font-size:13px;flex:1;outline:none">
+    <div id="${itemId}" data-lote24f5-item="1" style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <input type="text" value="${(d.nombre||'').replace(/"/g,'&quot;')}" oninput="catalogoUpDisolucion(${idx},'nombre',this.value)" style="font-family:var(--syne);font-weight:800;background:transparent;border:none;color:var(--w);font-size:13px;flex:1;outline:none;min-width:120px">
         ${esAlterno ? '<span style="background:rgba(148,163,184,.15);border:1px solid rgba(148,163,184,.3);color:#94a3b8;padding:2px 8px;border-radius:20px;font-size:9.5px;font-weight:700;letter-spacing:.04em">ALTERNO</span>' : ''}
         ${_lote10InsigniaCad(d)}
+        ${puedePromover ? `<button type="button" onclick="_lote24f5PromoverDisol(${idx})" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.4);color:#34d399;padding:4px 8px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:700">Usar como principal</button>` : ''}
         <button onclick="catalogoBorrarDisolucion(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">✕</button>
       </div>
       <div class="g3">
@@ -16192,8 +16221,9 @@ function catalogoRenderConductividad(){
   c.innerHTML = _catalogoCache.conductividad.map((d, idx) => {
     const venc = _catalogoLoteVencido(d);
     const borde = venc ? 'rgba(248,113,113,.5)' : (_lote10PorVencer(d) ? 'rgba(245,158,11,.55)' : 'var(--ln)');
+    const itemId = _lote24f5ItemDomId('catConductividad', idx);
     return `
-    <div style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
+    <div id="${itemId}" data-lote24f5-item="1" style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <input type="text" value="${(d.nombre||'').replace(/"/g,'&quot;')}" oninput="catalogoUpConductividad(${idx},'nombre',this.value)" style="font-family:var(--syne);font-weight:800;background:transparent;border:none;color:var(--w);font-size:13px;flex:1;outline:none">
         ${_lote10InsigniaCad(d)}
@@ -16222,8 +16252,9 @@ function catalogoRenderOtros(){
   c.innerHTML = _catalogoCache.otros.map((d, idx) => {
     const venc = _catalogoLoteVencido(d);
     const borde = venc ? 'rgba(248,113,113,.5)' : (_lote10PorVencer(d) ? 'rgba(245,158,11,.55)' : 'var(--ln)');
+    const itemId = _lote24f5ItemDomId('catOtros', idx);
     return `
-    <div style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
+    <div id="${itemId}" data-lote24f5-item="1" style="background:var(--bg2);border:1px solid ${borde};border-radius:9px;padding:10px;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <input type="text" value="${(d.nombre||'').replace(/"/g,'&quot;')}" oninput="catalogoUpOtro(${idx},'nombre',this.value)" style="font-family:var(--syne);font-weight:800;background:transparent;border:none;color:var(--w);font-size:13px;flex:1;outline:none">
         ${_lote10InsigniaCad(d)}
@@ -16419,6 +16450,40 @@ async function catalogoUpBuffer(tipo, idx, campo, valor){
   await _catalogoGuardar();
 }
 
+/** AARMS lote24f5 C: intercambia lote/marca/cad del alterno con el principal (un toque). */
+async function _lote24f5PromoverDisol(idxAlt){
+  if(!_catalogoCache || !_catalogoCache.disoluciones) return;
+  const alt = _catalogoCache.disoluciones[idxAlt];
+  if(!alt || !/\(lote alterno\)/i.test(alt.nombre || '')){ toast('No es un lote alterno','w'); return; }
+  const base = _lote10BaseNombre(alt.nombre);
+  const idxPri = _catalogoCache.disoluciones.findIndex((d, i) => i !== idxAlt && d && _lote10BaseNombre(d.nombre) === base && !/\(lote alterno\)/i.test(d.nombre || ''));
+  if(idxPri < 0){ toast('No hay principal para este alterno','w'); return; }
+  const pri = _catalogoCache.disoluciones[idxPri];
+  const swap = (a, b, keys) => { keys.forEach(k => { const t = a[k]; a[k] = b[k]; b[k] = t; }); };
+  swap(pri, alt, ['lote', 'marca', 'caducidad', 'usoDesde']);
+  await _catalogoGuardar();
+  catalogoRenderDisoluciones();
+  try{ _lote10PintarArranque(); }catch(e){}
+  toast('Lote alterno pasado a principal ✓','g');
+}
+window._lote24f5PromoverDisol = _lote24f5PromoverDisol;
+async function _lote24f5PromoverBuffer(tipo, idxAlt){
+  if(!_catalogoCache || !_catalogoCache.buffers || !_catalogoCache.buffers[tipo]) return;
+  const lista = _catalogoCache.buffers[tipo];
+  const alt = lista[idxAlt];
+  if(!alt) return;
+  // El principal es el primero del mismo pH.
+  const primero = lista.findIndex(b => b && Number(b.ph) === Number(alt.ph));
+  if(primero < 0 || primero === idxAlt){ toast('Ya es el principal','w'); return; }
+  const pri = lista[primero];
+  const swap = (a, b, keys) => { keys.forEach(k => { const t = a[k]; a[k] = b[k]; b[k] = t; }); };
+  swap(pri, alt, ['lote', 'marca', 'caducidad', 'usoDesde', 'usoHasta']);
+  await _catalogoGuardar();
+  catalogoRenderBuffers(tipo === 'calibracion' ? 'catBuffersCal' : 'catBuffersVer', lista, tipo);
+  try{ _lote10PintarArranque(); }catch(e){}
+  toast('Lote alterno pasado a principal ✓','g');
+}
+window._lote24f5PromoverBuffer = _lote24f5PromoverBuffer;
 async function catalogoUpDisolucion(idx, campo, valor){
   if(!_catalogoCache) return;
   const item = _catalogoCache.disoluciones[idx];
@@ -17888,25 +17953,25 @@ function _lote10Pendientes(){
     { nombre: 'Malla', ..._lote22bSi(_lote10EqOk('mallas')), ir: { tipo: 'eq', id: 'mallas' } },
     { nombre: 'Kit de cloro', ..._lote22bSi(_lote10EqOk('kitsCloro')), ir: { tipo: 'eq', id: 'kitsCloro' } },
     { nombre: 'Oxímetro', ..._lote22bSi(_lote10EqOk('oximetros')), ir: { tipo: 'eq', id: 'oximetros' } },
-    { nombre: 'Patrón de referencia 4.00', ..._lote22bBuffer(ver, 0), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
-    { nombre: 'Patrón de referencia 7.00', ..._lote22bBuffer(ver, 1), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
-    { nombre: 'Patrón de referencia 10.00', ..._lote22bBuffer(ver, 2), ir: { tipo: 'ancla', id: 'catBuffersVer' } },
-    { nombre: 'Patrón de trabajo 4.00', ..._lote22bBuffer(cal, 0), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
-    { nombre: 'Patrón de trabajo 6.86', ..._lote22bBuffer(cal, 1), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
-    { nombre: 'Patrón de trabajo 9.18', ..._lote22bBuffer(cal, 2), ir: { tipo: 'ancla', id: 'catBuffersCal' } },
-    { nombre: 'H₂SO₄ 1:1', ..._lote22bDisol('H₂SO₄ 1:1'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'HCl 1:1 (uso general)', ..._lote22bDisol('HCl 1:1 (uso general)'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'H₂SO₄ 25%', ..._lote22bDisol('H₂SO₄ 25%'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'NaOH 1N', ..._lote22bDisol('NaOH 1N'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'K₂Cr₂O₇ 25%', ..._lote22bDisol('K₂Cr₂O₇ 25%'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'HCl 1:1 (lavado de electrodo)', ..._lote22bDisol('HCl 1:1 (lavado electrodo)'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'HNO₃ ACS', ..._lote22bReact('HNO₃ ACS'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'HNO₃ Suprapuro', ..._lote22bReact('HNO₃ Suprapuro'), ir: { tipo: 'ancla', id: 'catDisoluciones' } },
-    { nombre: 'KCl patrón', ..._lote22bCond(0), ir: { tipo: 'ancla', id: 'catConductividad' } },
-    { nombre: 'KCl comercial', ..._lote22bCond(1), ir: { tipo: 'ancla', id: 'catConductividad' } },
-    { nombre: 'Agua reactivo', ..._lote22bAgua(), ir: { tipo: 'ancla', id: 'catOtros' } },
-    { nombre: 'Disolución OD de calibración (0 mgO₂/L)', ..._lote22bOd(0), ir: { tipo: 'ancla', id: 'catOdDisol' } },
-    { nombre: 'Disolución OD de trabajo (0 mgO₂/L)', ..._lote22bOd(1), ir: { tipo: 'ancla', id: 'catOdDisol' } }
+    { nombre: 'Patrón de referencia 4.00', ..._lote22bBuffer(ver, 0), ir: { tipo: 'ancla', id: 'catBuffersVer', idx: 0 } },
+    { nombre: 'Patrón de referencia 7.00', ..._lote22bBuffer(ver, 1), ir: { tipo: 'ancla', id: 'catBuffersVer', idx: 1 } },
+    { nombre: 'Patrón de referencia 10.00', ..._lote22bBuffer(ver, 2), ir: { tipo: 'ancla', id: 'catBuffersVer', idx: 2 } },
+    { nombre: 'Patrón de trabajo 4.00', ..._lote22bBuffer(cal, 0), ir: { tipo: 'ancla', id: 'catBuffersCal', idx: 0 } },
+    { nombre: 'Patrón de trabajo 6.86', ..._lote22bBuffer(cal, 1), ir: { tipo: 'ancla', id: 'catBuffersCal', idx: 1 } },
+    { nombre: 'Patrón de trabajo 9.18', ..._lote22bBuffer(cal, 2), ir: { tipo: 'ancla', id: 'catBuffersCal', idx: 2 } },
+    { nombre: 'H₂SO₄ 1:1', ..._lote22bDisol('H₂SO₄ 1:1'), ir: _lote24f5IrDisol('H₂SO₄ 1:1') },
+    { nombre: 'HCl 1:1 (uso general)', ..._lote22bDisol('HCl 1:1 (uso general)'), ir: _lote24f5IrDisol('HCl 1:1 (uso general)') },
+    { nombre: 'H₂SO₄ 25%', ..._lote22bDisol('H₂SO₄ 25%'), ir: _lote24f5IrDisol('H₂SO₄ 25%') },
+    { nombre: 'NaOH 1N', ..._lote22bDisol('NaOH 1N'), ir: _lote24f5IrDisol('NaOH 1N') },
+    { nombre: 'K₂Cr₂O₇ 25%', ..._lote22bDisol('K₂Cr₂O₇ 25%'), ir: _lote24f5IrDisol('K₂Cr₂O₇ 25%') },
+    { nombre: 'HCl 1:1 (lavado de electrodo)', ..._lote22bDisol('HCl 1:1 (lavado electrodo)'), ir: _lote24f5IrDisol('HCl 1:1 (lavado electrodo)') },
+    { nombre: 'HNO₃ ACS', ..._lote22bReact('HNO₃ ACS'), ir: _lote24f5IrDisol('HNO₃ ACS') },
+    { nombre: 'HNO₃ Suprapuro', ..._lote22bReact('HNO₃ Suprapuro'), ir: _lote24f5IrDisol('HNO₃ Suprapuro') },
+    { nombre: 'KCl patrón', ..._lote22bCond(0), ir: { tipo: 'ancla', id: 'catConductividad', idx: 0 } },
+    { nombre: 'KCl comercial', ..._lote22bCond(1), ir: { tipo: 'ancla', id: 'catConductividad', idx: 1 } },
+    { nombre: 'Agua reactivo', ..._lote22bAgua(), ir: (function(){ const ai = ((_catalogoCache && _catalogoCache.otros) || []).findIndex(o => o && /agua\s*reactivo/i.test(o.nombre || '')); return { tipo: 'ancla', id: 'catOtros', idx: ai >= 0 ? ai : 0 }; })() },
+    { nombre: 'Disolución OD de calibración (0 mgO₂/L)', ..._lote22bOd(0), ir: { tipo: 'ancla', id: 'catOdDisol', idx: 0 } },
+    { nombre: 'Disolución OD de trabajo (0 mgO₂/L)', ..._lote22bOd(1), ir: { tipo: 'ancla', id: 'catOdDisol', idx: 1 } }
   ];
   return filas;
 }
@@ -17926,11 +17991,14 @@ async function _lote10PintarArranque(){
   if(!faltan.length && !cadProx.length){ host.style.display = 'none'; host.innerHTML = ''; return; }
   host.style.display = 'block';
   const abierto = !!_lote22fArranqueAbierto;
-  // AARMS lote24f5 A: aviso de «Vence hoy/mañana» visible aunque la tarjeta esté recogida.
+  // AARMS lote24f5 A/C: aviso visible aunque esté recogida; cada renglón abre el elemento.
   const avisoCad = cadProx.length ? `
     <div data-lote24f5-arranque-cad="1" style="margin:0 14px 10px;padding:8px 10px;border-radius:9px;border:1px solid rgba(245,158,11,.45);background:rgba(245,158,11,.1);font-size:12px;color:#fbbf24;line-height:1.4">
-      ${cadProx.map(c => `<div style="margin:2px 0"><b>${_lote10EscHtml(c.txt)}</b> · ${_lote10EscHtml(c.nombre)}</div>`).join('')}
-      <button type="button" onclick="abrirCatalogo()" style="margin-top:8px;background:transparent;border:1px solid rgba(245,158,11,.5);color:#fbbf24;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-weight:700">Ir al inventario</button>
+      ${cadProx.map((c, ci) => {
+        const irAttr = String(JSON.stringify(c.ir || { tipo:'ancla', id:'catDisoluciones' })).replace(/"/g, '&quot;');
+        return `<button type="button" data-lote24f5-cad-ir="${ci}" data-lote24f5-ir="${irAttr}" onclick="_lote24f5ClickIr(this)" style="display:block;width:100%;text-align:left;margin:2px 0;background:transparent;border:none;color:#fbbf24;padding:4px 0;cursor:pointer;font-size:12px"><b>${_lote10EscHtml(c.txt)}</b> · ${_lote10EscHtml(c.nombre)}</button>`;
+      }).join('')}
+      <button type="button" data-lote24f5-ir="${String(JSON.stringify(cadProx[0].ir || { tipo:'ancla', id:'catDisoluciones' })).replace(/"/g,'&quot;')}" onclick="_lote24f5ClickIr(this)" style="margin-top:8px;background:transparent;border:1px solid rgba(245,158,11,.5);color:#fbbf24;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-weight:700">Ir al inventario</button>
     </div>` : '';
   const titulo = faltan.length
     ? (`Configuración inicial: faltan ${faltan.length}`)
@@ -17972,7 +18040,8 @@ async function _lote24f5AvisoCadDia(){
     okDanger: false,
     cancelText: 'Cerrar'
   });
-  if(ok && typeof abrirCatalogo === 'function') await abrirCatalogo();
+  // AARMS lote24f5 C: abre el primer elemento que vence hoy/mañana.
+  if(ok) await _lote10Ir({ ir: lista[0].ir || { tipo: 'ancla', id: 'catDisoluciones' } });
 }
 window._lote24f5AvisoCadDia = _lote24f5AvisoCadDia;
 async function _lote10Ir(fila){
@@ -17989,10 +18058,21 @@ async function _lote10Ir(fila){
   await abrirCatalogo();
   invSetTab(ir.tipo === 'eq' ? 'equipos' : 'disol');
   setTimeout(() => {
-    const el = document.getElementById(ir.tipo === 'eq' ? ('invEq_' + ir.id) : ir.id);
-    if(el) el.scrollIntoView({ block: 'start' });
-  }, 120);
+    // AARMS lote24f5 C: ir al elemento concreto (idx) cuando existe; si no, a la sección.
+    let el = null;
+    if(ir.tipo === 'eq') el = document.getElementById('invEq_' + ir.id);
+    else if(ir.idx != null && ir.idx !== '') el = document.getElementById(_lote24f5ItemDomId(ir.id, ir.idx));
+    if(!el) el = document.getElementById(ir.id);
+    if(el){
+      el.scrollIntoView({ block: 'start' });
+      try {
+        const inp = el.querySelector('input[type="text"],input:not([type])');
+        if(inp) inp.focus();
+      } catch(e){}
+    }
+  }, 160);
 }
+window._lote10Ir = _lote10Ir;
 window._lote10PintarArranque = _lote10PintarArranque;
 
 function _lote22fPintarAlmacen(ok){
