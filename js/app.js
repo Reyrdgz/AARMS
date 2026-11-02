@@ -15358,6 +15358,9 @@ function bitPhRepetirVerif(idx){
   guardarBorradorActual();
   void _persistPlanBitPh();
   toast('Intento rechazado guardado. Captura la verificación de nuevo.','g');
+  // Tras ordenar en el render, devolver el índice real de la fila nueva.
+  const regs2 = _bitPhRegs() || [];
+  return regs2.indexOf(nuevo);
 }
 window.bitPhRepetirVerif = bitPhRepetirVerif;
 
@@ -18388,7 +18391,7 @@ async function _cartasDescargarPdf(){
     const eqMeta = _CARTAS_EQUIPOS.find(e => e.id === _cartasUi.equipo) || _CARTAS_EQUIPOS[0];
     const puntos = await _cartasPuntosFiltrados();
     const canvas = document.getElementById('cartasCanvas');
-    if(canvas) _cartasDrawChart(canvas, puntos, eqMeta.unidad);
+    if(canvas) _cartasDrawChart(canvas, puntos, eqMeta.unidad, eqMeta.id);
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter', compress: true });
     const M = 40;

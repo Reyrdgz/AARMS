@@ -2599,7 +2599,10 @@ function _pdfBmTablaPhEntreToma(doc, plan, omarRef, y, ctx){
     let vals = ['', '', '', '', '', '', '', '', '', '', ''];
     if(r){
       const prom = typeof _phPromedio === 'function' ? _phPromedio(r.l1, r.l2, r.l3) : null;
-      const ph25 = r.ph25 || (typeof _phRedondeo25 === 'function' ? _phRedondeo25(prom) : '');
+      // AARMS lote24f4 C: no reusar ph25 viejo a 1 decimal; siempre recalcular a 2.
+      const ph25 = (typeof _phA25 === 'function')
+        ? _phA25(r.l1, r.l2, r.l3)
+        : (typeof _phRedondeo25 === 'function' ? _phRedondeo25(prom) : (prom != null ? Number(prom).toFixed(2) : ''));
       let ar = '';
       if(typeof _phAceptaRechaza === 'function'){
         ar = _phAceptaRechaza(r.l1, r.l2, r.l3, r.buffer);
