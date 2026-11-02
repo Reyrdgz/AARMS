@@ -6,3 +6,6 @@ simulacion/
 simulacion-4omar/
 *.log
 .cursor/
+pruebas/
+auditoria_bpm_od.md
+auditoria_capturas.md
