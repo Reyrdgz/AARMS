@@ -4557,7 +4557,17 @@ async function _lote17GenerarPDFOD(plan){
     vals.forEach((val, i) => { doc.rect(x, y, ws[i], 26); doc.text(String(val), x + 2, y + 16, { maxWidth: ws[i] - 3 }); x += ws[i]; });
     return y + 26;
   };
-  const d0 = dis[0] || {}, d1 = dis[1] || {};
+  // AARMS lote24f5 B: lote OD vencido no se imprime (hueco en blanco).
+  const _odLoteDoc = (d) => {
+    if(!d) return {};
+    const venc = (typeof _catalogoLoteVencido === 'function') && _catalogoLoteVencido(d, plan && plan.fecha);
+    return {
+      lote: venc ? '' : (d.lote || ''),
+      recipiente: d.recipiente || '',
+      folioBdbo: d.folioBdbo || ''
+    };
+  };
+  const d0 = _odLoteDoc(dis[0]), d1 = _odLoteDoc(dis[1]);
   const zL = (b.calibLab && b.calibLab.zero) || {};
   const sL = (b.calibLab && b.calibLab.sat) || {};
   const zC = (b.calibCampo && b.calibCampo.zero) || {};

@@ -810,9 +810,27 @@ function _lote10EscHtml(s){
 function _lote10MsgFalta(nombre){
   return '<div data-lote10-falta="1" style="margin-top:6px;font-size:12px;color:#fbbf24;line-height:1.45">Falta registrar en Inventario: '+_lote10EscHtml(nombre)+'. <button type="button" onclick="abrirCatalogo()" style="margin-left:6px;background:transparent;border:1px solid rgba(251,191,36,.45);color:#fbbf24;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>';
 }
-function _lote10MsgVencido(nombre){
-  return '<div data-lote10-vencido="1" style="margin-top:6px;font-size:12px;color:#f87171;line-height:1.45">Vencido: '+_lote10EscHtml(nombre)+'. Reemplaza en Inventario. <button type="button" onclick="abrirCatalogo()" style="margin-left:6px;background:transparent;border:1px solid rgba(248,113,113,.45);color:#f87171;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>';
+function _lote10MsgVencido(nombre, anclaId){
+  // AARMS lote24f5 B/C: el vencido no se imprime; enlace al inventario (ancla del elemento si se pasa).
+  const id = String(anclaId || '').replace(/'/g, '');
+  const onclick = id
+    ? `_lote10Ir({ir:{tipo:'ancla',id:'${id}'}})`
+    : 'abrirCatalogo()';
+  return '<div data-lote10-vencido="1" style="margin-top:6px;font-size:12px;color:#f87171;line-height:1.45">Vencido: registra el lote nuevo. <button type="button" data-lote24f5-ir-inv="1" onclick="'+onclick+'" style="margin-left:6px;background:transparent;border:1px solid rgba(248,113,113,.45);color:#f87171;border-radius:8px;padding:4px 8px;font-size:11px;cursor:pointer">Inventario</button></div>';
 }
+/** Campos de lote/marca/cad para documentos: en blanco si el lote elegido está vencido. */
+function _lote10CamposDoc(res){
+  if(!res || res.vencido || !res.item) return { lote: '', marca: '', cad: '', caducidad: '', item: null };
+  const it = res.item;
+  return {
+    lote: String(it.lote || '').trim(),
+    marca: String(it.marca || '').trim(),
+    cad: String(it.caducidad || '').trim(),
+    caducidad: String(it.caducidad || '').trim(),
+    item: it
+  };
+}
+window._lote10CamposDoc = _lote10CamposDoc;
 function _lote10FechaLvar(){
   const el = document.getElementById('lv_fecha');
   return _lote10FechaRef(el && el.value);
@@ -4276,11 +4294,27 @@ function buildLvarLoteCadList(containerId, items, section){
   const d = _lvarData[section] || {};
   c.innerHTML = items.map(it=>{
     const s = d[it.key] || {};
-    const guardado = !!((s.lote && String(s.lote).trim()) || (s.cad && String(s.cad).trim()));
     const res = (typeof _catalogoDisolResolucion === 'function') ? _catalogoDisolResolucion(it, _lote10FechaLvar()) : { item: null, vencido: false };
-    const cat = res.item;
-    const catLote = cat && String(cat.lote || '').trim();
-    const catCad = cat && String(cat.caducidad || '').trim();
+    const doc = _lote10CamposDoc(res);
+    // AARMS lote24f5 B: vencido → hueco en blanco + aviso (no se muestra el lote viejo).
+    if(res.vencido){
+      return `
+      <div data-lv-row="${it.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <div style="flex:1;font-size:12.5px;color:var(--w);font-weight:600">${it.label}</div>
+          ${_lote10InsigniaCad(res.item)}
+        </div>
+        <div class="g2">
+          <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="lote" data-field="lote" type="text" readonly tabindex="-1" value="">
+          <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="caducidad" data-field="cad" type="text" readonly tabindex="-1" value="">
+        </div>
+        ${_lote10MsgVencido(it.label, 'catDisoluciones')}
+      </div>`;
+    }
+    const guardado = !!((s.lote && String(s.lote).trim()) || (s.cad && String(s.cad).trim()));
+    const cat = doc.item;
+    const catLote = doc.lote;
+    const catCad = doc.cad;
     if(!guardado && !catLote && !catCad){
       return `
       <div data-lv-row="${it.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
@@ -4288,8 +4322,8 @@ function buildLvarLoteCadList(containerId, items, section){
         ${_lote10MsgFalta(it.label)}
       </div>`;
     }
-    const lote = guardado ? (s.lote || '') : (cat.lote || '');
-    const cad = guardado ? (s.cad || '') : (cat.caducidad || '');
+    const lote = guardado ? (s.lote || '') : catLote;
+    const cad = guardado ? (s.cad || '') : catCad;
     const hasData = !!(String(lote).trim() || String(cad).trim());
     const esc = (v) => String(v || '').replace(/"/g, '&quot;');
     const insignia = (!guardado && cat && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(cat) : '';
@@ -4304,7 +4338,6 @@ function buildLvarLoteCadList(containerId, items, section){
           <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="lote" data-field="lote" data-required="true" type="text" readonly tabindex="-1" value="${esc(lote)}">
           <input data-lote8c="1" data-lv-${section}="${it.key}" data-lvar-disol="${it.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" readonly tabindex="-1" value="${esc(fmtFDoc(cad) || cad)}">
         </div>
-        ${(!guardado && res.vencido) ? _lote10MsgVencido(it.label) : ''}
       </div>`;
   }).join('');
 }
@@ -4315,13 +4348,29 @@ function buildLvarReactivos(){
   const d = _lvarData.react || {};
   c.innerHTML = LVAR_REACTIVOS.map(r=>{
     const s = d[r.key] || {};
-    const guardado = !!((s.lote && String(s.lote).trim()) || (s.cad && String(s.cad).trim()) || (s.marca && String(s.marca).trim()));
     const res = (typeof _catalogoReactivoResolucion === 'function')
       ? _catalogoReactivoResolucion(r.pdfLabel || r.label || r.key, _lote10FechaLvar())
       : { item: (typeof _catalogoMatchPorNombre === 'function') ? _catalogoMatchPorNombre(r.pdfLabel || r.label || r.key) : null, vencido: false };
-    const cat = res.item;
-    const catLote = cat && String(cat.lote || '').trim();
-    const catCad = cat && String(cat.caducidad || '').trim();
+    if(res.vencido){
+      return `
+      <div data-lv-row="${r.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <div style="flex:1;font-size:12.5px;color:var(--w);font-weight:600">${r.label}</div>
+          ${_lote10InsigniaCad(res.item)}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+          <input data-lote8c="1" data-lv-react="${r.key}" data-campo="lote" type="text" readonly tabindex="-1" value="">
+          <input data-lote8c="1" data-lv-react="${r.key}" data-campo="marca" type="text" readonly tabindex="-1" value="">
+          <input data-lote8c="1" data-lv-react="${r.key}" data-campo="caducidad" type="text" readonly tabindex="-1" value="">
+        </div>
+        ${_lote10MsgVencido(r.label, 'catDisoluciones')}
+      </div>`;
+    }
+    const doc = _lote10CamposDoc(res);
+    const guardado = !!((s.lote && String(s.lote).trim()) || (s.cad && String(s.cad).trim()) || (s.marca && String(s.marca).trim()));
+    const cat = doc.item;
+    const catLote = doc.lote;
+    const catCad = doc.cad;
     const catMarca = cat ? (cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '') : '';
     if(!guardado && !catLote && !catCad && !String(catMarca).trim()){
       return `
@@ -4330,9 +4379,9 @@ function buildLvarReactivos(){
         ${_lote10MsgFalta(r.label)}
       </div>`;
     }
-    const lote = guardado ? (s.lote || '') : (cat.lote || '');
-    const cad = guardado ? (s.cad || '') : (cat.caducidad || '');
-    const marca = (s.marca && String(s.marca).trim()) ? s.marca : (cat ? (cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '') : '');
+    const lote = guardado ? (s.lote || '') : catLote;
+    const cad = guardado ? (s.cad || '') : catCad;
+    const marca = (s.marca && String(s.marca).trim()) ? s.marca : catMarca;
     const hasData = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
     const esc = (v) => String(v || '').replace(/"/g, '&quot;');
     const insignia = (!guardado && cat && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(cat) : '';
@@ -4348,7 +4397,6 @@ function buildLvarReactivos(){
           <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="marca" data-field="marca" data-required="true" type="text" readonly tabindex="-1" value="${esc(marca)}">
           <input data-lote8c="1" data-lv-react="${r.key}" data-lvar-disol="react-${r.key}" data-campo="caducidad" data-field="cad" data-required="true" type="text" readonly tabindex="-1" value="${esc(fmtFDoc(cad) || cad)}">
         </div>
-        ${(!guardado && res.vencido) ? _lote10MsgVencido(r.label) : ''}
       </div>`;
   }).join('');
 }
@@ -4383,25 +4431,43 @@ function buildLvarPatrones(){
   c.innerHTML = LVAR_PATRONES.map(p=>{
     const s = d[p.key] || {};
     const res = _lote10PatronDe(p, _lote10FechaLvar());
-    const cat = res.item || {};
-    const lote = (s.lote && String(s.lote).trim()) ? s.lote : (cat.lote || '');
-    const marca = (s.marca && String(s.marca).trim()) ? s.marca : (cat.marca || '');
-    const cad = (s.cad && String(s.cad).trim()) ? s.cad : (cat.caducidad || '');
-    const valor = (s.valor && String(s.valor).trim()) ? s.valor : (p.conValor && cat.ph != null && cat.ph !== '' ? Number(cat.ph).toFixed(2) : (s.valor || ''));
-    const tieneLote = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
-    const hasData = tieneLote;
-    const aviso = tieneLote ? (res.vencido ? _lote10MsgVencido(p.label) : '') : _lote10MsgFalta(p.label);
-    const insignia = (res.item && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(res.item) : '';
+    const catId = _LVAR_PATRON_CAT[p.key] || '';
+    const ancla = catId.startsWith('ver-') ? 'catBuffersVer' : (catId.startsWith('cal-') ? 'catBuffersCal' : (catId.startsWith('cond-') ? 'catConductividad' : (catId === 'agua_reactivo' ? 'catOtros' : 'catBuffersVer')));
     const grid = p.conValor
       ? 'grid-template-columns:70px 1fr 1fr 1fr'
       : 'grid-template-columns:1fr 1fr 1fr';
-    const catId = _LVAR_PATRON_CAT[p.key] || '';
     const lvarPat = catId.startsWith('cond-')
       ? `data-lvar-cond="${catId.split('-')[1]}"`
       : (catId ? `data-lvar-patron="${catId}"` : '');
-    // AARMS v65-phfix: agregar data-lvar-patron-ph + readonly cuando es el campo pH del patrón
     const phMap = _LVAR_PATRON_CAT[p.key];
     const phAttrs = phMap ? `data-lvar-patron-ph="${phMap}"` : '';
+    if(res.vencido){
+      const valorV = (p.conValor && res.item && res.item.ph != null) ? Number(res.item.ph).toFixed(2) : '';
+      return `
+      <div data-lv-row="${p.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <div style="flex:1;font-size:12.5px;color:var(--w);font-weight:600">${p.label}</div>
+          ${_lote10InsigniaCad(res.item)}
+        </div>
+        <div style="display:grid;${grid};gap:6px">
+          ${p.conValor ? `<input type="text" value="${valorV}" readonly style="opacity:.85;text-align:center;font-weight:700;color:var(--acc)">` : ''}
+          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="lote" type="text" value="" placeholder="Lote" readonly>
+          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="marca" type="text" value="" placeholder="Marca" readonly>
+          <input data-lv-patrones="${p.key}" ${lvarPat} data-campo="cad" type="text" value="" placeholder="Cad." readonly>
+        </div>
+        ${_lote10MsgVencido(p.label, ancla)}
+      </div>`;
+    }
+    const doc = _lote10CamposDoc(res);
+    const cat = doc.item || {};
+    const lote = (s.lote && String(s.lote).trim()) ? s.lote : doc.lote;
+    const marca = (s.marca && String(s.marca).trim()) ? s.marca : doc.marca;
+    const cad = (s.cad && String(s.cad).trim()) ? s.cad : doc.cad;
+    const valor = (s.valor && String(s.valor).trim()) ? s.valor : (p.conValor && cat.ph != null && cat.ph !== '' ? Number(cat.ph).toFixed(2) : (s.valor || ''));
+    const tieneLote = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
+    const hasData = tieneLote;
+    const aviso = tieneLote ? '' : _lote10MsgFalta(p.label);
+    const insignia = (doc.item && typeof _lote10InsigniaCad === 'function') ? _lote10InsigniaCad(doc.item) : '';
     return `
       <div data-lv-row="${p.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
@@ -4699,9 +4765,7 @@ async function generarPDFLVAR(){
   const data = JSON.parse(JSON.stringify(plan.lvar || {}));
   if(folioListo) data.folio = folioListo;
 
-  // AARMS v66-fix: fusionar valores del catálogo en data antes de generar PDF
-  // Esto asegura que disoluciones, reactivos y patrones lleven sus lotes/marcas/caducidades
-  // aunque el usuario solo haya visto el prefill en pantalla (sin tocarlo).
+  // AARMS v66-fix / lote24f5 B: fusionar catálogo; vencido → hueco en blanco (no se imprime).
   await _catalogoCargar();
   if(_catalogoCache){
     const fechaLvar = data.fecha || '';
@@ -4709,69 +4773,79 @@ async function generarPDFLVAR(){
     LVAR_DISOL.forEach(it => {
       const actual = data.disol[it.key] || {};
       const res = _catalogoDisolResolucion(it, fechaLvar);
-      const cat = res.item;
-      if(cat && res.usoAlterno){
-        actual.lote = cat.lote || '';
-        actual.cad = cat.caducidad || '';
+      if(res.vencido){
+        actual.lote = '';
+        actual.cad = '';
         data.disol[it.key] = actual;
-      } else if(cat){
-        if(!actual.lote && cat.lote) actual.lote = cat.lote;
-        if(!actual.cad && cat.caducidad) actual.cad = cat.caducidad;
-        data.disol[it.key] = actual;
+        return;
       }
+      const docC = _lote10CamposDoc(res);
+      if(!docC.item) return;
+      if(res.usoAlterno){
+        actual.lote = docC.lote;
+        actual.cad = docC.cad;
+      } else {
+        if(!actual.lote && docC.lote) actual.lote = docC.lote;
+        if(!actual.cad && docC.cad) actual.cad = docC.cad;
+      }
+      data.disol[it.key] = actual;
     });
     data.react = data.react || {};
     LVAR_REACTIVOS.forEach(it => {
       const actual = data.react[it.key] || {};
       const res = (typeof _catalogoReactivoResolucion === 'function')
         ? _catalogoReactivoResolucion(it.pdfLabel || it.label || it.key, fechaLvar)
-        : { item: _catalogoMatchPorNombre(it.pdfLabel || it.label || it.key), usoAlterno: false };
-      const cat = res.item;
-      if(!cat) return;
+        : { item: _catalogoMatchPorNombre(it.pdfLabel || it.label || it.key), usoAlterno: false, vencido: false };
+      if(res.vencido){
+        actual.lote = '';
+        actual.marca = '';
+        actual.cad = '';
+        data.react[it.key] = actual;
+        return;
+      }
+      const docC = _lote10CamposDoc(res);
+      if(!docC.item) return;
+      const marcaCat = docC.marca || _catalogoMarcaDesdeNombre(docC.item.nombre) || '';
       if(res.usoAlterno){
-        actual.lote = cat.lote || '';
-        actual.marca = cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '';
-        actual.cad = cat.caducidad || '';
+        actual.lote = docC.lote;
+        actual.marca = marcaCat;
+        actual.cad = docC.cad;
       } else {
-        if(!actual.lote && cat.lote) actual.lote = cat.lote;
-        if(!actual.marca) actual.marca = cat.marca || _catalogoMarcaDesdeNombre(cat.nombre) || '';
-        if(!actual.cad && cat.caducidad) actual.cad = cat.caducidad;
+        if(!actual.lote && docC.lote) actual.lote = docC.lote;
+        if(!actual.marca) actual.marca = marcaCat;
+        if(!actual.cad && docC.cad) actual.cad = docC.cad;
       }
       data.react[it.key] = actual;
     });
     data.patrones = data.patrones || {};
     LVAR_PATRONES.forEach(p => {
       const actual = data.patrones[p.key] || {};
-      const mapKey = _LVAR_PATRON_CAT[p.key];
-      if(!mapKey) return;
-      let catItem = null;
-      if(mapKey.startsWith('ver-') || mapKey.startsWith('cal-')){
-        const lista = mapKey.startsWith('ver-') ? (_catalogoCache.buffers && _catalogoCache.buffers.verificacion) : (_catalogoCache.buffers && _catalogoCache.buffers.calibracion);
-        const i = parseInt(mapKey.split('-')[1], 10);
-        const principal = lista && lista[i];
-        const mismoPh = (lista || []).filter((b, bi) => bi !== i && principal && Number(b.ph) === Number(principal.ph));
-        const resB = _lote10Elegir(principal, mismoPh, fechaLvar);
-        catItem = resB.item;
-        if(catItem && !actual.valor) actual.valor = (typeof catItem.ph === 'number') ? catItem.ph.toFixed(2) : (catItem.ph || '');
-        if(resB.usoAlterno && catItem){
-          actual.lote = catItem.lote || '';
-          actual.marca = catItem.marca || '';
-          actual.cad = catItem.caducidad || '';
-          data.patrones[p.key] = actual;
-          return;
+      const resP = _lote10PatronDe(p, fechaLvar);
+      if(resP.vencido){
+        actual.lote = '';
+        actual.marca = '';
+        actual.cad = '';
+        if(resP.item && !actual.valor && resP.item.ph != null){
+          actual.valor = (typeof resP.item.ph === 'number') ? resP.item.ph.toFixed(2) : (resP.item.ph || '');
         }
-      } else if(mapKey.startsWith('cond-')){
-        const i = parseInt(mapKey.split('-')[1], 10);
-        catItem = _catalogoCache.conductividad && _catalogoCache.conductividad[i];
-      } else if(mapKey === 'agua_reactivo'){
-        catItem = _catalogoAguaReactivo();
-      }
-      if(catItem){
-        if(!actual.lote && catItem.lote) actual.lote = catItem.lote;
-        if(!actual.marca && catItem.marca) actual.marca = catItem.marca;
-        if(!actual.cad && catItem.caducidad) actual.cad = catItem.caducidad;
         data.patrones[p.key] = actual;
+        return;
       }
+      const docC = _lote10CamposDoc(resP);
+      if(!docC.item) return;
+      if(!actual.valor && docC.item.ph != null){
+        actual.valor = (typeof docC.item.ph === 'number') ? docC.item.ph.toFixed(2) : (docC.item.ph || '');
+      }
+      if(resP.usoAlterno){
+        actual.lote = docC.lote;
+        actual.marca = docC.marca;
+        actual.cad = docC.cad;
+      } else {
+        if(!actual.lote && docC.lote) actual.lote = docC.lote;
+        if(!actual.marca && docC.marca) actual.marca = docC.marca;
+        if(!actual.cad && docC.cad) actual.cad = docC.cad;
+      }
+      data.patrones[p.key] = actual;
     });
   }
 
@@ -5740,6 +5814,8 @@ function _lote14LoteAguaCatalogo(plan){
   const elegido = (typeof _lote10Elegir === 'function')
     ? _lote10Elegir((typeof _catalogoAguaReactivo === 'function') ? _catalogoAguaReactivo() : null, [], plan && plan.fecha)
     : { item: null };
+  // AARMS lote24f5 B: vencido no se imprime / no se arrastra al plan.
+  if(elegido && elegido.vencido) return '';
   const item = elegido && elegido.item;
   return item && String(item.lote || '').trim() ? String(item.lote).trim() : '';
 }
@@ -14302,6 +14378,17 @@ function _lote17Pintar(plan, contInfo, contSec){
   const eq = typeof _equipoActivo === 'function' ? _equipoActivo('oximetros') : null;
   const clave = eq && typeof _equipoClave === 'function' ? _equipoClave('oximetros', eq) : '';
   const dis = (_catalogoCache && _catalogoCache.odDisoluciones) || [];
+  // AARMS lote24f5 B: disolución OD vencida → lote en blanco en pantalla/PDF.
+  const disDoc = dis.map(d => {
+    const venc = typeof _catalogoLoteVencido === 'function' && _catalogoLoteVencido(d, plan && plan.fecha);
+    return {
+      nombre: d && d.nombre,
+      lote: venc ? '' : (d && d.lote) || '',
+      recipiente: (d && d.recipiente) || '',
+      folioBdbo: (d && d.folioBdbo) || '',
+      vencido: !!venc
+    };
+  });
   const folios = (b.lecturas || []).map(r => r.folioOmar).filter(Boolean);
   const uniq = [...new Set(folios)];
   contInfo.innerHTML = `
@@ -14310,8 +14397,8 @@ function _lote17Pintar(plan, contInfo, contSec){
       <div>Folios OMAR: <b style="color:var(--w)">${_lote17Inp(uniq.join(', '))}</b></div>
       <div>Oxímetro: <b style="color:var(--w)">${clave ? _lote17Inp(clave) : 'Registra el oxímetro en Inventario'}</b></div>
       <div>Año de bitácoras: <b style="color:var(--w)">${anio}</b></div>
-      ${dis.map(d => `<div>${_lote17Inp(d.nombre)}: lote ${_lote17Inp(d.lote)} · recipiente ${_lote17Inp(d.recipiente)} · BDBO5D ${anio} folio ${_lote17Inp(d.folioBdbo)}</div>`).join('')}
-      ${(!dis[0] || !dis[0].lote || !dis[1] || !dis[1].lote) ? '<div style="color:#fbbf24;margin-top:6px">Falta lote, recipiente o folio de las disoluciones de OD en Inventario. Esos huecos salen en blanco.</div>' : ''}
+      ${disDoc.map(d => `<div>${_lote17Inp(d.nombre)}: lote ${_lote17Inp(d.lote)}${d.vencido ? ' <span style="color:#f87171">(Vencido: registra el lote nuevo)</span>' : ''} · recipiente ${_lote17Inp(d.recipiente)} · BDBO5D ${anio} folio ${_lote17Inp(d.folioBdbo)}</div>`).join('')}
+      ${(!disDoc[0] || !disDoc[0].lote || !disDoc[1] || !disDoc[1].lote) ? '<div style="color:#fbbf24;margin-top:6px">Falta lote, recipiente o folio de las disoluciones de OD en Inventario. Esos huecos salen en blanco.</div>' : ''}
     </div>`;
   if(modo === 'campo' && _planDocGateLocked(plan, 'bitod')){
     contSec.innerHTML = '<div style="padding:14px;color:#fbbf24">La entrada de campo está bloqueada hasta completar el laboratorio' + (_lote17OdVerifRechazada(plan, 'lab') ? ' y repetir la verificación rechazada.' : '.') + '</div>';
@@ -16514,73 +16601,50 @@ function _lvarSetCaducidad(inp, valor){
 async function _catalogoPrefillLvarDOM(){
   if(!_catalogoCache) return;
   // AARMS v66-p2: fill NO sobreescribe valores manuales del usuario.
-  // Para forzar actualización desde catálogo, ver botón "↻" planificado en v67.
+  // AARMS lote24f5 B: no prefijar lotes vencidos (la fila ya queda en blanco).
   const fill = (inp, val)=>{
     if(!inp || inp.value || val == null || val === '') return;
     inp.value = val;
     inp.dispatchEvent(new Event('input', {bubbles:true}));
   };
+  const fecha = (typeof _lote10FechaLvar === 'function') ? _lote10FechaLvar() : '';
   LVAR_DISOL.forEach(it=>{
-    const d = _catalogoDisolMatch(it);
-    if(!d) return;
-    fill(document.querySelector(`[data-lvar-disol="${it.key}"][data-campo="lote"]`), d.lote || '');
-    _lvarSetCaducidad(document.querySelector(`[data-lvar-disol="${it.key}"][data-campo="caducidad"]`), d.caducidad);
+    const res = (typeof _catalogoDisolResolucion === 'function') ? _catalogoDisolResolucion(it, fecha) : { item: null, vencido: false };
+    if(res.vencido || !res.item) return;
+    const docC = _lote10CamposDoc(res);
+    fill(document.querySelector(`[data-lvar-disol="${it.key}"][data-campo="lote"]`), docC.lote);
+    _lvarSetCaducidad(document.querySelector(`[data-lvar-disol="${it.key}"][data-campo="caducidad"]`), docC.cad);
   });
   LVAR_REACTIVOS.forEach(it=>{
-    const d = _catalogoMatchPorNombre(it.pdfLabel || it.label || it.key);
-    if(!d) return;
-    // AARMS v65-fix: la marca puede venir en el campo marca o entre paréntesis en el nombre
-    const marcaExtraida = d.marca || _catalogoMarcaDesdeNombre(d.nombre);
-    fill(document.querySelector(`[data-lvar-disol="react-${it.key}"][data-campo="lote"]`), d.lote || '');
+    const res = (typeof _catalogoReactivoResolucion === 'function')
+      ? _catalogoReactivoResolucion(it.pdfLabel || it.label || it.key, fecha)
+      : { item: null, vencido: false };
+    if(res.vencido || !res.item) return;
+    const docC = _lote10CamposDoc(res);
+    const marcaExtraida = docC.marca || _catalogoMarcaDesdeNombre(res.item.nombre);
+    fill(document.querySelector(`[data-lvar-disol="react-${it.key}"][data-campo="lote"]`), docC.lote);
     fill(document.querySelector(`[data-lvar-disol="react-${it.key}"][data-campo="marca"]`), marcaExtraida);
-    _lvarSetCaducidad(document.querySelector(`[data-lvar-disol="react-${it.key}"][data-campo="caducidad"]`), d.caducidad);
+    _lvarSetCaducidad(document.querySelector(`[data-lvar-disol="react-${it.key}"][data-campo="caducidad"]`), docC.cad);
   });
-  _catalogoCache.buffers.calibracion.forEach((b, i)=>{
-    ['lote','marca','cad'].forEach(campo=>{
-      const inp = document.querySelector(`[data-lvar-patron="cal-${i}"][data-campo="${campo}"]`);
-      if(!inp || inp.value) return;
-      if(campo === 'cad') _lvarSetCaducidad(inp, b.caducidad);
-      else fill(inp, b[campo] || '');
-    });
-  });
-  _catalogoCache.buffers.verificacion.forEach((b, i)=>{
-    ['lote','marca','cad'].forEach(campo=>{
-      const inp = document.querySelector(`[data-lvar-patron="ver-${i}"][data-campo="${campo}"]`);
-      if(!inp || inp.value) return;
-      if(campo === 'cad') _lvarSetCaducidad(inp, b.caducidad);
-      else fill(inp, b[campo] || '');
-    });
-  });
-  // AARMS v65-phfix: autocompletar el valor pH de cada patrón (no editable)
-  _catalogoCache.buffers.calibracion.forEach((b, i)=>{
-    const inp = document.querySelector(`[data-lvar-patron-ph="cal-${i}"]`);
-    if(inp){
-      inp.value = (typeof b.ph === 'number') ? b.ph.toFixed(2) : (b.ph || '');
-      inp.dispatchEvent(new Event('input', {bubbles:true}));
+  LVAR_PATRONES.forEach(p=>{
+    const res = _lote10PatronDe(p, fecha);
+    if(res.vencido || !res.item) return;
+    const docC = _lote10CamposDoc(res);
+    const mapKey = _LVAR_PATRON_CAT[p.key] || '';
+    const selBase = mapKey.startsWith('cond-')
+      ? `[data-lvar-cond="${mapKey.split('-')[1]}"]`
+      : (mapKey ? `[data-lvar-patron="${mapKey}"]` : '');
+    if(!selBase) return;
+    fill(document.querySelector(`${selBase}[data-campo="lote"]`), docC.lote);
+    fill(document.querySelector(`${selBase}[data-campo="marca"]`), docC.marca);
+    _lvarSetCaducidad(document.querySelector(`${selBase}[data-campo="cad"]`), docC.cad);
+    if(p.conValor && docC.item.ph != null){
+      const inp = document.querySelector(`[data-lvar-patron-ph="${mapKey}"]`);
+      if(inp){
+        inp.value = Number(docC.item.ph).toFixed(2);
+        inp.dispatchEvent(new Event('input', {bubbles:true}));
+      }
     }
-  });
-  _catalogoCache.buffers.verificacion.forEach((b, i)=>{
-    const inp = document.querySelector(`[data-lvar-patron-ph="ver-${i}"]`);
-    if(inp){
-      inp.value = (typeof b.ph === 'number') ? b.ph.toFixed(2) : (b.ph || '');
-      inp.dispatchEvent(new Event('input', {bubbles:true}));
-    }
-  });
-  // AARMS v66-p2: eliminado prefill muerto cond-${i} (KCl no tiene campo pH; conValor=false)
-  _catalogoCache.conductividad.forEach((c, i)=>{
-    fill(document.querySelector(`[data-lvar-cond="${i}"][data-campo="lote"]`), c.lote || '');
-    fill(document.querySelector(`[data-lvar-cond="${i}"][data-campo="marca"]`), c.marca || '');
-    _lvarSetCaducidad(document.querySelector(`[data-lvar-cond="${i}"][data-campo="cad"]`), c.caducidad);
-  });
-  // AARMS v66-p0p1: agua reactivo por nombre (no asumir otros[0])
-  document.querySelectorAll('[data-lvar-patron="agua_reactivo"]').forEach(inp=>{
-    const campo = inp.getAttribute('data-campo');
-    if(!campo) return;
-    const agua = _catalogoAguaReactivo();
-    if(!agua || inp.value) return;
-    if(campo === 'lote') fill(inp, agua.lote || '');
-    else if(campo === 'marca') fill(inp, agua.marca || '');
-    else if(campo === 'cad' || campo === 'caducidad') _lvarSetCaducidad(inp, agua.caducidad);
   });
   _lvarPalomearAuto();
 }
@@ -16629,15 +16693,22 @@ async function _catalogoPrefillPhLab(){
   if(!_catalogoCache) return;
   const cal = _catalogoCache.buffers.calibracion;
   const ver = _catalogoCache.buffers.verificacion;
-  if(cal[0]){
-    const set=(id,v)=>{ const e=document.getElementById(id); if(e && !e.value) e.value=v||''; };
-    set('ph1_lote', cal[0].lote);
-    set('ph1_marca', cal[0].marca);
-    set('ph1_buffer', cal[0].ph != null ? cal[0].ph.toFixed(2) : '');
+  const set=(id,v)=>{ const e=document.getElementById(id); if(e && !e.value) e.value=v||''; };
+  if(cal && cal[0]){
+    const mismo = (cal || []).filter((b, bi) => bi !== 0 && Number(b.ph) === Number(cal[0].ph));
+    const res = _lote10Elegir(cal[0], mismo);
+    const docC = _lote10CamposDoc(res);
+    // AARMS lote24f5 B: no prefijar lote/marca vencidos.
+    if(docC.item){
+      set('ph1_lote', docC.lote);
+      set('ph1_marca', docC.marca);
+      if(docC.item.ph != null) set('ph1_buffer', Number(docC.item.ph).toFixed(2));
+    }
   }
-  if(ver[1]){
-    const set=(id,v)=>{ const e=document.getElementById(id); if(e && !e.value && v) e.value=v; };
-    set('ph1_buffer', ver[1].ph != null ? ver[1].ph.toFixed(2) : '');
+  if(ver && ver[1]){
+    const mismo = (ver || []).filter((b, bi) => bi !== 1 && Number(b.ph) === Number(ver[1].ph));
+    const res = _lote10Elegir(ver[1], mismo);
+    if(res.item && !res.vencido && res.item.ph != null) set('ph1_buffer', Number(res.item.ph).toFixed(2));
   }
 }
 
@@ -16647,22 +16718,33 @@ function _catalogoFusionPh2644h1(h){
   const cal = _catalogoCache.buffers && _catalogoCache.buffers.calibracion;
   const ver = _catalogoCache.buffers && _catalogoCache.buffers.verificacion;
   if(cal && cal[0]){
-    if(!h.lote && cal[0].lote) h.lote = cal[0].lote;
-    if(!h.marca && cal[0].marca) h.marca = cal[0].marca;
-    if(!h.buffer && cal[0].ph != null) h.buffer = cal[0].ph.toFixed(2);
+    const mismo = (cal || []).filter((b, bi) => bi !== 0 && Number(b.ph) === Number(cal[0].ph));
+    const res = _lote10Elegir(cal[0], mismo);
+    const docC = _lote10CamposDoc(res);
+    // AARMS lote24f5 B: vencido → no rellenar lote/marca (hueco en blanco).
+    if(docC.item){
+      if(!h.lote && docC.lote) h.lote = docC.lote;
+      if(!h.marca && docC.marca) h.marca = docC.marca;
+      if(!h.buffer && docC.item.ph != null) h.buffer = Number(docC.item.ph).toFixed(2);
+    } else if(res.vencido && res.item && res.item.ph != null && !h.buffer){
+      h.buffer = Number(res.item.ph).toFixed(2);
+    }
   }
-  if(ver && ver[1] && !h.buffer && ver[1].ph != null){
-    h.buffer = ver[1].ph.toFixed(2);
+  if(ver && ver[1] && !h.buffer){
+    const mismo = (ver || []).filter((b, bi) => bi !== 1 && Number(b.ph) === Number(ver[1].ph));
+    const res = _lote10Elegir(ver[1], mismo);
+    if(res.item && res.item.ph != null) h.buffer = Number(res.item.ph).toFixed(2);
   }
   return h;
 }
 
 async function _catalogoPrefillColabLab(){
   if(!_catalogoCache || !_catalogoCache.conductividad.length) return;
-  const c0 = _catalogoCache.conductividad[0];
+  const k = (typeof _lote22dKclCatalogo === 'function') ? _lote22dKclCatalogo() : { lote:'', marca:'' };
   const set=(id,v)=>{ const e=document.getElementById(id); if(e && !e.value) e.value=v||''; };
-  set('colab_ctrl_lote', c0.lote);
-  set('colab_marca', c0.marca);
+  // AARMS lote24f5 B: KCl vencido no se prefija.
+  set('colab_ctrl_lote', k.lote);
+  set('colab_marca', k.marca);
 }
 
 function _curPlan(){
@@ -16712,6 +16794,8 @@ function _lote22dKclCatalogo(){
   const principal = lista[0] || null;
   if(!principal) return { lote:'', marca:'' };
   const elegido = (typeof _lote10Elegir === 'function') ? _lote10Elegir(principal, []) : { item: principal };
+  // AARMS lote24f5 B: vencido → hueco en blanco en Conductímetro / documentos.
+  if(elegido && elegido.vencido) return { lote:'', marca:'' };
   const item = (elegido && elegido.item) || principal;
   const marca = String(item.marca || '').trim() || (typeof _catalogoMarcaDesdeNombre === 'function' ? _catalogoMarcaDesdeNombre(item.nombre) : '');
   return { lote: String(item.lote || '').trim(), marca: marca };
