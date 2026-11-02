@@ -2150,10 +2150,10 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
   <div style="background:var(--bg2);border-radius:14px;max-width:400px;width:100%;padding:16px;border:1px solid var(--ln);box-shadow:0 12px 40px rgba(0,0,0,.4)" onclick="event.stopPropagation()">
     <div style="font-family:var(--syne);font-weight:800;font-size:15px;margin-bottom:8px;color:var(--w)">Bloque 2 buffers (oficial)</div>
     <p style="font-size:11px;color:var(--g2);line-height:1.45;margin-bottom:12px">Se insertan <b>4 renglones</b>: Ca y Co en buffer 1, Ca y Co en buffer 2. Folio OMAR y toma quedan <b>anulados</b>. Las lecturas pueden mostrarse como <b>PENDIENTE</b> (dos renglones por buffer).</p>
-    <div class="f" style="margin-bottom:8px"><label>Buffer 1 (valor nominal pH)</label><input type="number" step="0.01" id="bitPhMcB1" value="9.18"></div>
-    <div class="f" style="margin-bottom:8px"><label>Buffer 2 (valor nominal pH)</label><input type="number" step="0.01" id="bitPhMcB2" value="6.86"></div>
-    <div class="f" style="margin-bottom:8px"><label>Lote (compartido, opcional)</label><input type="text" id="bitPhMcLote" placeholder="Ej. buffer / certificado"></div>
-    <div class="f" style="margin-bottom:8px"><label>Marca / ref. (opcional)</label><input type="text" id="bitPhMcMarca" placeholder="Ej. equipo o solución"></div>
+    <div class="f" style="margin-bottom:8px"><label>Patrón de trabajo 1 (catálogo)</label><select id="bitPhMcB1"></select></div>
+    <div class="f" style="margin-bottom:8px"><label>Patrón de trabajo 2 (catálogo)</label><select id="bitPhMcB2"></select></div>
+    <div class="f" style="margin-bottom:8px"><label>Lote (sale del catálogo)</label><input type="text" id="bitPhMcLote" readonly tabindex="-1"></div>
+    <div class="f" style="margin-bottom:8px"><label>Marca (sale del catálogo)</label><input type="text" id="bitPhMcMarca" readonly tabindex="-1"></div>
     <div class="f" style="margin-bottom:10px"><label>Fecha (los 4 renglones; ajusta horas después)</label><input type="date" id="bitPhMcFecha"></div>
     <div id="bitPhMcPendMsg" style="font-size:11px;line-height:1.45;color:var(--g1);margin-bottom:14px;padding:10px;border-radius:10px;background:rgba(74,158,255,.08);border:1px solid rgba(74,158,255,.2)"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end">

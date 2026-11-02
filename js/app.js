@@ -3175,6 +3175,14 @@ function _gateCampoClick(plan, docKey){
       return true;
     }
   }
+  // AARMS lote24f4: verificación de pH rechazada no deja avanzar a lo que sigue de entre-tomas.
+  if(plan && typeof _bitPhHayVerifRechazadaPendiente === 'function' && _bitPhHayVerifRechazadaPendiente()){
+    const despuesPh = ['condcamp','bitCond','bittemp','bitTemp','bitflujos','bitod','bm','omars'];
+    if(despuesPh.includes(docKey)){
+      toast('Hay una verificación de pH rechazada. Repítela antes de avanzar.','w');
+      return true;
+    }
+  }
   if(!plan || _planExentoDeGate(plan)) return false;
   if(docKey === 'bm'){
     if(_machioteDisponible(plan)) return false;
@@ -12546,6 +12554,155 @@ function _bitPhRegs(){
   return omar.bitPh;
 }
 
+// AARMS lote24f4: filas de control CA/CO/V — patrón del catálogo y dictamen con la misma función que el PDF.
+function _bitPhEsVerif(act){
+  return /^v$/i.test(String(act || '').trim());
+}
+function _bitPhUsaPatronRef(act){
+  return _bitPhEsVerif(act);
+}
+function _bitPhFaltaPatron(r){
+  if(!r) return true;
+  const buf = String(r.buffer == null ? '' : r.buffer).trim();
+  const lote = String(r.lote == null ? '' : r.lote).trim();
+  const marca = String(r.marca == null ? '' : r.marca).trim();
+  return !buf || !lote || !marca;
+}
+function _bitPhMsgFaltaPatron(r){
+  const faltan = [];
+  if(!r || !String(r.buffer == null ? '' : r.buffer).trim()) faltan.push('patrón (valor nominal)');
+  if(!r || !String(r.lote == null ? '' : r.lote).trim()) faltan.push('lote');
+  if(!r || !String(r.marca == null ? '' : r.marca).trim()) faltan.push('marca');
+  if(!faltan.length) return '';
+  return 'Falta ' + faltan.join(', ') + '. Elige el patrón del catálogo.';
+}
+function _bitPhDictamenFila(r){
+  if(!r) return 'PENDIENTE';
+  if(_bitPhFaltaPatron(r)) return 'PENDIENTE';
+  if(/^ca$/i.test(String(r.act || '').trim())){
+    const ace = (typeof _phAceptaRechaza === 'function') ? _phAceptaRechaza(r.l1, r.buffer) : null;
+    if(ace === 'Acepta' || ace === 'Rechaza') return ace;
+    return 'PENDIENTE';
+  }
+  if(typeof _phAceptaRechaza !== 'function') return 'PENDIENTE';
+  return _phAceptaRechaza(r.l1, r.l2, r.l3, r.buffer);
+}
+function _bitPhAplicarPatronIdx(reg, idxStr){
+  if(!reg) return;
+  const verif = _bitPhUsaPatronRef(reg.act);
+  const lista = (typeof _lote4Catalogo === 'function') ? _lote4Catalogo(verif) : [];
+  if(idxStr === '' || idxStr == null){
+    reg.buffer = '';
+    reg.lote = '';
+    reg.marca = '';
+    reg.__lote_from_cat = false;
+    reg.__marca_from_cat = false;
+    return;
+  }
+  const idx = parseInt(idxStr, 10);
+  const item = lista[idx];
+  if(!item){
+    reg.buffer = '';
+    reg.lote = '';
+    reg.marca = '';
+    return;
+  }
+  reg.lote = item.lote || '';
+  reg.marca = item.marca || '';
+  reg.buffer = item.ph != null ? Number(item.ph).toFixed(2) : '';
+  reg.__lote_from_cat = !!reg.lote;
+  reg.__marca_from_cat = !!reg.marca;
+}
+function _bitPhSelectPatronHtml(reg, idx, dis){
+  const verif = _bitPhUsaPatronRef(reg && reg.act);
+  const opts = (typeof _lote4Opts === 'function') ? _lote4Opts(verif, reg || {}) : '<option value="">Buffer</option>';
+  const disabled = dis ? ' disabled' : '';
+  return `<select data-f="patronIdx" onchange="bitPhUp(${idx},'patronIdx',this.value)"${disabled}>${opts}</select>`;
+}
+function _bitPhClaveToma(r){
+  if(!r || r.calibGrupo) return '';
+  return _bitPhTomaSelectValue(r) || '';
+}
+function _bitPhEsIntentoRechazado(r){
+  return !!(r && (r.intentoRechazado || r._rechazadoArchivado));
+}
+/** Última fila V activa (no archivada) por OMAR|toma; si su dictamen es Rechaza, falta repetir. */
+function _bitPhVerifsRechazadasPendientes(){
+  const regs = _bitPhRegs() || [];
+  const porClave = new Map();
+  regs.forEach((r, i) => {
+    if(!r || r.calibGrupo || !_bitPhEsVerif(r.act) || _bitPhEsIntentoRechazado(r)) return;
+    const k = _bitPhClaveToma(r);
+    if(!k) return;
+    porClave.set(k, { r, i });
+  });
+  const out = [];
+  porClave.forEach(({ r, i }, k) => {
+    const ace = _bitPhDictamenFila(r);
+    if(ace === 'Rechaza') out.push({ clave: k, idx: i, r });
+  });
+  return out;
+}
+function _bitPhHayVerifRechazadaPendiente(){
+  return _bitPhVerifsRechazadasPendientes().length > 0;
+}
+function _bitPhHistorialPush(reg, resultado){
+  const pl = _bitPhPlan();
+  const dest = pl || (typeof omar !== 'undefined' ? omar : null);
+  if(!dest) return;
+  if(!Array.isArray(dest.bitPhHistorial)) dest.bitPhHistorial = [];
+  dest.bitPhHistorial.push({
+    fecha: reg.fecha || '',
+    hora: reg.hora || '',
+    omarId: reg.omarId || '',
+    toma: reg.toma || '',
+    act: reg.act || 'V',
+    buffer: reg.buffer || '',
+    lote: reg.lote || '',
+    marca: reg.marca || '',
+    l1: reg.l1 || '', l2: reg.l2 || '', l3: reg.l3 || '',
+    promedio: reg.promedio || '',
+    ph25: reg.ph25 || '',
+    ar: resultado || reg.ar || '',
+    ts: Date.now()
+  });
+}
+/** Recalcula dictámenes guardados a mano; avisa si alguno cambió. */
+function _bitPhRecalcularDictamenesAlAbrir(){
+  const regs = _bitPhRegs();
+  if(!regs || !regs.length) return;
+  let cambios = 0;
+  regs.forEach(r => {
+    if(!r || r.calibGrupo && /^ca$/i.test(String(r.act || '')) && !(String(r.l1 || '').trim())) return;
+    if(_bitPhEsIntentoRechazado(r)) return;
+    const prev = String(r.ar || '').trim();
+    const ace = _bitPhDictamenFila(r);
+    if(ace === 'Acepta' || ace === 'Rechaza'){
+      if(prev && prev !== ace) cambios++;
+      r.ar = ace;
+    }else if(!_bitPhFaltaPatron(r)){
+      // lecturas incompletas
+      if(prev === 'Acepta' || prev === 'Rechaza'){
+        // había dictamen manual sin lecturas/patrón completos
+        if(_bitPhFaltaPatron(r) || ace === 'PENDIENTE'){
+          if(prev === 'Acepta') cambios++;
+          r.ar = '';
+        }
+      }
+    }else if(prev === 'Acepta' || prev === 'Rechaza'){
+      // sin patrón: un Acepta manual ya no vale
+      cambios++;
+      r.ar = '';
+    }
+  });
+  if(cambios > 0){
+    toast('Se recalculó el dictamen de ' + cambios + ' fila(s) de pH (antes era manual).', 'w');
+  }
+}
+window._bitPhDictamenFila = _bitPhDictamenFila;
+window._bitPhFaltaPatron = _bitPhFaltaPatron;
+window._bitPhHayVerifRechazadaPendiente = _bitPhHayVerifRechazadaPendiente;
+
 function _bitPhFolioDocGet(){
   const pl=_bitPhPlan();
   if(pl&&pl.id) return pl.bitPhFolioDoc||'';
@@ -12734,7 +12891,7 @@ function _bitPhAsegurarRegistroV(omarTs, tomaNum, hora, opts){
   const regs=_bitPhRegs();
   if(!regs||!omarTs||!tomaNum) return;
   const val=`${omarTs}|${tomaNum}`;
-  if(regs.some(r=>!r.calibGrupo&&r.act==='V'&&_bitPhTomaSelectValue(r)===val)) return;
+  if(regs.some(r=>!r.calibGrupo&&r.act==='V'&&!_bitPhEsIntentoRechazado(r)&&_bitPhTomaSelectValue(r)===val)) return;
   regs.push({
     fecha:_defaultBitRegistroFecha(),
     hora:_horaNormalizada(hora||_horaActualHHMM()),
@@ -12780,6 +12937,7 @@ function _bitPhSyncAllTomasFromCampo(){
   for(let i=regs.length-1;i>=0;i--){
     const r=regs[i];
     if(r.calibGrupo||r.act!=='V') continue;
+    if(_bitPhEsIntentoRechazado(r)) continue;
     const v=_bitPhTomaSelectValue(r);
     if(!v||want.has(v)) continue;
     const hasLecturas=!!(String(r.l1||'').trim()||String(r.l2||'').trim()||String(r.l3||'').trim());
@@ -12790,7 +12948,7 @@ function _bitPhSyncAllTomasFromCampo(){
     const sid=String(mid);
     _bitPhTomasArrayForOmar(mid).forEach((t,i)=>{
       const val=`${sid}|${i+1}`;
-      const r=regs.find(rr=>!rr.calibGrupo&&rr.act==='V'&&_bitPhTomaSelectValue(rr)===val);
+      const r=regs.find(rr=>!rr.calibGrupo&&rr.act==='V'&&!_bitPhEsIntentoRechazado(rr)&&_bitPhTomaSelectValue(rr)===val);
       if(r){
         const h=_horaNormalizada(t.hora||'');
         if(h) r.hora=h;
@@ -14592,6 +14750,7 @@ function bitPhInsertarBloqueCalib2Interno(b1, b2, lote, marca, fecha){
     }
   }
   regs.splice(insertPos, 0, ...nuevos);
+  return g;
 }
 
 /** Si aún no hay bloque, crea uno vacío (buffers se llenan según la tira). */
@@ -14601,12 +14760,42 @@ function _bitPhAutoSeedPrimerBloqueCalib2(){
   bitPhInsertarBloqueCalib2Interno('', '', '', '', _defaultBitRegistroFecha());
 }
 
+function _bitPhMcRellenarSelects(){
+  const lista = (typeof _lote4Catalogo === 'function') ? _lote4Catalogo(false) : [];
+  const mk = (sel, prefer) => {
+    if(!sel) return;
+    let html = '<option value="">Patrón de trabajo</option>';
+    lista.forEach((it, i) => {
+      const ph = it.ph != null ? Number(it.ph).toFixed(2) : '';
+      const lab = ph + ' · ' + (it.marca || '') + ' · ' + (it.lote || '');
+      const selAttr = (prefer != null && Math.abs(Number(ph) - Number(prefer)) < 1e-9) ? ' selected' : '';
+      html += '<option value="'+i+'"'+selAttr+'>'+_lote4esc(lab)+'</option>';
+    });
+    sel.innerHTML = html;
+  };
+  const s1 = document.getElementById('bitPhMcB1');
+  const s2 = document.getElementById('bitPhMcB2');
+  mk(s1, 9.18);
+  mk(s2, 6.86);
+  const sync = () => {
+    const i1 = parseInt(s1 && s1.value, 10);
+    const it = lista[i1];
+    const loteEl = document.getElementById('bitPhMcLote');
+    const marcaEl = document.getElementById('bitPhMcMarca');
+    if(loteEl) loteEl.value = it ? (it.lote || '') : '';
+    if(marcaEl) marcaEl.value = it ? (it.marca || '') : '';
+  };
+  if(s1){ s1.onchange = sync; }
+  if(s2){ s2.onchange = () => {}; }
+  sync();
+}
 function bitPhAbrirModalCalib2(){
   if(!omar||!omar.ts){ toast('Primero captura el OMAR','w'); return; }
   const m=document.getElementById('bitPhModalCalib2');
   if(!m) return;
   const f=document.getElementById('bitPhMcFecha');
   if(f) f.value=_defaultBitRegistroFecha();
+  _bitPhMcRellenarSelects();
   const msg=document.getElementById('bitPhMcPendMsg');
   if(msg){
     const enPlan=_bitPhPlan()&&_bitPhPlan().id;
@@ -14626,16 +14815,32 @@ function bitPhCerrarModalCalib2(){
 function bitPhConfirmarModalCalib2(){
   const regs=_bitPhRegs();
   if(!regs) return;
-  const b1v=document.getElementById('bitPhMcB1')?.value;
-  const b2v=document.getElementById('bitPhMcB2')?.value;
-  const b1=parseFloat(b1v);
-  const b2=parseFloat(b2v);
-  if(isNaN(b1)||isNaN(b2)){ toast('Indica valores numéricos para ambos buffers','w'); return; }
-  const lote=(document.getElementById('bitPhMcLote')?.value||'').trim();
-  const marca=(document.getElementById('bitPhMcMarca')?.value||'').trim();
+  const lista = (typeof _lote4Catalogo === 'function') ? _lote4Catalogo(false) : [];
+  const i1 = parseInt(document.getElementById('bitPhMcB1')?.value, 10);
+  const i2 = parseInt(document.getElementById('bitPhMcB2')?.value, 10);
+  const it1 = lista[i1], it2 = lista[i2];
+  if(!it1 || !it2){ toast('Elige los dos patrones de trabajo del catálogo.','w'); return; }
+  const b1 = it1.ph != null ? Number(it1.ph) : NaN;
+  const b2 = it2.ph != null ? Number(it2.ph) : NaN;
+  if(isNaN(b1)||isNaN(b2)){ toast('Los patrones elegidos no tienen valor nominal.','w'); return; }
+  const lote = String(it1.lote || '').trim();
+  const marca = String(it1.marca || '').trim();
+  if(!lote || !marca){ toast('Falta lote o marca en el patrón del catálogo.','w'); return; }
   const fecha=(document.getElementById('bitPhMcFecha')?.value||'').trim()||_defaultBitRegistroFecha();
   const pend=_bitPhMuestreoCruzaMedianoche();
-  bitPhInsertarBloqueCalib2Interno(b1, b2, lote, marca, fecha);
+  const gNuevo = bitPhInsertarBloqueCalib2Interno(b1, b2, lote, marca, fecha);
+  // AARMS lote24f4: cada fila del bloque lleva lote/marca/buffer del patrón elegido (punto 1 / punto 2).
+  if(gNuevo){
+    (_bitPhRegs() || []).forEach(r => {
+      if(!r || r.calibGrupo !== gNuevo) return;
+      if(r.calibPaso === 1 || r.calibPaso === 3){
+        r.buffer = Number(b1).toFixed(2); r.lote = it1.lote || ''; r.marca = it1.marca || '';
+      }else if(r.calibPaso === 2 || r.calibPaso === 4){
+        r.buffer = Number(b2).toFixed(2); r.lote = it2.lote || ''; r.marca = it2.marca || '';
+      }
+      r.__lote_from_cat = true; r.__marca_from_cat = true;
+    });
+  }
   bitPhCerrarModalCalib2();
   _bitPhRender();
   if(typeof guardarBorradorActual==='function') guardarBorradorActual();
@@ -14686,31 +14891,38 @@ function bitPhUpdatePromedioFila(idx){
   const regs=_bitPhRegs();
   if(!regs||!regs[idx]) return;
   const r=regs[idx];
-  const prom=_phPromedio(r.l1, r.l2, r.l3);
-  if(prom!==null){
-    r.promedio=prom.toFixed(2);
-    r.ph25=(typeof _phA25==='function')?_phA25(r.l1,r.l2,r.l3):_phRedondeo25(prom);
-    // AARMS phfix2: recalcular siempre con criterio real (Δ≤0.03 y ±0.05 vs buffer)
-    if(r.buffer!=null&&r.buffer!==''&&!/^ca$/i.test(String(r.act||''))){
-      const sug=_phAceptaRechaza(r.l1, r.l2, r.l3, r.buffer);
-      if(sug && sug!=='PENDIENTE') r.ar=sug;
-    }
-    // AARMS v65: aplicar promedio a la Bitácora de Muestreo del OMAR correspondiente
-    if(r.promedio && r.omarId && r.toma && !r.calibGrupo){
+  if(_bitPhEsIntentoRechazado(r)) return;
+  const esCa=/^ca$/i.test(String(r.act||''));
+  const lecturasLlenas=esCa
+    ? !!String(r.l1||'').trim()
+    : [r.l1,r.l2,r.l3].every(v=>String(v==null?'':v).trim()!=='');
+  if(lecturasLlenas && _bitPhFaltaPatron(r)){
+    r.ar='';
+    toast(_bitPhMsgFaltaPatron(r)||'Falta el patrón del catálogo.','w');
+  }
+  const promNum=esCa ? (isNaN(parseFloat(r.l1))?null:parseFloat(r.l1)) : _phPromedio(r.l1, r.l2, r.l3);
+  if(promNum!==null){
+    r.promedio=promNum.toFixed(2);
+    r.ph25=esCa
+      ? (typeof _phRedondeo25==='function'?_phRedondeo25(promNum):promNum.toFixed(2))
+      : ((typeof _phA25==='function')?_phA25(r.l1,r.l2,r.l3):_phRedondeo25(promNum));
+    // AARMS lote24f4: dictamen solo calculado (misma función que el PDF); sin patrón no hay Acepta.
+    const sug=_bitPhDictamenFila(r);
+    r.ar=(sug==='Acepta'||sug==='Rechaza')?sug:'';
+    if(r.promedio && r.omarId && r.toma && !r.calibGrupo && !_bitPhEsIntentoRechazado(r) && sug==='Acepta'){
       _aplicarPromedioABm(r.omarId, parseInt(r.toma, 10), 'ph', r.promedio);
     }
   }else{
     r.promedio='';
     r.ph25='';
+    r.ar='';
   }
   const card=document.querySelector(`[data-bit-ph="${idx}"]`)||document.querySelector(`[data-bit-sub="${idx}"]`);
   if(card){
     const promInp=card.querySelector('[data-f="promedio"]');
     const ph25Inp=card.querySelector('[data-f="ph25"]');
-    const arSel=card.querySelector('[data-f="ar"]');
     if(promInp) promInp.value=r.promedio||'';
     if(ph25Inp) ph25Inp.value=r.ph25||'';
-    if(arSel&&r.ar) arSel.value=r.ar;
     if(typeof _bitPhRefreshResumen==='function') _bitPhRefreshResumen(idx);
   }
 }
@@ -14732,28 +14944,22 @@ function _bitPhResumenBlockHtml(idx){
   if(!r) return '';
   const Ls=[r.l1,r.l2,r.l3].map(x=>parseFloat(x)).filter(x=>!isNaN(x));
   const prom=Ls.length>0?(Ls.reduce((a,b)=>a+b,0)/Ls.length).toFixed(2):'';
-  // AARMS phfix2: ambos criterios oficiales
-  const arSug=(Ls.length===3)?_phAceptaRechaza(r.l1,r.l2,r.l3,r.buffer):'PENDIENTE';
+  // AARMS lote24f4: misma función que el PDF; sin patrón no hay dictamen.
+  const arSug=_bitPhDictamenFila(r);
   const acepta=arSug==='Acepta'?true:(arSug==='Rechaza'?false:null);
   let motivo='';
-  if(Ls.length===3){
+  if(_bitPhFaltaPatron(r) && Ls.length===3){
+    motivo=_bitPhMsgFaltaPatron(r);
+  }else if(Ls.length===3){
     const diff=Math.max(...Ls)-Math.min(...Ls);
-    motivo=`Δ ${diff.toFixed(2)} ${diff<=0.03+1e-9?'≤':'›'} 0.03`;
-  }
-  let bufNote='';
-  if(Ls.length===3 && r.buffer!=null && r.buffer!==''){
-    const buf=parseFloat(r.buffer);
-    const pr=Ls.reduce((a,b)=>a+b,0)/Ls.length;
-    if(!isNaN(buf)&&!isNaN(pr)){
-      const d05=Math.abs(pr-buf)<=0.05+1e-9;
-      bufNote=`<div style="font-size:9px;color:var(--g2);margin-top:3px">vs buffer: <b style="color:${d05?'var(--green)':'#f87171'}">${d05?'OK':'Revisar'}</b> · ${motivo}</div>`;
-    }
+    motivo=`Δ ${diff.toFixed(2)} ${diff<=0.03+1e-9?'≤':'>'} 0.03 · ±0.05 vs patrón`;
   }
   return `<div data-bit-resumen style="padding:8px;background:${acepta===false?'rgba(248,113,113,.08)':(acepta===true?'rgba(134,239,172,.08)':'var(--bg3)')};border:1px solid var(--ln);border-radius:8px;margin-top:4px">
     <div style="font-size:9px;color:var(--g2)">Prom. pH 25°C</div>
-    <div style="font-family:var(--syne);font-size:16px;font-weight:800;color:${acepta===false?'#f87171':'var(--acc)'}">${prom||'—'}</div>${bufNote}
-    ${acepta===true?'<div style="color:var(--green);font-size:10px;font-weight:700">Acepta</div>':''}
-    ${acepta===false?'<div style="color:#f87171;font-size:10px;font-weight:700">Rechaza</div>':''}
+    <div style="font-family:var(--syne);font-size:16px;font-weight:800;color:${acepta===false?'#f87171':'var(--acc)'}">${prom||'—'}</div>
+    ${acepta===true?`<div style="color:var(--green);font-size:10px;font-weight:700">Acepta</div><div style="font-size:9px;color:var(--g2)">${motivo}</div>`:''}
+    ${acepta===false?`<div style="color:#f87171;font-size:10px;font-weight:700">Rechaza</div><div style="font-size:9px;color:var(--g2)">${motivo}</div>`:''}
+    ${acepta===null&&motivo?`<div style="color:#fbbf24;font-size:10px;font-weight:700;margin-top:4px">${motivo}</div>`:''}
   </div>`;
 }
 
@@ -14776,11 +14982,11 @@ function _renderBitPhCalibBlock4(indices){
         <div class="f" style="margin:0"><label>Fecha</label><input type="date" value="${esc(rr.fecha)}" oninput="bitPhUp(${ix},'fecha',this.value)"></div>
         <div class="f" style="margin:0"><label>Hora</label><input type="time" value="${esc(rr.hora)}" oninput="bitPhUp(${ix},'hora',this.value)"></div>
       </div>
-      <div class="g2" style="margin-bottom:8px">
-        <div class="f" style="margin:0"><label>Lote</label><input type="text" data-f="lote" value="${esc(rr.lote)}" oninput="bitPhUp(${ix},'lote',this.value)"></div>
-        <div class="f" style="margin:0"><label>Marca</label><input type="text" data-f="marca" value="${esc(rr.marca)}" oninput="bitPhUp(${ix},'marca',this.value)"></div>
+      <div class="f" style="margin:0 0 8px"><label>Patrón (catálogo)</label>${_bitPhSelectPatronHtml(rr, ix)}</div>
+      <div class="g2" style="margin-bottom:0">
+        <div class="f" style="margin:0"><label>Lote</label><input type="text" data-f="lote" value="${esc(rr.lote)}" readonly tabindex="-1"></div>
+        <div class="f" style="margin:0"><label>Marca</label><input type="text" data-f="marca" value="${esc(rr.marca)}" readonly tabindex="-1"></div>
       </div>
-      <div class="f" style="margin:0"><label>Buffer (según tira)</label><input type="number" step="0.01" placeholder="ej. 6.86" value="${rr.buffer==null||rr.buffer===''?'':esc(rr.buffer)}" oninput="bitPhUp(${ix},'buffer',this.value)"></div>
     </div>`;
   };
 
@@ -14803,9 +15009,6 @@ function _renderBitPhCalibBlock4(indices){
     const promCalc=_phPromedio(rr.l1, rr.l2, rr.l3);
     const promDisp=rr.promedio||(promCalc!=null?promCalc.toFixed(2):'');
     const ph25Disp=rr.ph25||(typeof _phA25==='function'?_phA25(rr.l1,rr.l2,rr.l3):_phRedondeo25(promCalc));
-    // AARMS phfix2: criterio real (no confiar solo en ar guardado si hay lecturas)
-    const arCalc=_phAceptaRechaza(rr.l1, rr.l2, rr.l3, rr.buffer);
-    const arVal=(arCalc&&arCalc!=='PENDIENTE')?arCalc:(rr.ar||'');
     return `<div data-bit-ph="${ix}" style="margin-bottom:12px">
       ${miniRow(ix)}
       <div class="g3" style="margin-bottom:8px">
@@ -14813,16 +15016,9 @@ function _renderBitPhCalibBlock4(indices){
         <div class="f" style="margin:0"><label>L2</label><input type="number" step="0.01" data-f="l2" inputmode="decimal" placeholder="pH" value="${esc(rr.l2)}" oninput="bitPhUp(${ix},'l2',this.value)"></div>
         <div class="f" style="margin:0"><label>L3</label><input type="number" step="0.01" data-f="l3" inputmode="decimal" placeholder="pH" value="${esc(rr.l3)}" oninput="bitPhUp(${ix},'l3',this.value)"></div>
       </div>
-      <div class="g3" style="margin-bottom:4px">
+      <div class="g2" style="margin-bottom:4px">
         <div class="f" style="margin:0"><label>Promedio</label><input type="text" data-f="promedio" readonly style="background:rgba(255,255,255,.06);color:var(--w)" value="${esc(promDisp)}"></div>
         <div class="f" style="margin:0"><label>pH 25°C</label><input type="text" data-f="ph25" readonly style="background:rgba(255,255,255,.06);color:var(--w)" value="${esc(ph25Disp)}"></div>
-        <div class="f" style="margin:0"><label>Acepta / Rechaza</label>
-          <select data-f="ar" onchange="bitPhUp(${ix},'ar',this.value)">
-            <option value="">—</option>
-            <option value="Acepta" ${arVal==='Acepta'?'selected':''}>Acepta</option>
-            <option value="Rechaza" ${arVal==='Rechaza'?'selected':''}>Rechaza</option>
-          </select>
-        </div>
       </div>
       ${_bitPhResumenBlockHtml(ix)}
     </div>`;
@@ -14873,6 +15069,7 @@ async function abrirBitacoraPH(){
   if(fol) fol.value=_bitPhFolioDocGet()||'';
   _bitPhSyncAllTomasFromCampo();
   _bitPhActualizarFoliosOmarEnRegs();
+  _bitPhRecalcularDictamenesAlAbrir();
   _bitPhRender();
   try{ await _persistPlanBitPh(); }catch(e){}
   _aplicarDocEstadoBadge('bitPh');
@@ -14935,7 +15132,11 @@ function _bitPhRender(){
   }
   _bitPhOrdenarRegsPorFechaHora(regs);
   const segs=_bitPhGroupedSegments(regs);
-  c.innerHTML = segs.map(seg=>{
+  const pend = _bitPhVerifsRechazadasPendientes();
+  const aviso = pend.length
+    ? `<div style="margin-bottom:12px;padding:10px 12px;border-radius:10px;border:1px solid rgba(248,113,113,.4);background:rgba(248,113,113,.1);color:#f87171;font-size:12px;font-weight:700">Hay ${pend.length} verificación(es) rechazada(s). Repítela(s) antes de avanzar.</div>`
+    : '';
+  c.innerHTML = aviso + segs.map(seg=>{
     if(seg.kind==='calib4') return _renderBitPhCalibBlock4(seg.indices);
     return _renderBitPhCard(regs[seg.indices[0]], seg.indices[0]);
   }).join('');
@@ -14949,88 +15150,88 @@ function _renderBitPhCard(r, idx){
   const tomaOpts = tomaOptsList.map(o =>
     `<option value="${String(o.value).replace(/"/g,'&quot;')}" ${o.value===selVal?'selected':''}>${String(o.label).replace(/</g,'&lt;')}</option>`
   ).join('');
-  const rowMid=r.omarId!=null&&r.omarId!==''?String(r.omarId):String(omar.ts||'');
-  const folOmar = _bitPhOmarFolio(rowMid);
 
   const esc=(s)=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const archivado=_bitPhEsIntentoRechazado(r);
   const promCalc=_phPromedio(r.l1, r.l2, r.l3);
   const promDisp=r.promedio||(promCalc!=null?promCalc.toFixed(2):'');
   const ph25Disp=r.ph25||_phRedondeo25(promCalc);
-  const arVal=r.ar||'';
   const Ls = [r.l1, r.l2, r.l3].map(x=>parseFloat(x)).filter(x=>!isNaN(x));
   const prom = promDisp;
-  let acepta = null, motivo = '';
-  if(Ls.length === 3){
+  const arSug = archivado ? 'Rechaza' : _bitPhDictamenFila(r);
+  let acepta = arSug==='Acepta' ? true : (arSug==='Rechaza' ? false : null);
+  let motivo = '';
+  if(_bitPhFaltaPatron(r) && Ls.length === 3 && !archivado){
+    motivo = _bitPhMsgFaltaPatron(r);
+  }else if(Ls.length === 3 && !_bitPhFaltaPatron(r)){
     const diff = Math.max(...Ls) - Math.min(...Ls);
-    if(diff > 0.03){ acepta = false; motivo = `Δ ${diff.toFixed(2)} > 0.03`; }
-    else { acepta = true; motivo = `Δ ${diff.toFixed(2)} ≤ 0.03`; }
+    motivo = `Δ ${diff.toFixed(2)} ${diff<=0.03+1e-9?'≤':'>'} 0.03 · ±0.05 vs patrón`;
   }
 
-  // Estado de la toma: completa si tiene las 3 lecturas
-  const completa = Ls.length === 3;
-  const estadoBadge = completa
-    ? `<span data-bit-estado style="background:rgba(134,239,172,.15);border:1px solid rgba(134,239,172,.4);color:var(--green);padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.04em">Lista</span>`
-    : `<span data-bit-estado style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);color:#fbbf24;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.04em">Faltan lecturas</span>`;
+  const completa = Ls.length === 3 && !_bitPhFaltaPatron(r) && acepta === true;
+  const estadoBadge = archivado
+    ? `<span data-bit-estado style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.35);color:#f87171;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.04em">Rechazada</span>`
+    : (completa
+      ? `<span data-bit-estado style="background:rgba(134,239,172,.15);border:1px solid rgba(134,239,172,.4);color:var(--green);padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.04em">Lista</span>`
+      : `<span data-bit-estado style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);color:#fbbf24;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;letter-spacing:.04em">Falta completar</span>`);
   const titulo=_bitPhLabelToma(r);
+  const dis = archivado ? ' disabled' : '';
+  const btnRepetir = (!archivado && acepta === false)
+    ? `<button type="button" onclick="bitPhRepetirVerif(${idx})" style="margin-top:10px;width:100%;padding:10px;border-radius:9px;border:1px solid rgba(251,191,36,.45);background:rgba(251,191,36,.12);color:#fbbf24;font-weight:800;font-size:12px;cursor:pointer">Repetir verificación</button>`
+    : '';
 
   return `
-    <div data-bit-ph="${idx}" style="background:var(--bg2);border:1px solid var(--ln);border-radius:11px;padding:14px;margin-bottom:12px">
+    <div data-bit-ph="${idx}" style="background:var(--bg2);border:1px solid ${archivado?'rgba(248,113,113,.35)':'var(--ln)'};border-radius:11px;padding:14px;margin-bottom:12px;${archivado?'opacity:.78':''}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--w)">${String(titulo).replace(/</g,'&lt;')}</div>
           ${estadoBadge}
         </div>
-        <button onclick="bitPhEliminar(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer">Borrar</button>
+        ${archivado?'':`<button onclick="bitPhEliminar(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer">Borrar</button>`}
       </div>
 
-      <!-- PASO 1: Cuándo y de quién -->
       <div class="f" style="margin-bottom:10px">
         <label>1 · OMAR y número de toma</label>
-        <select onchange="bitPhUp(${idx},'tomaOmar',this.value)"><option value="">— Elige OMAR y toma —</option>${tomaOpts}</select>
+        <select onchange="bitPhUp(${idx},'tomaOmar',this.value)"${dis}><option value="">— Elige OMAR y toma —</option>${tomaOpts}</select>
       </div>
       <div class="g2" style="margin-bottom:10px">
-        <div class="f" style="margin-bottom:0"><label>Fecha</label><input type="date" value="${r.fecha||''}" oninput="bitPhUp(${idx},'fecha',this.value)"></div>
-        <div class="f" style="margin-bottom:0"><label>Hora</label><input type="time" value="${r.hora||''}" oninput="bitPhUp(${idx},'hora',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>Fecha</label><input type="date" value="${r.fecha||''}" oninput="bitPhUp(${idx},'fecha',this.value)"${dis}></div>
+        <div class="f" style="margin-bottom:0"><label>Hora</label><input type="time" value="${r.hora||''}" oninput="bitPhUp(${idx},'hora',this.value)"${dis}></div>
       </div>
 
-      <!-- PASO 2: Buffer / patrón usado -->
-      <div class="g2" style="margin-bottom:10px">
-        <div class="f" style="margin-bottom:0"><label>Lote${_badgeAuto(r.__lote_from_cat)}</label><input type="text" data-f="lote" placeholder="lote" value="${(r.lote||'').replace(/"/g,'&quot;')}" oninput="bitPhUp(${idx},'lote',this.value)"></div>
-        <div class="f" style="margin-bottom:0"><label>Marca${_badgeAuto(r.__marca_from_cat)}</label><input type="text" data-f="marca" placeholder="marca" value="${(r.marca||'').replace(/"/g,'&quot;')}" oninput="bitPhUp(${idx},'marca',this.value)"></div>
+      <div class="f" style="margin-bottom:10px">
+        <label>2 · Patrón de referencia (catálogo)</label>
+        ${_bitPhSelectPatronHtml(r, idx, archivado)}
       </div>
       <div class="g2" style="margin-bottom:10px">
-        <div class="f" style="margin-bottom:0"><label>Buffer</label><input type="number" step="0.01" data-f="buffer" placeholder="ej. 7.00" value="${r.buffer||''}" oninput="bitPhUp(${idx},'buffer',this.value)"></div>
-        <div class="f" style="margin-bottom:0"><label>Lectura aprox. (tira)</label><input type="number" step="0.1" data-f="aprox" placeholder="ej. 7" value="${r.aprox||''}" oninput="bitPhUp(${idx},'aprox',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>Lote${_badgeAuto(r.__lote_from_cat)}</label><input type="text" data-f="lote" value="${(r.lote||'').replace(/"/g,'&quot;')}" readonly tabindex="-1"></div>
+        <div class="f" style="margin-bottom:0"><label>Marca${_badgeAuto(r.__marca_from_cat)}</label><input type="text" data-f="marca" value="${(r.marca||'').replace(/"/g,'&quot;')}" readonly tabindex="-1"></div>
       </div>
-      ${_renderAtajos({ valores: ATAJOS_BUFFERS_PH, campo: 'buffer', id: idx, valorActual: r.buffer, label: 'Buffer rápido', color: '#60a5fa', colsPorFila: 5, updateFn: 'bitPhUp' })}
-      ${_renderAtajos({ valores: ATAJOS_TIRA_PH, campo: 'aprox', id: idx, valorActual: r.aprox, label: 'Tira pH', color: '#86efac', colsPorFila: 6, updateFn: 'bitPhUp' })}
-      ${_renderAtajos({ valores: ATAJOS_ACTIVIDAD, campo: 'act', id: idx, valorActual: r.act, label: 'Actividad de control', color: '#fbbf24', colsPorFila: 3, updateFn: 'bitPhUp' })}
+      <div class="f" style="margin-bottom:10px">
+        <label>Lectura aprox. (tira)</label><input type="number" step="0.1" data-f="aprox" placeholder="ej. 7" value="${r.aprox||''}" oninput="bitPhUp(${idx},'aprox',this.value)"${dis}>
+      </div>
+      ${archivado?'':_renderAtajos({ valores: ATAJOS_TIRA_PH, campo: 'aprox', id: idx, valorActual: r.aprox, label: 'Tira pH', color: '#86efac', colsPorFila: 6, updateFn: 'bitPhUp' })}
+      <div class="f" style="margin-bottom:8px">
+        <label>Actividad</label>
+        <input type="text" value="${esc(r.act||'V')}" readonly tabindex="-1">
+      </div>
       <div class="f" style="margin-bottom:8px">
         <label>Limpieza (código)</label>
-        <select data-f="limp" onchange="bitPhUp(${idx},'limp',this.value)"><option value="">— Elige —</option>${LIMPIEZA_COD.map(l=>`<option value="${l.code}" ${r.limp===l.code?'selected':''}>${l.code} — ${l.label}</option>`).join('')}</select>
+        <select data-f="limp" onchange="bitPhUp(${idx},'limp',this.value)"${dis}><option value="">— Elige —</option>${LIMPIEZA_COD.map(l=>`<option value="${l.code}" ${r.limp===l.code?'selected':''}>${l.code} — ${l.label}</option>`).join('')}</select>
       </div>
-      ${_renderAtajos({ valores: ATAJOS_LIMPIEZA, campo: 'limp', id: idx, valorActual: r.limp, label: 'Código de limpieza', color: '#a78bfa', colsPorFila: 3, updateFn: 'bitPhUp' })}
+      ${archivado?'':_renderAtajos({ valores: ATAJOS_LIMPIEZA, campo: 'limp', id: idx, valorActual: r.limp, label: 'Código de limpieza', color: '#a78bfa', colsPorFila: 3, updateFn: 'bitPhUp' })}
 
-      <!-- PASO 3: 3 lecturas -->
       <div style="font-size:10.5px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono);margin-bottom:6px">3 · Lecturas de pH (3 independientes)</div>
       <div class="g3" style="margin-bottom:12px">
-        <div class="f" style="margin-bottom:0"><label>L1</label><input type="number" step="0.01" inputmode="decimal" placeholder="pH" value="${esc(r.l1)}" oninput="bitPhUp(${idx},'l1',this.value)"></div>
-        <div class="f" style="margin-bottom:0"><label>L2</label><input type="number" step="0.01" inputmode="decimal" placeholder="pH" value="${esc(r.l2)}" oninput="bitPhUp(${idx},'l2',this.value)"></div>
-        <div class="f" style="margin-bottom:0"><label>L3</label><input type="number" step="0.01" inputmode="decimal" placeholder="pH" value="${esc(r.l3)}" oninput="bitPhUp(${idx},'l3',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>L1</label><input type="number" step="0.01" inputmode="decimal" placeholder="pH" value="${esc(r.l1)}" oninput="bitPhUp(${idx},'l1',this.value)"${dis}></div>
+        <div class="f" style="margin-bottom:0"><label>L2</label><input type="number" step="0.01" inputmode="decimal" placeholder="pH" value="${esc(r.l2)}" oninput="bitPhUp(${idx},'l2',this.value)"${dis}></div>
+        <div class="f" style="margin-bottom:0"><label>L3</label><input type="number" step="0.01" inputmode="decimal" placeholder="pH" value="${esc(r.l3)}" oninput="bitPhUp(${idx},'l3',this.value)"${dis}></div>
       </div>
-      <div class="g3" style="margin-bottom:12px">
+      <div class="g2" style="margin-bottom:12px">
         <div class="f" style="margin-bottom:0"><label>Promedio</label><input type="text" data-f="promedio" readonly style="background:rgba(255,255,255,.06);color:var(--w)" value="${esc(promDisp)}"></div>
         <div class="f" style="margin-bottom:0"><label>pH 25°C</label><input type="text" data-f="ph25" readonly style="background:rgba(255,255,255,.06);color:var(--w)" value="${esc(ph25Disp)}"></div>
-        <div class="f" style="margin-bottom:0"><label>Acepta / Rechaza</label>
-          <select data-f="ar" onchange="bitPhUp(${idx},'ar',this.value)">
-            <option value="">—</option>
-            <option value="Acepta" ${arVal==='Acepta'?'selected':''}>Acepta</option>
-            <option value="Rechaza" ${arVal==='Rechaza'?'selected':''}>Rechaza</option>
-          </select>
-        </div>
       </div>
 
-      <!-- Resultado -->
       <div data-bit-resumen style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;background:${acepta===false?'rgba(248,113,113,.08)':(acepta===true?'rgba(134,239,172,.08)':'var(--bg3)')};border:1px solid ${acepta===false?'rgba(248,113,113,.3)':(acepta===true?'rgba(134,239,172,.3)':'var(--ln)')};border-radius:9px">
         <div>
           <div style="font-size:10.5px;color:var(--g2);text-transform:uppercase;letter-spacing:.04em">Promedio pH 25°C</div>
@@ -15039,9 +15240,10 @@ function _renderBitPhCard(r, idx){
         <div style="text-align:right">
           ${acepta===true?`<div style="color:var(--green);font-weight:800;font-size:13px">ACEPTA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
           ${acepta===false?`<div style="color:#f87171;font-weight:800;font-size:13px">RECHAZA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
-          ${acepta===null?`<div style="color:var(--g2);font-size:10.5px">Captura las 3<br>lecturas</div>`:''}
+          ${acepta===null?`<div style="color:var(--g2);font-size:10.5px">${_bitPhFaltaPatron(r)?'Elige el patrón<br>del catálogo':(Ls.length<3?'Captura las 3<br>lecturas':'Pendiente')}</div>`:''}
         </div>
       </div>
+      ${btnRepetir}
     </div>
   `;
 }
@@ -15077,8 +15279,12 @@ function bitPhAgregarRegistro(){
     toast('Primero agrega tomas en la hoja de campo','w');
     return;
   }
+  if(_bitPhHayVerifRechazadaPendiente()){
+    toast('Hay una verificación rechazada. Repítela antes de avanzar.','w');
+    return;
+  }
   const tomaOptsList=_bitPhOpcionesTomaSelect();
-  const asignadas=new Set((regs||[]).map(r=>{
+  const asignadas=new Set((regs||[]).filter(r=>!_bitPhEsIntentoRechazado(r)).map(r=>{
     const v=_bitPhTomaSelectValue(r);
     return v||null;
   }).filter(Boolean));
@@ -15091,11 +15297,10 @@ function bitPhAgregarRegistro(){
   const omarId=pipe>=0?proxVal.slice(0,pipe):String(omar.ts);
   const tomaNum=pipe>=0?proxVal.slice(pipe+1):'';
   const hoy=_defaultBitRegistroFecha();
-  // Cruce de día automático: si el último registro de toma tiene fecha distinta → bloque Ca·Ca·Co·Co vacío
-  const last=[...regs].reverse().find(r=>!r.calibGrupo);
+  const last=[...regs].reverse().find(r=>!r.calibGrupo && !_bitPhEsIntentoRechazado(r));
   if(last && last.fecha && String(last.fecha)!==String(hoy)){
     bitPhInsertarBloqueCalibAlFinal('','','','',hoy,true);
-    toast('Cambio de día → recalibración Ca/Ca/Co/Co agregada (llena los buffers)','g');
+    toast('Cambio de día → recalibración Ca/Ca/Co/Co agregada (elige los patrones)','g');
   }
   regs.push({
     fecha: hoy,
@@ -15111,6 +15316,36 @@ function bitPhAgregarRegistro(){
   guardarBorradorActual();
   void _persistPlanBitPh();
 }
+
+/** AARMS lote24f4: conserva el intento rechazado y abre una fila nueva con el mismo patrón. */
+function bitPhRepetirVerif(idx){
+  const regs=_bitPhRegs();
+  if(!regs||!regs[idx]) return;
+  const r=regs[idx];
+  if(r.calibGrupo || !_bitPhEsVerif(r.act)) return;
+  if(_bitPhDictamenFila(r)!=='Rechaza') return;
+  _bitPhHistorialPush(r, 'Rechaza');
+  r.intentoRechazado = true;
+  r.ar = 'Rechaza';
+  const nuevo={
+    fecha: _defaultBitRegistroFecha(),
+    hora: new Date().toTimeString().substring(0,5),
+    omarId: r.omarId || '',
+    toma: r.toma || '',
+    folioOmar: r.folioOmar || _bitPhFolioLegible(r.omarId)||'',
+    act:'V', limp: r.limp || '1', aprox: r.aprox || '',
+    buffer: r.buffer || '', lote: r.lote || '', marca: r.marca || '',
+    __lote_from_cat: !!r.__lote_from_cat,
+    __marca_from_cat: !!r.__marca_from_cat,
+    l1:'', l2:'', l3:'', obs:'', promedio:'', ph25:'', ar:''
+  };
+  regs.splice(idx + 1, 0, nuevo);
+  _bitPhRender();
+  guardarBorradorActual();
+  void _persistPlanBitPh();
+  toast('Intento rechazado guardado. Captura la verificación de nuevo.','g');
+}
+window.bitPhRepetirVerif = bitPhRepetirVerif;
 
 // Inserta bloque Ca·Ca·Co·Co AL FINAL (para cruces de día durante la jornada)
 function bitPhInsertarBloqueCalibAlFinal(b1,b2,lote,marca,fecha,forcePend){
@@ -15163,6 +15398,15 @@ async function bitPhEliminar(idx){
 function bitPhUp(idx, field, value){
   const regs=_bitPhRegs();
   if(!regs || !regs[idx]) return;
+  if(_bitPhEsIntentoRechazado(regs[idx])){
+    toast('Ese intento quedó rechazado. Usa la fila nueva para repetir.','w');
+    return;
+  }
+  if(field==='ar'){
+    // AARMS lote24f4: el dictamen ya no se marca a mano.
+    bitPhUpdatePromedioFila(idx);
+    return;
+  }
   if(field==='tomaOmar'){
     const v=String(value||'');
     const pipe=v.indexOf('|');
@@ -15184,35 +15428,25 @@ function bitPhUp(idx, field, value){
     void _persistPlanBitPh();
     return;
   }
+  if(field==='patronIdx'){
+    _bitPhAplicarPatronIdx(regs[idx], value);
+    bitPhUpdatePromedioFila(idx);
+    _bitPhRender();
+    guardarBorradorActual();
+    void _persistPlanBitPh();
+    return;
+  }
+  if(field==='lote' || field==='marca' || field==='buffer'){
+    // AARMS lote24f4: lote/marca/buffer salen del catálogo; no se teclean.
+    toast('Elige el patrón del catálogo. Lote, marca y valor salen de ahí.','w');
+    _bitPhRender();
+    return;
+  }
   regs[idx][field] = value;
-  // AARMS sub6-atajos: edición manual de lote/marca quita badge AUTO
-  if(field === 'lote' || field === 'marca'){
-    regs[idx]['__' + field + '_from_cat'] = false;
-  }
-  // AARMS v65: si cambia buffer o actividad, autocompletar lote/marca del catálogo
-  if(['buffer','act'].includes(field) && regs[idx]){
-    const reg = regs[idx];
-    const loteVacio = !reg.lote;
-    const marcaVacia = !reg.marca;
-    _bitPhAutocompletarLoteMarca(reg);
-    const card = document.querySelector(`[data-bit-ph="${idx}"]`) || document.querySelector(`[data-bit-sub="${idx}"]`);
-    if(card){
-      if(loteVacio){
-        const inp = card.querySelector('[data-f="lote"]');
-        if(inp) inp.value = reg.lote || '';
-      }
-      if(marcaVacia){
-        const inp = card.querySelector('[data-f="marca"]');
-        if(inp) inp.value = reg.marca || '';
-      }
-    }
-  }
-  // AARMS sub6-atajos: re-render para resaltar chips (buffer/aprox/act/limp)
-  if(['buffer','aprox','act','limp'].includes(field)){
-    if(['l1','l2','l3','buffer'].includes(field)){
-      bitPhUpdatePromedioFila(idx);
-      _bitAplicarPromediosAToma('ph');
-      if(typeof _refreshHojaCampoSiAbierta === 'function') _refreshHojaCampoSiAbierta();
+  if(['aprox','act','limp'].includes(field)){
+    if(field==='act'){
+      // Al cambiar CA/CO/V el catálogo (trabajo vs referencia) cambia: limpiar patrón.
+      regs[idx].buffer=''; regs[idx].lote=''; regs[idx].marca='';
     }
     _bitPhRender();
     guardarBorradorActual();
@@ -15228,19 +15462,10 @@ function bitPhUp(idx, field, value){
     void _persistPlanBitPh();
     return;
   }
-  if(['l1','l2','l3','buffer'].includes(field)){
+  if(['l1','l2','l3'].includes(field)){
     bitPhUpdatePromedioFila(idx);
     _bitAplicarPromediosAToma('ph');
     if(typeof _refreshHojaCampoSiAbierta === 'function') _refreshHojaCampoSiAbierta();
-  }
-  if(field==='ar'){
-    guardarBorradorActual();
-    void _persistPlanBitPh();
-    return;
-  }
-  // AARMS sub6-atajos: re-render al editar lote/marca para quitar/mostrar badge AUTO
-  if(field === 'lote' || field === 'marca'){
-    _bitPhRender();
   }
   guardarBorradorActual();
   void _persistPlanBitPh();
@@ -15255,24 +15480,31 @@ function _bitPhRefreshResumen(idx){
   if(!card) return;
   const Ls = [r.l1, r.l2, r.l3].map(x=>parseFloat(x)).filter(x=>!isNaN(x));
   const prom = Ls.length>0 ? (Ls.reduce((a,b)=>a+b,0)/Ls.length).toFixed(2) : '';
-  let acepta = null, motivo = '';
-  if(Ls.length === 3){
+  const arSug = _bitPhDictamenFila(r);
+  let acepta = arSug==='Acepta' ? true : (arSug==='Rechaza' ? false : null);
+  let motivo = '';
+  if(_bitPhFaltaPatron(r) && Ls.length===3){
+    motivo = _bitPhMsgFaltaPatron(r);
+  }else if(Ls.length===3 && !_bitPhFaltaPatron(r)){
     const diff = Math.max(...Ls) - Math.min(...Ls);
-    if(diff > 0.03){ acepta = false; motivo = `Δ ${diff.toFixed(2)} > 0.03`; }
-    else { acepta = true; motivo = `Δ ${diff.toFixed(2)} ≤ 0.03`; }
+    motivo = `Δ ${diff.toFixed(2)} ${diff<=0.03+1e-9?'≤':'>'} 0.03 · ±0.05 vs patrón`;
   }
   const resumen = card.querySelector('[data-bit-resumen]');
-  // Actualizar badge COMPLETADA/PENDIENTE (cards de toma normal)
   if(card.hasAttribute('data-bit-ph')){
     const badge = card.querySelector('[data-bit-estado]');
     if(badge){
-      if(Ls.length===3){
-        badge.textContent='COMPLETADA';
+      if(acepta===true){
+        badge.textContent='Lista';
         badge.style.background='rgba(134,239,172,.15)';
         badge.style.borderColor='rgba(134,239,172,.4)';
         badge.style.color='var(--green)';
+      }else if(acepta===false){
+        badge.textContent='Rechaza';
+        badge.style.background='rgba(248,113,113,.12)';
+        badge.style.borderColor='rgba(248,113,113,.35)';
+        badge.style.color='#f87171';
       }else{
-        badge.textContent='PENDIENTE';
+        badge.textContent='Falta completar';
         badge.style.background='rgba(251,191,36,.12)';
         badge.style.borderColor='rgba(251,191,36,.35)';
         badge.style.color='#fbbf24';
@@ -15282,25 +15514,15 @@ function _bitPhRefreshResumen(idx){
   if(!resumen) return;
   resumen.style.background = acepta===false?'rgba(248,113,113,.08)':(acepta===true?'rgba(134,239,172,.08)':'var(--bg3)');
   resumen.style.borderColor = acepta===false?'rgba(248,113,113,.3)':(acepta===true?'rgba(134,239,172,.3)':'var(--ln)');
-  let bufNote = '';
-  if(Ls.length===3 && r.buffer!=null && r.buffer!==''){
-    const buf = parseFloat(r.buffer);
-    const pr = Ls.reduce((a,b)=>a+b,0)/Ls.length;
-    if(!isNaN(buf) && !isNaN(pr)){
-      const d05 = Math.abs(pr-buf) <= 0.05+1e-9;
-      bufNote = `<div style="font-size:10px;color:var(--g2);margin-top:4px">vs buffer MCR (±0,05): <b style="color:${d05?'var(--green)':'#f87171'}">${d05?'OK':'Revisar'}</b> (${pr.toFixed(2)} vs ${buf})</div>`;
-    }
-  }
   resumen.innerHTML = `
     <div>
       <div style="font-size:10.5px;color:var(--g2);text-transform:uppercase;letter-spacing:.04em">Promedio (pH 25°C)</div>
       <div style="font-family:var(--syne);font-size:20px;font-weight:800;color:${acepta===false?'#f87171':'var(--acc)'};margin-top:2px">${prom||'—'}</div>
-      ${bufNote}
     </div>
     <div style="text-align:right">
       ${acepta===true?`<div style="color:var(--green);font-weight:800;font-size:12px">✓ ACEPTA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
       ${acepta===false?`<div style="color:#f87171;font-weight:800;font-size:12px">✗ RECHAZA</div><div style="font-size:10px;color:var(--g2);margin-top:2px">${motivo}</div>`:''}
-      ${acepta===null?'':''}
+      ${acepta===null?(motivo?`<div style="color:#fbbf24;font-size:11px;font-weight:700">${motivo}</div>`:''):''}
     </div>
   `;
 }
