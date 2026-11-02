@@ -14923,6 +14923,9 @@ function bitPhUpdatePromedioFila(idx){
       && !_bitPhFaltaPatron(r) && _phAceptaMuestra(r.l1, r.l2, r.l3)==='Acepta'){
       _aplicarPromedioABm(r.omarId, parseInt(r.toma, 10), 'ph', r.promedio);
     }
+    if(!r.calibGrupo && _bitPhEsVerif(r.act) && (sug==='Acepta' || sug==='Rechaza') && typeof _cartasFeedDesdeBitPhV === 'function'){
+      try{ void _cartasFeedDesdeBitPhV(r, {}); }catch(e){ console.warn('[cartas ph V]', e); }
+    }
   }else{
     r.promedio='';
     r.ph25='';
@@ -18046,12 +18049,16 @@ function _cartasAdminCerrarSesion(){
 }
 
 async function _cartasRegistrarPunto(opts){
-  // AARMS cartacontrol: solo ACEPTA; no duplicar lógica de criterio
+  // AARMS lote24f4 D: Acepta y Rechaza; valor con dos decimales.
   opts = opts || {};
-  const ace = String(opts.aceptaRechaza || '').trim();
-  if(!/^acepta$/i.test(ace)) return null;
-  const valor = parseFloat(opts.valor);
+  const aceRaw = String(opts.aceptaRechaza || '').trim();
+  let ace = '';
+  if(/^acepta$/i.test(aceRaw)) ace = 'Acepta';
+  else if(/^rechaza$/i.test(aceRaw)) ace = 'Rechaza';
+  else return null;
+  let valor = parseFloat(opts.valor);
   if(isNaN(valor)) return null;
+  valor = Math.round(valor * 100) / 100;
   const per = _cartasPeriodoActivo();
   if(!per) return null;
   const equipo = opts.equipo || 'ph';
@@ -18059,12 +18066,11 @@ async function _cartasRegistrarPunto(opts){
   const fecha = String(opts.fecha || '').trim();
   const hora = String(opts.hora || '').trim();
   const planId = opts.planId || '';
-  // idempotencia blanda: mismo equipo+folio+fecha+hora+valor en periodo activo
   const all = await idbCartasGetAll();
   const dup = all.find(p =>
     p.equipo === equipo && p.periodoId === per.id &&
     p.folioOMAR === folio && p.fecha === fecha && p.hora === hora &&
-    Number(p.valor) === valor
+    Number(p.valor) === valor && String(p.aceptaRechaza || '') === ace
   );
   if(dup) return dup;
   const rec = {
@@ -18076,13 +18082,13 @@ async function _cartasRegistrarPunto(opts){
     folioOMAR: folio,
     planId,
     periodoId: per.id,
-    aceptaRechaza: 'Acepta'
+    aceptaRechaza: ace
   };
   await idbCartasPut(rec);
   return rec;
 }
 
-/** Alimenta carta pH desde Verificación en Campo ACEPTA (Hoja 1). */
+/** Alimenta carta pH desde Verificación en Campo (Hoja 1), Acepta o Rechaza. */
 async function _cartasFeedDesdePhCampo(h, ctx){
   h = h || {};
   ctx = ctx || {};
@@ -18092,11 +18098,11 @@ async function _cartasFeedDesdePhCampo(h, ctx){
   const v3 = h.campo_v3 || h.campo_ver_l3 || '';
   const buf = h.buffer || '';
   const ace = _phAceptaRechaza(v1, v2, v3, buf);
-  if(!ace || !/^acepta$/i.test(String(ace))) return;
+  if(ace !== 'Acepta' && ace !== 'Rechaza') return;
   let valor = null;
   if(typeof _phPromedio === 'function'){
     const p = _phPromedio(v1, v2, v3);
-    if(p != null) valor = (typeof _phRedondeo25 === 'function') ? _phRedondeo25(p) : p;
+    if(p != null) valor = (typeof _phRedondeo25 === 'function') ? _phRedondeo25(p) : (Math.round(p * 100) / 100);
   }
   if(valor == null){
     const ls = [v1, v2, v3].map(Number).filter(n => !isNaN(n));
@@ -18109,11 +18115,34 @@ async function _cartasFeedDesdePhCampo(h, ctx){
     hora: h.campo_hora || h.hora || ctx.hora || '',
     folioOMAR: ctx.folioOMAR || '',
     planId: ctx.planId || '',
-    aceptaRechaza: 'Acepta'
+    aceptaRechaza: ace
+  });
+}
+
+/** AARMS lote24f4 D: un punto por cada V de campo entre tomas (arranque ya va por Hoja 1). */
+async function _cartasFeedDesdeBitPhV(reg, ctx){
+  if(!reg || reg.calibGrupo || !_bitPhEsVerif(reg.act) || _bitPhEsIntentoRechazado(reg)) return;
+  if(_bitPhFaltaPatron(reg)) return;
+  const ace = _bitPhDictamenFila(reg);
+  if(ace !== 'Acepta' && ace !== 'Rechaza') return;
+  const p = (typeof _phPromedio === 'function') ? _phPromedio(reg.l1, reg.l2, reg.l3) : null;
+  if(p == null) return;
+  const valor = (typeof _phRedondeo25 === 'function') ? _phRedondeo25(p) : (Math.round(p * 100) / 100);
+  const folio = String(reg.folioOmar || (typeof _bitPhFolioLegible === 'function' ? _bitPhFolioLegible(reg.omarId) : '') || (ctx && ctx.folioOMAR) || '').trim();
+  const pl = (typeof _bitPhPlan === 'function') ? _bitPhPlan() : null;
+  await _cartasRegistrarPunto({
+    equipo: 'ph',
+    valor,
+    fecha: reg.fecha || '',
+    hora: reg.hora || '',
+    folioOMAR: folio,
+    planId: (ctx && ctx.planId) || (pl && pl.id) || '',
+    aceptaRechaza: ace
   });
 }
 window._cartasRegistrarPunto = _cartasRegistrarPunto;
 window._cartasFeedDesdePhCampo = _cartasFeedDesdePhCampo;
+window._cartasFeedDesdeBitPhV = _cartasFeedDesdeBitPhV;
 
 async function _cartasCerrarPeriodo(){
   // AARMS cartaspublic: validación real en la función (no solo UI/CSS)
@@ -18172,7 +18201,7 @@ async function _cartasPuntosFiltrados(){
     });
 }
 
-function _cartasDrawChart(canvas, puntos, unidad){
+function _cartasDrawChart(canvas, puntos, unidad, equipo){
   if(!canvas) return;
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.clientWidth || 320;
@@ -18185,7 +18214,8 @@ function _cartasDrawChart(canvas, puntos, unidad){
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg2')?.trim() || '#0f1420';
   ctx.fillRect(0, 0, W, H);
-  const pad = { l: 44, r: 12, t: 16, b: 36 };
+  const esPh = (equipo || '') === 'ph';
+  const pad = { l: 44, r: 12, t: 16, b: esPh ? 48 : 36 };
   const plotW = W - pad.l - pad.r;
   const plotH = H - pad.t - pad.b;
   ctx.strokeStyle = 'rgba(148,163,184,.35)';
@@ -18197,34 +18227,69 @@ function _cartasDrawChart(canvas, puntos, unidad){
     ctx.fillText('Sin datos aún', W / 2, H / 2);
     return;
   }
-  const vals = puntos.map(p => Number(p.valor));
-  let ymin = Math.min(...vals), ymax = Math.max(...vals);
-  if(ymin === ymax){ ymin -= 0.5; ymax += 0.5; }
-  const span = ymax - ymin || 1;
-  ymin -= span * 0.1; ymax += span * 0.1;
+  // AARMS lote24f4 D: carta pH — eje Y fijo 6–10; eje X = OMAR; rechazos visibles.
+  let ymin, ymax;
+  if(esPh){
+    ymin = 6; ymax = 10;
+  }else{
+    const vals = puntos.map(p => Number(p.valor));
+    ymin = Math.min(...vals); ymax = Math.max(...vals);
+    if(ymin === ymax){ ymin -= 0.5; ymax += 0.5; }
+    const span = ymax - ymin || 1;
+    ymin -= span * 0.1; ymax += span * 0.1;
+  }
   const n = puntos.length;
   const xAt = i => pad.l + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
-  const yAt = v => pad.t + plotH - ((v - ymin) / (ymax - ymin)) * plotH;
+  const yAt = v => pad.t + plotH - ((Number(v) - ymin) / (ymax - ymin)) * plotH;
   ctx.strokeStyle = '#3b82f6';
   ctx.lineWidth = 2;
   ctx.beginPath();
   puntos.forEach((p, i) => {
-    const x = xAt(i), y = yAt(Number(p.valor));
+    const x = xAt(i), y = yAt(p.valor);
     if(i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.stroke();
-  ctx.fillStyle = '#60a5fa';
   puntos.forEach((p, i) => {
-    const x = xAt(i), y = yAt(Number(p.valor));
-    ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill();
+    const x = xAt(i), y = yAt(p.valor);
+    const rech = /^rechaza$/i.test(String(p.aceptaRechaza || ''));
+    ctx.beginPath();
+    if(rech){
+      ctx.strokeStyle = '#f87171';
+      ctx.fillStyle = 'rgba(248,113,113,.25)';
+      ctx.lineWidth = 2;
+      const s = 5;
+      ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s);
+      ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#f87171';
+      ctx.stroke();
+    }else{
+      ctx.fillStyle = '#60a5fa';
+      ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if(esPh){
+      ctx.fillStyle = rech ? '#f87171' : 'rgba(148,163,184,.95)';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      const lab = String(p.folioOMAR || '—');
+      ctx.fillText(lab.length > 6 ? lab.slice(-4) : lab, x, pad.t + plotH + 12);
+      ctx.fillText(Number(p.valor).toFixed(2), x, pad.t + plotH + 24);
+    }
   });
   ctx.fillStyle = 'rgba(148,163,184,.95)';
   ctx.font = '10px sans-serif';
   ctx.textAlign = 'right';
   ctx.fillText(String(ymax.toFixed(2)), pad.l - 4, pad.t + 10);
+  if(esPh){
+    ctx.fillText('8.00', pad.l - 4, yAt(8) + 3);
+  }
   ctx.fillText(String(ymin.toFixed(2)), pad.l - 4, pad.t + plotH);
   ctx.textAlign = 'center';
-  ctx.fillText(unidad || '', W / 2, H - 8);
+  ctx.fillText(esPh ? (unidad || 'pH 25°C') + ' · eje X: OMAR' : (unidad || ''), W / 2, H - 8);
 }
 
 async function _cartasRenderVista(){
@@ -18288,17 +18353,22 @@ async function _cartasRenderVista(){
   }
   const puntos = await _cartasPuntosFiltrados();
   const eqMeta = _CARTAS_EQUIPOS.find(e => e.id === _cartasUi.equipo) || _CARTAS_EQUIPOS[0];
-  _cartasDrawChart(canvas, puntos, eqMeta.unidad);
+  _cartasDrawChart(canvas, puntos, eqMeta.unidad, eqMeta.id);
   if(tbl){
     if(!puntos.length){
       tbl.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--g1);padding:16px">Sin datos aún</td></tr>`;
     } else {
-      tbl.innerHTML = puntos.map(p => `<tr>
+      tbl.innerHTML = puntos.map(p => {
+        const v = Number(p.valor);
+        const vTxt = isNaN(v) ? String(p.valor ?? '') : v.toFixed(2);
+        const rech = /^rechaza$/i.test(String(p.aceptaRechaza || ''));
+        return `<tr style="${rech?'color:#f87171':''}">
         <td style="padding:8px">${fmtFDoc(p.fecha)} ${p.hora || ''}</td>
         <td style="padding:8px">${p.folioOMAR || '—'}</td>
-        <td style="padding:8px">${p.valor}</td>
+        <td style="padding:8px">${vTxt}</td>
         <td style="padding:8px">${p.aceptaRechaza || ''}</td>
-      </tr>`).join('');
+      </tr>`;
+      }).join('');
     }
   }
   // AARMS lote2a: tabla de folios solo con sesión de administrador
