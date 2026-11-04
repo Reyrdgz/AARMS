@@ -113,7 +113,7 @@ function _lote3aVolumenRequerido(omarRef){
   const paramsUsados = new Set();
   const arr = (typeof tomas !== 'undefined' && tomas) ? tomas : [];
   arr.forEach(t => {
-    const ps = t.params instanceof Set ? [...t.params] : (t.params || []);
+    const ps = (typeof _lote24gParamsSinFQ === 'function') ? _lote24gParamsSinFQ(t.params, omarRef) : (t.params instanceof Set ? [...t.params] : (t.params || []));
     ps.forEach(x => paramsUsados.add(x));
   });
   ((omarRef && omarRef.analitos) || []).forEach(a => paramsUsados.add(a));
@@ -575,6 +575,7 @@ function _lote16CroquisFuente(plan){
 async function _lote16AsegurarFolio2(plan){
   if(!plan) return '';
   if(plan.folioBpm2) return String(plan.folioBpm2);
+  if(plan.folio && plan.folio !== '—'){ plan.folioBpm2 = String(plan.folio); return plan.folioBpm2; } // AARMS lote25a: la página 2 lleva el mismo número
   if(typeof _folioTomar !== 'function') return '';
   const nums = await _folioTomar('bpm', 1, {
     planId: plan.id, doc: 'BPM', planFolio: plan.folio || '',
@@ -2787,7 +2788,7 @@ function _pdfBmTablaVolumenesParametros(doc, plan, omarRef, y, ctx){
   ];
   let paramsUsados = new Set();
   (tomas || []).forEach(t => {
-    const ps = t.params instanceof Set ? [...t.params] : (t.params || []);
+    const ps = (typeof _lote24gParamsSinFQ === 'function') ? _lote24gParamsSinFQ(t.params, omarRef) : (t.params instanceof Set ? [...t.params] : (t.params || []));
     ps.forEach(p => paramsUsados.add(p));
   });
   (omarRef.analitos || []).forEach(a => paramsUsados.add(a));
@@ -3530,6 +3531,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   let regs = [];
   if(planPh && Array.isArray(planPh.bitPh)) regs = planPh.bitPh.slice();
   else if(!planId && typeof omar !== 'undefined' && omar && Array.isArray(omar.bitPh)) regs = omar.bitPh.slice();
+  try{ if(typeof _bitPhOrdenarRegsPorFechaHora === 'function') _bitPhOrdenarRegsPorFechaHora(regs); }catch(e){} // AARMS lote25d: día, toma, hora
 
   const phN = (planPh && typeof _lote4Ph === 'function') ? _lote4Ph(planPh) : null;
   if(phN){
@@ -3900,6 +3902,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   const lote = h.lote || '';
   const marca = h.marca || '';
   const buffer = h.buffer || '';
+  const critLab = labN ? (labN.b1.crit != null ? String(labN.b1.crit).trim() : '>95') : ''; // AARMS lote25d
   const slope = labN ? (labN.b1.slope || '') : (h.slope || '');
   const temp = labN ? (labN.b1.temp || '') : (h.temp || '');
   // AARMS lote4a: estructura nueva, badge por fila. El plan viejo conserva la regla anterior (slope o texto).
@@ -3943,7 +3946,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   y = drawBloque('1. Calibración en el Laboratorio', H_CAL,
     padRows(calLabRows, 3, 7),
     [{
-      text: 'Criterio de aceptación: ____   Slope: ' + (slope || '____') + '   Temperatura: ' + (temp || '____'),
+      text: 'Criterio de aceptación: ' + (critLab || '____') + '   Slope: ' + (slope || '____') + '   Temperatura: ' + (temp || '____'),
       acepta: true,
       aceptaVal: acepCalLab
     }], y);
@@ -3976,6 +3979,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
 
   const fechaCampo = fmtFecha(h.campo_fecha || h.fecha) || fechaLab;
   const horaCampo = h.campo_hora || horaLab;
+  const critCampo = campoN ? (campoN.b4.crit != null ? String(campoN.b4.crit).trim() : '>95') : ''; // AARMS lote25d
   const slopeCampo = campoN ? (campoN.b4.slope || '') : (h.campo_slope || '');
   const tempCampo = campoN ? (campoN.b4.temp || '') : (h.campo_temp || '');
   const calCampoRows = [];
@@ -3991,7 +3995,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
   y = drawBloque('4. Calibración en el Campo', H_CAL,
     padRows(calCampoRows, 3, 7),
     [{
-      text: 'Criterio de aceptación: ____   Slope: ' + (slopeCampo || '____') + '   Temperatura: ' + (tempCampo || '____'),
+      text: 'Criterio de aceptación: ' + (critCampo || '____') + '   Slope: ' + (slopeCampo || '____') + '   Temperatura: ' + (tempCampo || '____'),
       acepta: true,
       aceptaVal: acepCalCampo
     }], y);

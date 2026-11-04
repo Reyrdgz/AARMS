@@ -169,16 +169,28 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 .f input[type="date"],.f input[type="time"],.f input[type="datetime-local"]{-webkit-appearance:none;appearance:none;width:100%;min-height:46px;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);font-family:var(--dm);font-size:15px;padding:11px 13px;cursor:pointer;display:block;box-sizing:border-box;line-height:1.2}
 .lote24-fecha{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%}
 .lote24-fecha .lote24-fecha-txt{flex:1 1 140px;width:auto;min-width:0;min-height:46px}
-.lote24-fecha .lote24-fecha-btn{flex:0 0 48px;width:48px;min-height:48px;padding:0;font-size:20px;line-height:1}
+.lote24-fecha .lote24-fecha-btn{flex:0 0 48px;width:48px;min-height:48px;padding:0;font-size:18px;line-height:1;background:transparent;border:1px solid var(--ln2);border-radius:var(--r);color:var(--acc);cursor:pointer;font-family:var(--syne);transition:all .15s}
+.lote24-fecha .lote24-fecha-btn:hover,.lote24-fecha .lote24-fecha-btn:focus-visible{background:var(--accg)}
 .lote24-fecha input[type="time"]{flex:0 0 124px;width:124px;min-height:46px}
 .lote24-fecha-aviso{flex-basis:100%;font-size:12px;color:#b45309;min-height:0}
-.lote24-cal{position:fixed;z-index:9000;left:8px;right:8px;bottom:8px;max-width:560px;margin:0 auto;background:var(--bg);border:1px solid var(--g3);border-radius:14px;padding:14px;box-shadow:0 16px 40px rgba(0,0,0,.35)}
-.lote24-cal p{margin:0 0 8px;font-size:13px;color:var(--g2)}
+#bitPhBtnTerminar.lote25-listo{border-color:var(--acc)!important;background:var(--accg)!important;box-shadow:0 0 18px var(--accb)}
+.lote25-sup{margin:18px 0 10px;padding:12px 14px;border:1px solid var(--ln2);border-radius:12px;background:var(--bg2);display:flex;flex-direction:column;gap:10px}
+.lote25-sup-estado{font-size:12px;line-height:1.4}
+.lote25-sup .btn{width:100%;font-family:var(--syne);font-weight:800}
+.lote25-na{margin-left:8px;padding:1px 8px;font-size:10px;font-weight:700;border-radius:6px;border:1px solid var(--ln2);background:transparent;color:var(--acc);cursor:pointer;letter-spacing:.04em;text-transform:none;font-family:var(--syne)}
+.lote25-na:hover{background:var(--accg)}
+.lote24-cal{position:fixed;z-index:2147483647;left:8px;right:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 8px);max-width:560px;margin:0 auto;background:var(--bg2);border:1px solid var(--ln2);border-radius:14px;padding:16px;box-shadow:0 0 0 100vmax rgba(7,8,15,.55),0 16px 40px rgba(0,0,0,.55);color:var(--w);font-family:var(--dm)}
+.lote24-cal p{margin:0 0 10px;font-family:var(--syne);font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--w)}
 .lote24-cal-row{display:flex;gap:8px}
-.lote24-cal label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:700;color:var(--g2)}
-.lote24-cal select,.lote24-cal button{min-height:48px;font-size:18px}
-.lote24-cal-acciones{display:flex;gap:8px;margin-top:10px}
-.lote24-cal-acciones button{flex:1}
+.lote24-cal label{flex:1;display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--g2)}
+.lote24-cal select{width:100%;min-height:48px;font-size:18px;background:var(--bg);color:var(--w);border:1px solid var(--g3);border-radius:var(--r);padding:8px 10px;font-family:var(--dm);cursor:pointer}
+.lote24-cal select:focus{outline:2px solid var(--acc);outline-offset:1px}
+.lote24-cal-acciones{display:flex;gap:8px;margin-top:12px}
+.lote24-cal-acciones button{flex:1;min-height:48px;font-family:var(--syne);font-size:13px;font-weight:700;letter-spacing:.04em;border-radius:var(--r);cursor:pointer;transition:all .15s}
+.lote24-cal-acciones #lote24CalOk{background:var(--acc);color:var(--ink-on-acc);border:none;box-shadow:0 0 20px var(--accb)}
+.lote24-cal-acciones #lote24CalOk:hover{background:var(--acc2)}
+.lote24-cal-acciones #lote24CalNo{background:transparent;border:1px solid var(--ln2);color:var(--acc)}
+.lote24-cal-acciones #lote24CalNo:hover{background:var(--accg)}
 .f input[type="date"]::-webkit-date-and-time-value{text-align:left;min-height:22px;color:var(--w)}
 .f input[type="time"]::-webkit-date-and-time-value{text-align:left;min-height:22px;color:var(--w)}
 .f input[type="date"]::-webkit-datetime-edit,.f input[type="time"]::-webkit-datetime-edit{padding:0;color:var(--w)}
@@ -506,7 +518,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       <button onclick="cerrarModalNuevoMuestreo()" style="width:32px;height:32px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:50%;color:var(--g1);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0" aria-label="Cerrar">×</button>
     </div>
 
-        <div class="f"><label>Folio del plan</label><input id="nm_folio" type="text" value="—" readonly tabindex="-1" style="opacity:.9"></div>
+        <div class="f"><label>Folio del plan <span style="font-weight:400;opacity:.65;text-transform:none;letter-spacing:0">(el de la Orden de servicio)</span></label><input id="nm_folio" type="text" value="" inputmode="text" autocomplete="off" placeholder="Escribe el folio del plan"><div style="font-size:11px;opacity:.65;margin-top:4px">Si no te dieron uno, deja el que aparece.</div></div>
     <input id="nm_folio_lvar" type="hidden" value="">
     <div class="g2">
       <div class="f"><label>Fecha</label><input id="nm_fecha" type="date"></div>
@@ -519,7 +531,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       <div class="f"><label>Ciudad</label><input id="nm_ciudad" type="text" placeholder="ej. Heroica Guaymas" autocomplete="off"></div>
       <div class="f"><label>Estado</label><input id="nm_estado" type="text" placeholder="ej. Sonora" autocomplete="off"></div>
     </div>
-    <div class="f" style="margin-top:8px"><label>Norma de referencia <span style="color:var(--g2);font-weight:500">(de cada OMAR; se puede cambiar después)</span></label><input id="nm_norma" type="text" placeholder="ej. NOM-001-SEMARNAT-2021" autocomplete="off"></div>
+    <!-- AARMS lote24j: la norma de referencia se elige una sola vez, en la Orden de muestreo de cada OMAR -->
 
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="btn btn-g" onclick="cerrarModalNuevoMuestreo()" style="flex:1">Cancelar</button>
@@ -1541,9 +1553,6 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
         <span class="cbadge" id="lv_envasesCalc" style="font-size:10px">total auto</span>
       </div>
       <div class="cb">
-        <div style="font-size:11px;color:var(--g2);margin-bottom:10px;line-height:1.5">
-          Cantidades autocalculadas <b>sumando los envases requeridos por cada OMAR</b> (OMARs marcados como "no realizada" no cuentan). Editable.
-        </div>
         <div id="lv_envases"></div>
       </div>
     </div>
@@ -1850,7 +1859,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       <div class="f"><label>Lote</label><input type="text" id="colab_cal_lote"></div>
       <div class="f"><label>Marca</label><input type="text" id="colab_cal_marca"></div>
       <div class="f"><label>Valor Nominal (µS/cm)</label><input type="text" id="colab_cal_vn" inputmode="decimal" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('lab')"></div>
-      <div class="f"><label>Incertidumbre (± µS/cm)</label><input type="text" id="colab_cal_inc" inputmode="decimal" placeholder="0.75" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('lab')"></div>
+      <div class="f"><label>Incertidumbre (±)</label><input type="text" id="colab_cal_inc" inputmode="decimal" placeholder="0.75" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('lab')"></div>
       <div class="f"><label>VN + I (auto)</label><input type="text" id="colab_cal_vnp" readonly style="opacity:.85"></div>
       <div class="f"><label>VN − I (auto)</label><input type="text" id="colab_cal_vnm" readonly style="opacity:.85"></div>
       <div class="f"><label>Lectura equipo (µS/cm)</label><input type="text" id="colab_cal_lect"></div>
@@ -2041,6 +2050,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 
     <button type="button" id="bitPhBtnOtroBloqueCalib" onclick="bitPhAbrirModalCalib2()" style="display:none;margin-top:10px;width:100%;background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.28);color:#a78bfa;padding:10px;border-radius:10px;font-family:var(--syne);font-size:11px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">＋ Otra calibración/comprobación 2 puntos en esta jornada</button>
     <button onclick="bitPhAgregarRegistro()" style="margin-top:10px;width:100%;background:rgba(167,139,250,.1);border:1px dashed rgba(167,139,250,.4);color:#a78bfa;padding:13px;border-radius:10px;font-family:var(--syne);font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent">+ Agregar toma</button>
+    <button id="bitPhBtnTerminar" type="button" onclick="bitPhTerminarTomasDia()" style="margin-top:8px;width:100%;background:transparent;border:1px solid var(--ln2);color:var(--acc);padding:13px;border-radius:10px;font-weight:700;cursor:pointer">Terminar tomas del día (Ca · Ca · Co · Co)</button>
 
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
       <button class="btn btn-p" onclick="generarPDFBitacoraPHOficial()" style="width:100%">Generar PDF</button>

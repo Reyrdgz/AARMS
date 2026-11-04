@@ -1595,7 +1595,7 @@ function _lote4filaLect(){
 }
 function _lote4LabVacio(){
   return {
-    b1: { slope: '', temp: '', filas: [_lote4filaCal(), _lote4filaCal(), _lote4filaCal()] },
+    b1: { crit: '>95', slope: '', temp: '', filas: [_lote4filaCal(), _lote4filaCal(), _lote4filaCal()] },
     b2: { filas: [_lote4filaLect(), _lote4filaLect(), _lote4filaLect()] },
     b3: { filas: [_lote4filaLect()] }
   };
@@ -1603,7 +1603,7 @@ function _lote4LabVacio(){
 function _lote4CampoVacio(){
   return {
     tira: { hora: '', valor: '' },
-    b4: { slope: '', temp: '', filas: [_lote4filaCal(), _lote4filaCal(), _lote4filaCal()] },
+    b4: { crit: '>95', slope: '', temp: '', filas: [_lote4filaCal(), _lote4filaCal(), _lote4filaCal()] },
     b5: { filas: [_lote4filaLect(), _lote4filaLect(), _lote4filaLect()] },
     b6: { filas: [_lote4filaLect()] },
     rango: { de: '', a: '' }
@@ -1897,6 +1897,7 @@ function _lote4BloqueHtml(opts){
   if(opts.esCal){
     const est = _lote4EstadoCal(filas);
     pie += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">';
+    pie += '<div class="f" style="flex:1;min-width:120px"><label>Criterio de aceptación</label><input type="text" data-l4="'+opts.id+'" data-k="crit" placeholder="&gt;95" value="'+_lote4esc((opts.nodo&&opts.nodo.crit!=null)?opts.nodo.crit:'>95')+'"'+dis+'></div>';
     pie += '<div class="f" style="flex:1;min-width:120px"><label>Slope (%)</label><input type="text" inputmode="decimal" data-l4="'+opts.id+'" data-k="slope" value="'+_lote4esc((opts.nodo&&opts.nodo.slope)||'')+'"'+dis+'></div>';
     pie += '<div class="f" style="flex:1;min-width:120px"><label>Temperatura (°C)</label><input type="text" inputmode="decimal" data-l4="'+opts.id+'" data-k="temp" value="'+_lote4esc((opts.nodo&&opts.nodo.temp)||'')+'"'+dis+'></div>';
     pie += '<div>'+_lote4marca(est)+'</div></div>';
@@ -2003,7 +2004,7 @@ async function _lote4aInput(planIn, ev){
   const nodo = ph.lab[id];
   if(!nodo) return;
   const k = t.getAttribute('data-k');
-  if(k === 'slope' || k === 'temp'){
+  if(k === 'slope' || k === 'temp' || k === 'crit'){
     nodo[k] = t.value;
     await _lote4Guardar(plan);
     // AARMS lote4bb: al completar el pie se abre el bloque siguiente.
@@ -2109,7 +2110,7 @@ async function _lote4bInput(planIn, ev){
   const nodo = ph.campo[id];
   if(!nodo) return;
   const k = t.getAttribute('data-k');
-  if(k === 'slope' || k === 'temp'){
+  if(k === 'slope' || k === 'temp' || k === 'crit'){
     nodo[k] = t.value;
     await _lote4Guardar(plan);
     // AARMS lote4bb: al completar el pie se abre el bloque siguiente.
@@ -2423,11 +2424,53 @@ async function goHome(){
 
 // ── MODAL "Nuevo Muestreo" ──
 // Guarda el número de OMARs elegido por el usuario durante el flujo del modal
+// AARMS lote24h: el folio del plan lo asigna el contador al crear el plan; aquí solo se MUESTRA el que sigue, sin gastarlo.
+function _lote24hFolioPlanSiguiente(){
+  try{
+    const c = _folioCfg();
+    const t = c.folios && c.folios.types && c.folios.types.bpm;
+    if(!t) return '';
+    const n = (t.year !== _folioAnio()) ? (t.inicio || 1) : (t.next || 1);
+    return _folioFmt(n);
+  }catch(e){ return ''; }
+}
+// AARMS lote24i: folios del plan escritos a mano (número de la Orden de servicio).
+// Página 1 = lo escrito; página 2 = el siguiente. Si es solo dígitos se rellena a 4 y el contador salta para no repetirlo.
+function _lote24iFoliosPlanManual(planId, texto){
+  return _folioEnqueue(() => {
+    let t1 = String(texto || '').trim().replace(/\s+/g, ' ');
+    if(!t1) return { ok:false, motivo:'Escribe el folio del plan' };
+    const soloDigitos = /^\d{1,6}$/.test(t1);
+    let n = 0;
+    if(soloDigitos){
+      n = parseInt(t1, 10);
+      if(n < 1) return { ok:false, motivo:'El folio del plan tiene que ser mayor a 0' };
+      t1 = _folioFmt(n);
+    }
+    // no repetir el folio de un plan vigente
+    const usados = new Set();
+    (_cachedPlanes || []).forEach(p => { if(p && !_lote21EsOculto(p.id)){ if(p.folio) usados.add(String(p.folio)); } });
+    if(usados.has(t1)) return { ok:false, motivo:'Ese folio ya lo tiene otro plan (' + t1 + ')' };
+    const c = _folioCfg();
+    const t = c.folios.types.bpm;
+    const year = _folioAnio();
+    if(t.year !== year){ t.year = year; t.next = t.inicio || 1; t.high = 0; }
+    if(soloDigitos){
+      t.high = Math.max(t.high || 0, n);
+      t.next = Math.max(t.next || 1, n + 1);
+    }
+    try{ localStorage.setItem('aarms_config', JSON.stringify(c)); }catch(e){}
+    const log = _folioLogGet();
+    log.push({ tipo:'bpm', numero: t1, doc: _FOLIO_ETIQUETA.bpm || 'BPM', planId: planId || '', planFolio: '', omarId:'', omarFolio:'', fecha: _lote21HoyFecha(), estado:'vigente' });
+    _folioLogSet(log);
+    return { ok:true, nums:[t1, t1] }; // AARMS lote25a: el mismo número para el plan, el LVAR y las dos páginas del BPM
+  });
+}
 function abrirModalNuevoMuestreo(){
   closeFabMenu();
   // Reset campos
   const d = _lote21HoyFecha();
-  const nmFol = document.getElementById('nm_folio'); if(nmFol) nmFol.value = '—';
+  const nmFol = document.getElementById('nm_folio'); if(nmFol){ const sug = _lote24hFolioPlanSiguiente() || ''; nmFol.value = sug; nmFol.dataset.sugerido = sug; } // AARMS lote24i: sugerencia del contador; se puede escribir el número de la Orden de servicio
   document.getElementById('nm_fecha').value = d;
   const nmMuest = document.getElementById('nm_muest');
   const nombreAjustes = (typeof _muestreadorActual === 'function' && _muestreadorActual().nombre) || '';
@@ -2464,9 +2507,21 @@ async function confirmarNuevoMuestreo(){
   const planId = 'plan_' + Date.now();
   // AARMS lote2a: un folio BPM al crear el plan
   // AARMS lote16: dos folios bpm, uno por página, consecutivos al crear el plan.
-  const bpmNums = await _folioTomar('bpm', 2, { planId, doc: 'BPM', planFolio: '' });
+  // AARMS lote24i: el número del plan viene en la Orden de servicio; si se escribe, ese manda (y el contador lo respeta).
+  const _nmFolEl = document.getElementById('nm_folio');
+  const _nmFolTxt = _nmFolEl ? String(_nmFolEl.value || '').trim() : '';
+  const _nmFolSug = _nmFolEl ? String(_nmFolEl.dataset.sugerido || '') : '';
+  let bpmNums;
+  if(_nmFolTxt && _nmFolTxt !== '—' && _nmFolTxt !== _nmFolSug){
+    const r = await _lote24iFoliosPlanManual(planId, _nmFolTxt);
+    if(!r.ok){ toast(r.motivo, 'w'); if(_nmFolEl) _nmFolEl.focus(); return; }
+    bpmNums = r.nums;
+  } else {
+    const _uno = await _folioTomar('bpm', 1, { planId, doc: 'BPM', planFolio: '' });
+    bpmNums = [_uno[0], _uno[0]];
+  }
   const folio = bpmNums[0];
-  const folioBpm2 = bpmNums[1];
+  const folioBpm2 = bpmNums[0]; // AARMS lote25a: el mismo número en el plan, el LVAR y las dos páginas del BPM
   await idbPlanPut({
     id: planId,
     folio,
@@ -2537,7 +2592,13 @@ async function confirmarNuevoMuestreo(){
   cerrarModalNuevoMuestreo();
   // AARMS lote14a: al crear, la pantalla del plan con el primer documento de laboratorio
   await abrirPlan(planId);
-  toast('Plan creado','g');
+  // AARMS lote24j: primero se llenan las OMAR; se abre directo la primera (luego la siguiente, y al final el plan).
+  if(omarIds.length){
+    toast('Plan creado ✓ — llena la OMAR 1 de ' + omarIds.length,'g');
+    await cargarMuestreo(omarIds[0]);
+  } else {
+    toast('Plan creado','g');
+  }
 }
 
 async function iniciarNuevoMuestreo(){
@@ -2555,9 +2616,9 @@ async function iniciarNuevoMuestreo(){
   let folioNuevo = '';
   let folioBpm2Nuevo = '';
   try{
-    const bpmNums = await _folioTomar('bpm', 2, { planId: newPlanId, doc: 'BPM' });
+    const bpmNums = await _folioTomar('bpm', 1, { planId: newPlanId, doc: 'BPM' });
     folioNuevo = bpmNums[0] || '';
-    folioBpm2Nuevo = bpmNums[1] || '';
+    folioBpm2Nuevo = bpmNums[0] || ''; // AARMS lote25a: mismo número en las dos páginas
   }catch(e){ console.warn('[lote2a bpm]', e); }
   try{
     await idbPlanPut({
@@ -3785,8 +3846,8 @@ async function continuarAlSiguientePaso(omarIdOpt){
   for(const key of orden){
     if(_planEstadoDoc(plan, key) !== 'completo'){
       if(key === 'omars'){
-        // AARMS lote14a: la Hoja de Campo se abre desde el plan
-        await abrirPlan(_currentPlanId);
+        // AARMS lote25c: laboratorio completo → directo a la Hoja de Campo (antes volvía a la ficha del plan)
+        await abrirDocPlan('omars');
         return;
       }
       await abrirDocPlan(key);
@@ -3837,7 +3898,7 @@ async function abrirLVAR(){
     }
   }
 
-  setVal('lv_folio',  _lvarData.folio || '—');
+  setVal('lv_folio',  _lvarData.folio || ((plan.folio && plan.folio !== '—') ? plan.folio : '') || '—'); // AARMS lote25a: ya trae el número del plan
   setVal('lv_fecha',  _lvarData.fecha || plan.fecha || _lote21HoyFecha());
   setVal('lv_lugar',  _lvarData.lugar || primerOmar.sitio || '');
   setVal('lv_dir',    _lvarData.direccion || primerOmar.direccion || '');
@@ -4532,6 +4593,23 @@ function _calcCantEnvasePorOmar(env, nTomas){
 function _lote22cEsCampo(nombre){
   return ['pH','Temperatura','Conductividad Eléctrica','Materia Flotante','Flujo','Flujos'].includes(nombre);
 }
+// AARMS lote24g: una sola regla para Hoja, Cadena, Machiote y LVAR: lo que solo se mide en campo
+// (pH, temperatura, conductividad, materia flotante, flujo) no activa la columna FQ ni el frasco de 4000 mL.
+function _lote24gSinFQ(o){
+  const nombres = Array.isArray(o && o.analitos) ? o.analitos : [];
+  if(!nombres.length) return false; // sin analitos guardados no se filtra nada
+  const map = (typeof ANALITO_A_PARAM !== 'undefined') ? ANALITO_A_PARAM : {};
+  const hayFQ = nombres.some(n => !_lote22cEsCampo(n) && (map[n] === 'FQ' || n === 'FQ'));
+  return !hayFQ;
+}
+function _lote24gParamsSinFQ(ps, o){
+  const arr = ps instanceof Set ? [...ps] : (Array.isArray(ps) ? ps : []);
+  return _lote24gSinFQ(o) ? arr.filter(p => p !== 'FQ') : arr;
+}
+function _lote24gFiltrarTomas(tomas, o){
+  if(!_lote24gSinFQ(o)) return tomas;
+  return (tomas || []).map(t => Object.assign({}, t, { params: new Set(_lote24gParamsSinFQ(t.params, o)) }));
+}
 function _lote22cCodigosEnvase(o){
   // AARMS lote22c: pH, temperatura, conductividad, materia flotante y flujo no piden frasco.
   const nombres = Array.isArray(o && o.analitosNombres) ? o.analitosNombres : [];
@@ -4548,8 +4626,17 @@ function _lote22cCodigosEnvase(o){
   }
   return new Set((o && o.analitos) || []);
 }
-function _lote22cAplica(env, codes){
-  if(!env.analitos || env.analitos.length === 0) return true;
+function _lote22cAplica(env, codes, o){
+  if(!env.analitos || env.analitos.length === 0){
+    // AARMS lote25a: Winkler solo si la OMAR pide Oxígeno Disuelto; las bolsas solo si tiene microbiología.
+    const nombres = Array.isArray(o && o.analitosNombres) ? o.analitosNombres : [];
+    const pideOD = nombres.some(n => /ox[ií]geno disuelto/i.test(String(n)));
+    const micro = ['CTYF','ECOL','ENTE.','ENTE'].some(c => codes && codes.has && codes.has(c))
+      || nombres.some(n => /coliform|e\. ?coli|enterococ|vibrio|salmonella|staphylo/i.test(String(n)));
+    if(env.key === 'winkler') return pideOD;
+    if(env.key === 'bolsa_t100' || env.key === 'bolsa_300' || env.key === 'bolsa_t300') return micro;
+    return true;
+  }
   return env.analitos.some(a => codes.has(a));
 }
 function _lote22cPartes(env, o){
@@ -4558,7 +4645,7 @@ function _lote22cPartes(env, o){
   const tipoO = String(o && o.tipo || '').trim().toLowerCase();
   const n = parseInt(o && o.ntomas, 10);
   const cant = n > 0 ? n : 1;
-  if(!_lote22cAplica(env, _lote22cCodigosEnvase(o))) return { simple:0, compuesto:0 };
+  if(!_lote22cAplica(env, _lote22cCodigosEnvase(o), o)) return { simple:0, compuesto:0 };
   if(tipoO === 'simple') return { simple: cant, compuesto:0 };
   if(tipoO === 'compuesto'){
     if(String(env && env.tipo || '').toLowerCase() !== 'compuesto') return { simple:0, compuesto:0 };
@@ -4590,13 +4677,18 @@ function buildLvarEnvases(){
   const totalSummary = `${omars.length} OMAR${omars.length===1?'':'s'} activas`;
   const calcEl = document.getElementById('lv_envasesCalc');
   if(calcEl) calcEl.textContent = totalSummary;
+  // AARMS lote25a: avisa si faltan OMAR por llenar (sus envases todavía no se suman).
+  const _sinLlenar = omars.filter(o => !(Array.isArray(o.analitos) && o.analitos.length) && !(Array.isArray(o.analitosNombres) && o.analitosNombres.length)).length;
+  const _avisoOmars = _sinLlenar > 0
+    ? `<div style="margin:0 0 10px;padding:10px 12px;border:1px solid rgba(251,191,36,.4);background:rgba(251,191,36,.08);border-radius:10px;font-size:12px;color:var(--w);line-height:1.45">Faltan <b>${_sinLlenar}</b> OMAR por llenar: sus envases todavía no se suman. Llénalas desde el plan.</div>`
+    : '';
 
   // Conjunto de analitos seleccionados en TODAS las OMARs activas (códigos)
   const analitosTotales = new Set();
   omars.forEach(o => (o.analitos || []).forEach(a => analitosTotales.add(a)));
 
   if(analitosTotales.size === 0){
-    c.innerHTML = `<div style="text-align:center;padding:24px 12px;color:var(--g2);font-size:12.5px;line-height:1.55">
+    c.innerHTML = _avisoOmars + `<div style="text-align:center;padding:24px 12px;color:var(--g2);font-size:12.5px;line-height:1.55">
       Selecciona analitos en al menos una OMAR<br>
       <span style="font-size:11px;color:var(--g3)">Los envases aplicables se calculan automáticamente.</span>
     </div>`;
@@ -4605,17 +4697,17 @@ function buildLvarEnvases(){
 
   // Filtrar: solo envases con analitos coincidentes, o "siempre presentes"
   const aplicables = LVAR_ENVASES.filter(env => _lote22cFilas(env, omars).length);
-  const readonlyAttr = _lvarBloqueado ? 'readonly' : '';
+  const readonlyAttr = 'readonly tabindex="-1"'; // AARMS lote25a: las cantidades se calculan solas y no se editan
 
-  c.innerHTML = aplicables.map(env => {
+  c.innerHTML = _avisoOmars + aplicables.map(env => {
     const filas = _lote22cFilas(env, omars);
     const saved = d[env.key] || {};
     return filas.map(fila => {
-      const cant = (filas.length === 1 && saved.cant !== undefined && saved.cant !== '') ? saved.cant : fila.cant;
+      const cant = fila.cant; // AARMS lote25a: siempre lo calculado
       const tipoBadge = fila.tipo === 'SIMPLE'
         ? `<span style="background:rgba(251,191,36,.1);color:var(--amber);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">SIMPLE</span>`
         : `<span style="background:rgba(74,158,255,.12);color:var(--acc);font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:4px">COMPUESTO</span>`;
-      const campo = filas.length === 1 ? `data-lv-envases="${env.key}" data-field="cant"` : '';
+      const campo = ''; // AARMS lote25a: no se guarda ninguna cantidad a mano
       return `
       <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--ln)">
         <input ${campo} type="number" min="0" value="${cant}" ${readonlyAttr} style="width:60px;text-align:center;flex-shrink:0;font-weight:800;color:var(--acc)">
@@ -4636,6 +4728,13 @@ async function _lote24AsegurarFolioLvar(plan){
   const limpio = v => (!v || v === '—' || v === '-') ? '' : String(v).trim();
   const yaFolio = limpio(plan.lvar.folio);
   if(yaFolio) return yaFolio;
+  // AARMS lote25a: el folio del LVAR es el número del plan (el de la Orden de servicio); no se toma otro del contador.
+  const folioPlan = limpio(plan.folio);
+  if(folioPlan){
+    plan.lvar.folio = folioPlan;
+    _lote2aPintarCampo('lv_folio', folioPlan);
+    return folioPlan;
+  }
   const gv = id => { const e = document.getElementById(id); return e ? e.value.trim() : ''; };
   const tiene = limpio(plan.lvar.fecha) || limpio(plan.lvar.lugar) || limpio(plan.lvar.asig)
     || limpio(gv('lv_fecha')) || limpio(gv('lv_lugar')) || limpio(gv('lv_asig'));
@@ -4798,6 +4897,13 @@ async function generarPDFLVAR(){
   }
   // AARMS lote21d: el PDF sale de una copia. La fusión del catálogo no se escribe en el plan.
   const data = JSON.parse(JSON.stringify(plan.lvar || {}));
+  // AARMS lote25e: si el supervisor ya firmó (PIN), su nombre, fecha y hora salen en el LVAR.
+  const _supF = _lote25FirmaSupDelPlan(plan);
+  if(_supF){
+    if(!String(data.sup || '').trim()) data.sup = _supF.nombre || '';
+    if(!String(data.supFecha || '').trim()) data.supFecha = _supF.fecha || '';
+    if(!String(data.supHora || '').trim()) data.supHora = _supF.hora || '';
+  }
   if(folioListo) data.folio = folioListo;
 
   // AARMS v66-fix / lote24f5 B: fusionar catálogo; vencido → hueco en blanco (no se imprime).
@@ -5465,6 +5571,7 @@ async function generarPDFLVAR(){
   doc.text(asci(data.sup||'-'), M+CW*0.5+4, y+15);
   doc.setFontSize(6.8); doc.setTextColor(100,110,130); doc.setFont(FONT,'normal');
   doc.text(`Fecha: ${fmtFDoc(data.supFecha)||'-'}    Hora: ${data.supHora||'-'}`, M+CW*0.5+4, y+22);
+  if(_supF && _supF.firmaPng){ try{ doc.addImage(_supF.firmaPng, 'PNG', M+CW-76, y+3, 70, respH-6); }catch(e){} } // AARMS lote25e: firma del supervisor
   y += respH;
 
   // AARMS lote4bc: el recuadro de la pág. 2 existe siempre. Vacío: diagonal. Con texto: sin tacha.
@@ -5954,13 +6061,13 @@ async function guardarPlanFormulario(){
   if(!plan.folio || plan.folio === '—'){
     if(escrito && escrito !== '—') plan.folio = escrito;
     else {
-      const nums = await _folioTomar('bpm', 2, {
+      const nums = await _folioTomar('bpm', 1, {
         planId: plan.id, doc: 'BPM',
-        ya: ()=> (plan.folio && plan.folio !== '—' && plan.folioBpm2) ? [plan.folio, plan.folioBpm2] : [],
-        aplicar: (out)=>{ plan.folio = out[0]; plan.folioBpm2 = out[1]; }
+        ya: ()=> (plan.folio && plan.folio !== '—' && plan.folioBpm2) ? [plan.folio] : [],
+        aplicar: (out)=>{ plan.folio = out[0]; plan.folioBpm2 = out[0]; }
       });
       plan.folio = plan.folio || nums[0];
-      plan.folioBpm2 = plan.folioBpm2 || nums[1];
+      plan.folioBpm2 = plan.folioBpm2 || plan.folio; // AARMS lote25a: mismo número
     }
   }
   _lote2aPintarCampo('plan_folio', plan.folio);
@@ -6819,9 +6926,34 @@ async function guardarOMARyContinuarLVAR(){
   if(!ok) return;
   if(volverLvar) return;
   const pid = _currentPlanId || (_lote14PlanDeTs(omar && omar.ts) || {}).id;
-  if(pid) await abrirPlan(pid);
-  else goHome();
+  // AARMS lote24j: si queda otra OMAR del plan sin llenar, se abre esa; si no, se vuelve al plan.
+  if(pid){
+    const sig = _lote24jSiguienteOmarVacia(pid, omar && omar.ts);
+    if(sig){
+      toast('OMAR guardada ✓ — sigue la ' + sig.n + ' de ' + sig.total,'g');
+      await cargarMuestreo(sig.id);
+      return;
+    }
+    await abrirPlan(pid);
+  } else goHome();
   toast('OMAR guardada ✓','g');
+}
+// AARMS lote24j: busca la siguiente OMAR del plan que todavía no tiene folio ni analitos (en orden, después de la actual).
+function _lote24jSiguienteOmarVacia(planId, idActual){
+  try{
+    const lista = getMuestreosDePlan(planId) || [];
+    const total = lista.length;
+    const i = lista.findIndex(m => String(m.id) === String(idActual));
+    const orden = lista.map((m, k) => ({ m, k })).filter(x => x.k !== i);
+    const despues = orden.filter(x => x.k > i).concat(orden.filter(x => x.k < i));
+    for(const x of despues){
+      let o = {};
+      try{ o = x.m.omar ? JSON.parse(x.m.omar) : {}; }catch(e){ o = {}; }
+      const vacia = !String(o.folio || x.m.folio || '').trim() && !(Array.isArray(o.analitos) && o.analitos.length);
+      if(vacia && !o.blancoCampo) return { id: x.m.id, n: x.k + 1, total };
+    }
+  }catch(e){}
+  return null;
 }
 
 // Variante 2: Guardar OMAR y agregar otro al mismo plan
@@ -6933,6 +7065,7 @@ const ANALITO_A_PARAM={
 function getParamsFromOMAR(){
   const params=new Set();
   (omar.analitos||[]).forEach(a=>{
+    if(typeof _lote22cEsCampo === 'function' && _lote22cEsCampo(a)) return; // AARMS lote24g
     const p=ANALITO_A_PARAM[a];
     if(p) params.add(p);
   });
@@ -9053,7 +9186,7 @@ async function _lote21HojaFuente(omarIdPedido){
     return {
       id,
       omar: o,
-      tomas: _lote21TomasConSet(tomasGuardar),
+      tomas: _lote24gFiltrarTomas(_lote21TomasConSet(tomasGuardar), o),
       photoData: foto,
       photoData2: foto2,
       sigData: sig,
@@ -9065,7 +9198,7 @@ async function _lote21HojaFuente(omarIdPedido){
   return {
     id,
     omar: o,
-    tomas: _lote21TomasConSet(m.tomas || []),
+    tomas: _lote24gFiltrarTomas(_lote21TomasConSet(m.tomas || []), o),
     photoData: m.photoData || null,
     photoData2: m.photoData2 || null,
     sigData: m.sigData || null,
@@ -10702,7 +10835,7 @@ async function buildPDFCadena(omarIdPedido){
   pintarPersona(py, 'PERSONA QUE RECIBE EN LABORATORIO MATRIZ', lab.lrnom, lab.lrfir, fmtDate(lab.lrfec), fmtTime(lab.lrhor));
   py += pieRowH;
   fillRect(M,py,CW,pieRowH,[248,250,253]);
-  lineField(M+4, py+2, 280, pieRowH-4, 'SUPERVISÓ:', lab.sup||'', 7, 40); // AARMS lote8ba
+  lineField(M+4, py+2, 280, pieRowH-4, 'SUPERVISÓ:', lab.sup || _lote25SupNombrePara(omar) || '', 7, 40); // AARMS lote8ba / lote25e
   doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);doc.setFontSize(7);
   doc.text('F-AA-01A-13', W-M-4, py+pieRowH/2+2.5, {align:'right'});
 
@@ -11333,6 +11466,69 @@ function _folioCfg(){
   try{ localStorage.setItem('aarms_config', JSON.stringify(c)); }catch(e){}
   return c;
 }
+// AARMS lote25b: folios de las bitácoras escritos a mano (BLMP, pH, conductímetro). Se guardan en el plan.
+const _LOTE25_PAGINAS = { blmp:2, buccvph:2, blmccvuc:3, od:4 };
+const _LOTE25_CAMPOS = { blmp_folio:'blmp', bitPhFolioDocInp:'buccvph', colab_folio:'blmccvuc' };
+function _lote25FolioManualDe(planId, tipo){
+  try{
+    const p = (_cachedPlanes || []).find(x => String(x.id) === String(planId));
+    const v = p && p.folioManual && p.folioManual[tipo];
+    return v ? String(v) : '';
+  }catch(e){ return ''; }
+}
+function _lote25YaAsignado(plan, tipo){
+  try{
+    return _folioLogGet().some(r => r.tipo === tipo && r.estado === 'vigente' && String(r.planId) === String(plan.id));
+  }catch(e){ return false; }
+}
+async function _lote25FolioManualGuardar(inputId){
+  const tipo = _LOTE25_CAMPOS[inputId];
+  const el = document.getElementById(inputId);
+  if(!tipo || !el) return;
+  const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+  const v = String(el.value || '').trim();
+  if(!plan) return;
+  if(_lote25YaAsignado(plan, tipo)){
+    if(v && v !== '—') toast('Ya se asignó el folio de este documento; no se cambia','w');
+    return;
+  }
+  if(!v || v === '—'){
+    if(plan.folioManual) delete plan.folioManual[tipo];
+    el.value = '—';
+    try{ await guardarPlan(plan); }catch(e){}
+    return;
+  }
+  if(!/^\d{1,6}$/.test(v)){ toast('El folio debe ser un número','w'); el.value = '—'; return; }
+  const base = parseInt(v, 10);
+  const paginas = _LOTE25_PAGINAS[tipo] || 1;
+  const usados = new Set(_folioLogGet().filter(r => r.tipo === tipo && r.estado === 'vigente' && String(r.planId) !== String(plan.id)).map(r => String(r.numero)));
+  for(let i = 0; i < paginas; i++){
+    const f = _folioFmt(base + i);
+    if(usados.has(f)){ toast('El folio ' + f + ' ya lo usó otro plan','w'); el.value = '—'; return; }
+  }
+  plan.folioManual = plan.folioManual || {};
+  plan.folioManual[tipo] = _folioFmt(base);
+  el.value = _folioFmt(base);
+  try{ await guardarPlan(plan); }catch(e){}
+  toast('Folio ' + _folioFmt(base) + ' guardado (' + paginas + ' hojas consecutivas)','g');
+}
+function _lote25PrepararCamposFolio(){
+  Object.keys(_LOTE25_CAMPOS).forEach(id => {
+    const el = document.getElementById(id);
+    if(!el || el.dataset.lote25) return;
+    el.dataset.lote25 = '1';
+    el.removeAttribute('readonly');
+    el.removeAttribute('tabindex');
+    el.setAttribute('inputmode', 'numeric');
+    el.setAttribute('autocomplete', 'off');
+    el.setAttribute('placeholder', 'Escribe el folio o déjalo vacío');
+    el.addEventListener('focus', () => { if(el.value === '—') el.value = ''; });
+    el.addEventListener('change', () => { _lote25FolioManualGuardar(id); });
+    el.addEventListener('blur', () => { if(!String(el.value || '').trim()) el.value = (_lote25YaAsignado((typeof _planActivo === 'function' ? _planActivo() : null) || {}, _LOTE25_CAMPOS[id])) ? el.value : '—'; });
+  });
+}
+document.addEventListener('DOMContentLoaded', _lote25PrepararCamposFolio);
+if(document.readyState !== 'loading') setTimeout(_lote25PrepararCamposFolio, 0);
 function _folioTomarSync(tipo, n, ctx){
   ctx = ctx || {};
   const c = _folioCfg();
@@ -11347,6 +11543,15 @@ function _folioTomarSync(tipo, n, ctx){
   if(ya && ya.length >= n && ya.every(Boolean)) return ya.slice(0, n);
   const out = [];
   const count = Math.max(1, n|0);
+  // AARMS lote25b: si se escribió a mano el folio de este documento, las hojas salen consecutivas desde ahí.
+  const _man = _lote25FolioManualDe(ctx.planId, tipo);
+  if(_man){
+    const base = parseInt(_man, 10);
+    for(let i=0;i<count;i++) out.push(_folioFmt(base + i));
+    const last = base + count - 1;
+    t.high = Math.max(t.high||0, last);
+    t.next = Math.max(t.next||1, last + 1);
+  } else
   for(let i=0;i<count;i++){
     const num = t.next || 1;
     out.push(_folioFmt(num));
@@ -12528,6 +12733,18 @@ async function generarPDFColabCompleto(){
     }
   }
 
+  // AARMS lote25c: valor nominal (1412 patrón / 1413 comercial), incertidumbre 0.75 y lote del control, también en el PDF
+  try{
+    const kk = _lote25KclDatos();
+    const llenar = (clave, v) => { if(!String(c[clave] || '').trim() && v) c[clave] = v; };
+    ['', 'campo_'].forEach(pre => {
+      ['cal', 'comp'].forEach(b => { llenar(pre + b + '_vn', kk.patron.valor); });
+      llenar(pre + 'cal_inc', '0.75');
+      llenar(pre + 'ver_vn', kk.comercial.valor);
+      llenar(pre + 'ver_lote', kk.comercial.lote);
+      llenar(pre + 'ver_marca', kk.comercial.marca);
+    });
+  }catch(e){ console.warn('[lote25c pdf kcl]', e); }
   const kcl = _lote22dKclCatalogo();
   if(!String(c.cal_lote || c.mrc_lote || '').trim() && kcl.lote) c.cal_lote = kcl.lote;
   if(!String(c.cal_marca || '').trim() && kcl.marca) c.cal_marca = kcl.marca;
@@ -14725,6 +14942,34 @@ function _bitPhSortKeyNum(r){
  * Ordena la bitácora por fecha y hora (entre OMARs y tomas).
  * Los bloques de calibración (4 renglones) se mueven como un solo bloque.
  */
+// AARMS lote25d: orden de la bitácora de pH entre tomas: primero el DÍA del muestreo (el de la OMAR), luego el número de toma
+// (todas las 1, todas las 2, …), luego la hora y por último el folio. Los bloques Ca·Ca·Co·Co del cambio de día van antes de las
+// tomas de su día; el de «Terminar tomas del día» (calibPos 'cierre') va al final de su día.
+function _lote25DiaOmarDeFila(r){
+  if(!r) return '';
+  if(r.calibGrupo) return String(r.fecha || '');
+  let f = '';
+  try{
+    const m = (_cachedMuestreos || []).find(x => String(x.id) === String(r.omarId));
+    f = (m && m.omar) ? (JSON.parse(m.omar).fecha || '') : '';
+  }catch(e){ f = ''; }
+  return String(f || r.fecha || '');
+}
+function _lote25ClaveOrden(r){
+  let toma;
+  if(r && r.calibGrupo) toma = (r.calibPos === 'cierre') ? 999 : 0;
+  else toma = parseInt(r && r.toma, 10) || 0;
+  return { dia: _lote25DiaOmarDeFila(r), toma };
+}
+function _lote25Comparar(ra, rb, tsa, tsb){
+  const ka = _lote25ClaveOrden(ra), kb = _lote25ClaveOrden(rb);
+  if(ka.dia !== kb.dia) return ka.dia < kb.dia ? -1 : 1;
+  if(ka.toma !== kb.toma) return ka.toma - kb.toma;
+  if(tsa !== tsb) return tsa - tsb;
+  const c = (_bitPhFolioLegible(ra.omarId) || '').localeCompare(_bitPhFolioLegible(rb.omarId) || '');
+  if(c !== 0) return c;
+  return (parseInt(ra.toma, 10) || 0) - (parseInt(rb.toma, 10) || 0);
+}
 function _bitPhOrdenarRegsPorFechaHora(regs){
   if(!regs||regs.length<2) return;
   const units=[];
@@ -14744,13 +14989,7 @@ function _bitPhOrdenarRegsPorFechaHora(regs){
       i++;
     }
   }
-  units.sort((a,b)=>{
-    if(a.key!==b.key) return a.key-b.key;
-    const ra=a.rows[0], rb=b.rows[0];
-    const c=(_bitPhFolioLegible(ra.omarId)||'').localeCompare(_bitPhFolioLegible(rb.omarId)||'');
-    if(c!==0) return c;
-    return (parseInt(ra.toma,10)||0)-(parseInt(rb.toma,10)||0);
-  });
+  units.sort((a,b)=> _lote25Comparar(a.rows[0], b.rows[0], a.key, b.key)); // AARMS lote25d
   regs.length=0;
   units.forEach(u=>{ regs.push(...u.rows); });
 }
@@ -15292,12 +15531,40 @@ function _bitPhOrdenarCronologico(regs){
       visto.add(i);
     }
   }
-  grupos.sort((a, b) => a.ts - b.ts);
+  grupos.sort((a, b) => _lote25Comparar(regs[a.indices[0]], regs[b.indices[0]], a.ts, b.ts)); // AARMS lote25d
   const out = [];
   grupos.forEach(g => g.indices.forEach(i => out.push(regs[i])));
   return out;
 }
 
+// AARMS lote25d: «Terminar tomas del día»: agrega al final del día el bloque Ca · Ca · Co · Co.
+function bitPhTerminarTomasDia(){
+  const regs = _bitPhRegs();
+  if(!regs){ toast('Abre la bitácora de pH','w'); return; }
+  const hoy = _defaultBitRegistroFecha();
+  if(regs.some(r => r.calibGrupo && r.calibPos === 'cierre' && String(r.fecha) === String(hoy))){
+    toast('Ya agregaste el cierre de este día','w');
+    return;
+  }
+  bitPhInsertarBloqueCalibAlFinal('', '', '', '', hoy, true, 'cierre');
+  _bitPhOrdenarRegsPorFechaHora(regs);
+  _bitPhRender();
+  try{ guardarBorradorActual(); }catch(e){}
+  try{ void _persistPlanBitPh(); }catch(e){}
+  toast('Cierre del día agregado: Ca · Ca · Co · Co (elige los patrones)','g');
+}
+function _lote25PintarBotonTerminar(regs){
+  const b = document.getElementById('bitPhBtnTerminar');
+  if(!b) return;
+  let listo = false;
+  try{
+    const opts = _bitPhOpcionesTomaSelect();
+    const asign = new Set((regs || []).filter(r => !r.calibGrupo && !_bitPhEsIntentoRechazado(r)).map(r => _bitPhTomaSelectValue(r)).filter(Boolean));
+    listo = opts.length > 0 && opts.every(o => asign.has(o.value));
+  }catch(e){ listo = false; }
+  b.classList.toggle('lote25-listo', listo);
+  b.textContent = listo ? '✓ Todas las tomas listas — Terminar tomas del día (Ca · Ca · Co · Co)' : 'Terminar tomas del día (Ca · Ca · Co · Co)';
+}
 function _bitPhRender(){
   const c = document.getElementById('bitPhRegistros');
   if(!c) return;
@@ -15307,6 +15574,7 @@ function _bitPhRender(){
   if(ordenados.length === regs.length){
     for(let i=0; i<regs.length; i++) regs[i] = ordenados[i];
   }
+  try{ _lote25PintarBotonTerminar(regs); }catch(e){}
   if(regs.length === 0){
     c.innerHTML = `<div style="text-align:center;padding:24px 12px;color:var(--g2);font-size:12px;line-height:1.55">
       Sin registros aún.<br>
@@ -15535,7 +15803,7 @@ function bitPhRepetirVerif(idx){
 window.bitPhRepetirVerif = bitPhRepetirVerif;
 
 // Inserta bloque Ca·Ca·Co·Co AL FINAL (para cruces de día durante la jornada)
-function bitPhInsertarBloqueCalibAlFinal(b1,b2,lote,marca,fecha,forcePend){
+function bitPhInsertarBloqueCalibAlFinal(b1,b2,lote,marca,fecha,forcePend,pos){
   if(!omar||!omar.ts) return;
   const regs=_bitPhRegs();
   if(!regs) return;
@@ -15549,6 +15817,7 @@ function bitPhInsertarBloqueCalibAlFinal(b1,b2,lote,marca,fecha,forcePend){
     slopePct:'',
     sinTomaFolio:true, calibGrupo:g,
     pendienteBuf1:pend, pendienteBuf2:pend,
+    calibPos: pos || '',
   };
   // ORDEN: Ca · Ca · Co · Co
   regs.push(
@@ -16095,6 +16364,45 @@ function invRestoreTab(){
 window.invRestoreTab = invRestoreTab;
 
 // AARMS v65-catfix: abrir catálogo con carga, navegación y render tolerante a fallos
+// AARMS lote25b: botón N/A junto a Lote, Marca y Caducidad del Inventario (hay disoluciones, como el agua, que no los tienen).
+function _lote25PonerNA(btn){
+  const f = btn.closest('.f');
+  if(!f) return;
+  const inp = Array.from(f.querySelectorAll('input')).find(i => i.getAttribute('oninput'));
+  if(!inp) return;
+  const js = String(inp.getAttribute('oninput') || '').replace(/this\.value/g, "'N/A'");
+  try{ (new Function(js))(); }catch(e){ console.warn('[lote25 N/A]', e); }
+  setTimeout(() => { if(typeof catalogoRender === 'function') catalogoRender(); }, 80);
+}
+function _lote25InyectarNA(){
+  const raiz = document.getElementById('pgCatalogo');
+  if(!raiz) return;
+  raiz.querySelectorAll('.f').forEach(f => {
+    const lab = f.querySelector('label');
+    if(!lab || lab.querySelector('.lote25-na')) return;
+    const t = (lab.textContent || '').trim().toLowerCase();
+    if(t !== 'lote' && t !== 'marca' && t !== 'caducidad' && t !== 'uso desde' && t.indexOf('uso hasta') !== 0) return; // AARMS lote25d: también «Uso desde» y «Uso hasta»
+    if(!Array.from(f.querySelectorAll('input')).some(i => i.getAttribute('oninput'))) return;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'lote25-na';
+    b.textContent = 'N/A';
+    b.title = 'No aplica';
+    b.addEventListener('click', ev => { ev.preventDefault(); ev.stopPropagation(); _lote25PonerNA(b); });
+    lab.appendChild(b);
+  });
+}
+(function _lote25ObservarInventario(){
+  let t = null;
+  const arrancar = () => {
+    const raiz = document.getElementById('pgCatalogo');
+    if(!raiz || raiz.dataset.lote25obs) return;
+    raiz.dataset.lote25obs = '1';
+    new MutationObserver(() => { clearTimeout(t); t = setTimeout(_lote25InyectarNA, 40); }).observe(raiz, { childList:true, subtree:true });
+    _lote25InyectarNA();
+  };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar); else arrancar();
+})();
 async function abrirCatalogo(){
   try {
     await _catalogoCargar();
@@ -16178,9 +16486,9 @@ function catalogoRenderBuffers(containerId, lista, tipo){
         <div class="f" style="margin:0"><label>Caducidad</label>${b.caducidad === 'N/A'
           ? `<input type="text" value="N/A" style="color:var(--g2);font-style:italic" oninput="catalogoUpBuffer('${tipo}',${idx},'caducidad',this.value)">`
           : `<input type="date" value="${b.caducidad||''}" oninput="catalogoUpBuffer('${tipo}',${idx},'caducidad',this.value)">`}</div>
-        <div class="f" style="margin:0"><label>Uso desde</label><input type="date" value="${b.usoDesde||''}" oninput="catalogoUpBuffer('${tipo}',${idx},'usoDesde',this.value)"></div>
+        <div class="f" style="margin:0"><label>Uso desde</label>${b.usoDesde === 'N/A' ? `<input type="text" value="N/A" style="color:var(--g2);font-style:italic" oninput="catalogoUpBuffer('${tipo}',${idx},'usoDesde',this.value)">` : `<input type="date" value="${b.usoDesde||''}" oninput="catalogoUpBuffer('${tipo}',${idx},'usoDesde',this.value)">`}</div>
       </div>
-      ${tipo==='calibracion' ? `<div class="f" style="margin:0"><label>Uso hasta (opcional)</label><input type="date" value="${b.usoHasta||''}" oninput="catalogoUpBuffer('${tipo}',${idx},'usoHasta',this.value)"></div>` : ''}
+      ${tipo==='calibracion' ? `<div class="f" style="margin:0"><label>Uso hasta (opcional)</label>${b.usoHasta === 'N/A' ? `<input type="text" value="N/A" style="color:var(--g2);font-style:italic" oninput="catalogoUpBuffer('${tipo}',${idx},'usoHasta',this.value)">` : `<input type="date" value="${b.usoHasta||''}" oninput="catalogoUpBuffer('${tipo}',${idx},'usoHasta',this.value)">`}</div>` : ''}
     </div>`;
   }).join('');
 }
@@ -16209,7 +16517,7 @@ function catalogoRenderDisoluciones(){
         <div class="f" style="margin:0"><label>Caducidad</label>${d.caducidad === 'N/A'
           ? `<input type="text" value="N/A" style="color:var(--g2);font-style:italic" oninput="catalogoUpDisolucion(${idx},'caducidad',this.value)">`
           : `<input type="date" value="${d.caducidad||''}" oninput="catalogoUpDisolucion(${idx},'caducidad',this.value)">`}</div>
-        <div class="f" style="margin:0"><label>Uso desde</label><input type="date" value="${d.usoDesde||''}" oninput="catalogoUpDisolucion(${idx},'usoDesde',this.value)"></div>
+        <div class="f" style="margin:0"><label>Uso desde</label>${d.usoDesde === 'N/A' ? `<input type="text" value="N/A" style="color:var(--g2);font-style:italic" oninput="catalogoUpDisolucion(${idx},'usoDesde',this.value)">` : `<input type="date" value="${d.usoDesde||''}" oninput="catalogoUpDisolucion(${idx},'usoDesde',this.value)">`}</div>
       </div>
     </div>`;
   }).join('');
@@ -16238,7 +16546,7 @@ function catalogoRenderConductividad(){
         <div class="f" style="margin:0"><label>Caducidad</label>${d.caducidad === 'N/A'
           ? `<input type="text" value="N/A" style="color:var(--g2);font-style:italic" oninput="catalogoUpConductividad(${idx},'caducidad',this.value)">`
           : `<input type="date" value="${d.caducidad||''}" oninput="catalogoUpConductividad(${idx},'caducidad',this.value)">`}</div>
-        <div class="f" style="margin:0"><label>Uso desde</label><input type="date" value="${d.usoDesde||''}" oninput="catalogoUpConductividad(${idx},'usoDesde',this.value)"></div>
+        <div class="f" style="margin:0"><label>Uso desde</label>${d.usoDesde === 'N/A' ? `<input type="text" value="N/A" style="color:var(--g2);font-style:italic" oninput="catalogoUpConductividad(${idx},'usoDesde',this.value)">` : `<input type="date" value="${d.usoDesde||''}" oninput="catalogoUpConductividad(${idx},'usoDesde',this.value)">`}</div>
       </div>
     </div>`;
   }).join('');
@@ -16865,8 +17173,47 @@ function _lote22dKclCatalogo(){
   const marca = String(item.marca || '').trim() || (typeof _catalogoMarcaDesdeNombre === 'function' ? _catalogoMarcaDesdeNombre(item.nombre) : '');
   return { lote: String(item.lote || '').trim(), marca: marca };
 }
+// AARMS lote25c: el conductímetro jala del Inventario el lote, la marca y el valor nominal del KCl (patrón 1412 para
+// calibración y comprobación; comercial 1413 para verificación) y pone la incertidumbre 0.75, en laboratorio y en campo.
+function _lote25KclDatos(){
+  const lista = (_catalogoCache && _catalogoCache.conductividad) || [];
+  const leer = (it) => {
+    if(!it) return { lote:'', marca:'', valor:'' };
+    const valor = String(it.valor != null ? it.valor : '').trim();
+    const el = (typeof _lote10Elegir === 'function') ? _lote10Elegir(it, []) : { item: it };
+    if(el && el.vencido) return { lote:'', marca:'', valor };
+    const item = (el && el.item) || it;
+    const marca = String(item.marca || '').trim() || (typeof _catalogoMarcaDesdeNombre === 'function' ? _catalogoMarcaDesdeNombre(item.nombre) : '');
+    return { lote: String(item.lote || '').trim(), marca, valor };
+  };
+  return { patron: leer(lista[0]), comercial: leer(lista[1] || lista[0]) };
+}
+function _lote25AutoKcl(){
+  const k = _lote25KclDatos();
+  const poner = (id, v) => {
+    const el = document.getElementById(id);
+    if(!el || v === '' || v == null) return;
+    if(String(el.value || '').trim()) return;
+    el.value = v;
+  };
+  [['lab', ''], ['campo', 'campo_']].forEach(([ambito, pre]) => {
+    ['cal', 'comp'].forEach(b => {
+      const base = 'colab_' + pre + b + '_';
+      poner(base + 'lote', k.patron.lote);
+      poner(base + 'marca', k.patron.marca);
+      poner(base + 'vn', k.patron.valor);
+    });
+    poner('colab_' + pre + 'cal_inc', '0.75');
+    const bv = 'colab_' + pre + 'ver_';
+    poner(bv + 'lote', k.comercial.lote);
+    poner(bv + 'marca', k.comercial.marca);
+    poner(bv + 'vn', k.comercial.valor);
+    if(typeof _condRecalcVnPm === 'function'){ try{ _condRecalcVnPm(ambito); }catch(e){} }
+  });
+}
 function _lote22dAplicarKcl(){
   // AARMS lote22d: lote y marca del MRC salen del KCl del inventario. Si faltan, el hueco queda en blanco.
+  try{ _lote25AutoKcl(); }catch(e){ console.warn('[lote25c kcl]', e); } // AARMS lote25c: también valor nominal e incertidumbre
   const k = _lote22dKclCatalogo();
   const lote = document.getElementById('colab_cal_lote');
   const marca = document.getElementById('colab_cal_marca');
@@ -17717,10 +18064,59 @@ async function _estamparFirmaSupervisor(plan, supervisor, firmaPng){
     ts: now.getTime()
   };
   if(typeof guardarPlan === 'function') await guardarPlan(plan);
+  try{ _lote25PintarFirmaSup(); }catch(e){} // AARMS lote25e
 }
 window._firmaMuestreadorAuto = _firmaMuestreadorAuto;
 window._estamparFirmaSupervisor = _estamparFirmaSupervisor;
 
+// AARMS lote25e: «Firma de supervisor» en cada bitácora de laboratorio y de campo (misma firma y PIN del plan).
+const _LOTE25_PAGS_SUP = ['pgBpm','pgLVAR','pgBlmp','pgPh2644','pgColab','pgBitPH','pgBitCond','pgBitTemp','pgBitOD','pgBitFlujos'];
+function _lote25FirmaSupDelPlan(planOpt){
+  try{
+    const plan = planOpt || ((typeof _planActivo === 'function') ? _planActivo() : null);
+    const s = plan && plan.firmas && plan.firmas.supervisor;
+    return (s && (s.firmaPng || s.nombre)) ? s : null;
+  }catch(e){ return null; }
+}
+function _lote25SupNombrePara(omarRef){
+  try{
+    const plan = (omarRef && omarRef.ts && typeof getPlanDeMuestreo === 'function') ? getPlanDeMuestreo(omarRef.ts) : null;
+    const s = _lote25FirmaSupDelPlan(plan);
+    return s ? String(s.nombre || '') : '';
+  }catch(e){ return ''; }
+}
+function _lote25PintarFirmaSup(){
+  const s = _lote25FirmaSupDelPlan();
+  document.querySelectorAll('.lote25-sup-estado').forEach(el => {
+    el.textContent = s
+      ? ('Firmado por ' + (s.nombre || 'supervisor') + ' — ' + (typeof fmtF === 'function' ? fmtF(s.fecha) : s.fecha) + ' ' + (s.hora || ''))
+      : 'Pendiente de firma del supervisor';
+    el.style.color = s ? '#34d399' : 'var(--g2)';
+  });
+}
+function _lote25InyectarFirmaSup(){
+  _LOTE25_PAGS_SUP.forEach(id => {
+    const pg = document.getElementById(id);
+    if(!pg || pg.querySelector('.lote25-sup')) return;
+    const box = document.createElement('div');
+    box.className = 'lote25-sup';
+    box.innerHTML = '<div class="lote25-sup-estado"></div><button type="button" class="btn btn-p" onclick="firmarComoSupervisor()">✎ Firma de supervisor</button>';
+    pg.appendChild(box);
+  });
+  _lote25PintarFirmaSup();
+}
+(function(){
+  const arrancar = () => { try{ _lote25InyectarFirmaSup(); }catch(e){} };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar); else setTimeout(arrancar, 0);
+  const orig = (typeof goPage === 'function') ? goPage : null;
+  if(orig){
+    goPage = function(){
+      const r = orig.apply(this, arguments);
+      setTimeout(() => { try{ _lote25InyectarFirmaSup(); }catch(e){} }, 80);
+      return r;
+    };
+  }
+})();
 // AARMS sub9-firma: iniciar firma de supervisor
 function firmarComoSupervisor(){
   if(!_supervisorConfigurado()){ toast('Pide al administrador que configure el supervisor','w'); return; }
@@ -18076,11 +18472,11 @@ window._lote10Ir = _lote10Ir;
 window._lote10PintarArranque = _lote10PintarArranque;
 
 function _lote22fPintarAlmacen(ok){
+  // AARMS lote25a: sin avisos de almacenamiento en pantalla (decisión de Reynaldo).
   const el = document.getElementById('lote22fAlmacen');
   if(!el) return;
-  el.textContent = ok
-    ? 'Almacenamiento: protegido'
-    : 'Almacenamiento: no protegido — instala la app y respalda con Descargar muestreo completo';
+  el.textContent = '';
+  el.style.display = 'none';
 }
 async function _lote22fPedirPersistente(){
   // AARMS lote22f: se pide al arrancar. La línea de Ajustes dice lo que respondió el navegador.
