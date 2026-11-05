@@ -1954,19 +1954,28 @@ function _lote4aPintar(plan){
   let html = '';
   html += '<div class="card"><div class="cb g2">';
   html += '<div class="f"><label>Clave del equipo</label><input type="text" readonly tabindex="-1" value="'+_lote4esc(clave)+'"></div>';
-  html += '<div class="f"><label>Folio Hoja 1</label><input type="text" readonly tabindex="-1" value="'+_lote4esc(f1)+'"></div>';
-  html += '<div class="f"><label>Folio Hoja 2</label><input type="text" readonly tabindex="-1" value="'+_lote4esc(f2)+'"></div>';
+  // AARMS lote29: los folios de las hojas se pueden escribir hasta que se asignen al generar el PDF.
+  const _asig = !!folio;
+  let _g1 = f1, _g2 = f2;
+  if(!_asig){
+    const man = (plan.folioManual && plan.folioManual.buccvph) ? String(plan.folioManual.buccvph).split('|') : [];
+    if(man[0]){ _g1 = man[0]; _g2 = man[1] || (/^\d+$/.test(man[0]) ? _folioFmt(parseInt(man[0], 10) + 1) : ''); }
+  }
+  const _atr = _asig ? ' readonly tabindex="-1"' : ' inputmode="numeric" autocomplete="off" placeholder="Escribe el folio"';
+  html += '<div class="f"><label>Folio Hoja 1</label><input type="text" id="phLabFolio1"'+_atr+' value="'+_lote4esc(_g1)+'"></div>';
+  html += '<div class="f"><label>Folio Hoja 2</label><input type="text" id="phLabFolio2"'+_atr+' value="'+_lote4esc(_g2)+'"></div>';
   html += '</div></div>';
   html += _lote4BloqueHtml({ id:'b1', titulo:'1. Calibración en el laboratorio', filas: lab.b1.filas, nodo: lab.b1, esCal: true, verif: false, off: cerrado, cerrado });
   html += _lote4BloqueHtml({ id:'b2', titulo:'2. Comprobación en el laboratorio', filas: lab.b2.filas, nodo: lab.b2, esCal: false, verif: false, off: cerrado || !b1ok, cerrado });
   html += _lote4BloqueHtml({ id:'b3', titulo:'3. Verificación en el laboratorio', filas: lab.b3.filas, nodo: lab.b3, esCal: false, verif: true, off: cerrado || !b2ok, cerrado });
-  html += '<div class="card"><div class="ch"><div class="ct">Observaciones</div></div><div class="cb"><div class="f"><textarea id="phLabObs" rows="3"'+(cerrado?' readonly':'')+'>'+_lote4esc((ph&&ph.obs)||'')+'</textarea></div></div></div>';
+  html += '<div class="card"><div class="ch"><div class="ct">Observaciones</div></div><div class="cb"><div class="f"><textarea id="phLabObs" rows="3">'+_lote4esc((ph&&ph.obs)||'')+'</textarea></div></div></div>';
   html += '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">';
   html += '<button type="button" class="btn btn-p" id="phLabPdf">Generar PDF</button>';
   html += '<button type="button" data-btn-continuar-lab class="btn btn-p" id="phLabCont">Guardar y continuar</button>';
   html += '</div>';
   host.innerHTML = html;
   host.oninput = (ev) => { _lote4aInput(plan, ev); };
+  host.onchange = (ev) => { const i = ev.target && ev.target.id; if(i === 'phLabFolio1' || i === 'phLabFolio2') _lote29PhLabFolioManual(plan); };
   host.onclick = (ev) => {
     const rep = ev.target && ev.target.closest ? ev.target.closest('[data-l4-rep]') : null;
     if(rep){ _lote4aRepetir(plan, rep.getAttribute('data-l4-rep')); return; }
@@ -1987,9 +1996,43 @@ function _lote4Vivo(plan){
   if(!plan || !plan.id) return plan;
   return (_cachedPlanes || []).find(p => p.id === plan.id) || plan;
 }
+// AARMS lote29: al escribir en el pH el panel se vuelve a dibujar con cada letra; el cursor se iba al inicio (había que escribir
+// de atrás hacia adelante). Se guarda el cursor al escribir y se devuelve al campo nuevo.
+function _lote29Cursor(t){
+  try{ return { el: t, ini: t.selectionStart, fin: t.selectionEnd }; }catch(e){ return { el: t, ini: null, fin: null }; }
+}
+function _lote29PonerCursor(nuevo, cur){
+  if(!nuevo) return;
+  try{ nuevo.focus({ preventScroll: true }); }catch(e){ try{ nuevo.focus(); }catch(_){} }
+  if(!cur) return;
+  try{
+    if(cur.el && cur.el !== nuevo && cur.el.value !== undefined && nuevo.value !== cur.el.value && nuevo.type !== 'time' && nuevo.type !== 'date') nuevo.value = cur.el.value;
+    let ini = cur.ini, fin = cur.fin;
+    try{ if(cur.el && cur.el.selectionStart != null){ ini = cur.el.selectionStart; fin = cur.el.selectionEnd; } }catch(e){}
+    if(ini != null && nuevo.setSelectionRange){ const n = String(nuevo.value || '').length; nuevo.setSelectionRange(Math.min(ini, n), Math.min(fin != null ? fin : ini, n)); }
+  }catch(e){}
+}
+async function _lote29PhLabFolioManual(planIn){
+  const plan = _lote4Vivo(planIn);
+  const e1 = document.getElementById('phLabFolio1'), e2 = document.getElementById('phLabFolio2');
+  if(!plan || !e1 || !e2) return;
+  if(_lote25YaAsignado(plan, 'buccvph')){ toast('Ya se asignó el folio de este documento; no se cambia','w'); return; }
+  const v1 = String(e1.value || '').trim(), v2 = String(e2.value || '').trim();
+  if(!v1){ if(plan.folioManual) delete plan.folioManual.buccvph; e2.value = ''; try{ await guardarPlan(plan); }catch(_){} return; }
+  if(!/^\d{1,6}$/.test(v1) || (v2 && !/^\d{1,6}$/.test(v2))){ toast('Los folios deben ser números','w'); return; }
+  const n1 = parseInt(v1, 10), n2 = v2 ? parseInt(v2, 10) : n1 + 1;
+  const usados = new Set(_folioLogGet().filter(r => r.tipo === 'buccvph' && r.estado === 'vigente' && String(r.planId) !== String(plan.id)).map(r => String(r.numero)));
+  for(const n of [n1, n2]){ if(usados.has(_folioFmt(n))){ toast('El folio ' + _folioFmt(n) + ' ya lo usó otro plan','w'); return; } }
+  plan.folioManual = plan.folioManual || {};
+  plan.folioManual.buccvph = _folioFmt(n1) + '|' + _folioFmt(n2);
+  e1.value = _folioFmt(n1); e2.value = _folioFmt(n2);
+  try{ await guardarPlan(plan); }catch(_){}
+  toast('Folios ' + _folioFmt(n1) + ' y ' + _folioFmt(n2) + ' guardados','g');
+}
 async function _lote4aInput(planIn, ev){
   const plan = _lote4Vivo(planIn);
   const t = ev.target;
+  const _cur = t ? _lote29Cursor(t) : null; // AARMS lote29
   if(!t || t.id === 'phLabObs'){
     if(t && t.id === 'phLabObs'){
       const ph = await _lote4aTomarLab(plan);
@@ -2010,7 +2053,7 @@ async function _lote4aInput(planIn, ev){
     // AARMS lote4bb: al completar el pie se abre el bloque siguiente.
     _lote4aPintar(plan);
     const pie = document.querySelector('#phLabMount [data-l4="'+id+'"][data-k="'+k+'"]');
-    if(pie) { try{ pie.focus(); }catch(_){} }
+    if(pie) _lote29PonerCursor(pie, _cur);
     return;
   }
   const i = Number(t.getAttribute('data-i'));
@@ -2023,10 +2066,11 @@ async function _lote4aInput(planIn, ev){
   }
   _lote4EstamparSiLectura(fila, k, t.value);
   await _lote4Guardar(plan);
+  if(k === 'hora' || k === 'fecha') return; // AARMS lote29: la hora y la fecha no necesitan redibujar el panel
   const foco = t.getAttribute('data-k') + ':' + id + ':' + i;
   _lote4aPintar(plan);
   const nxt = document.querySelector('#phLabMount [data-l4="'+id+'"][data-i="'+i+'"][data-k="'+t.getAttribute('data-k')+'"]');
-  if(nxt && foco) { try{ nxt.focus(); }catch(_){} }
+  if(nxt && foco) _lote29PonerCursor(nxt, _cur);
 }
 async function _lote4aRepetir(planIn, id){
   const plan = _lote4Vivo(planIn);
@@ -2096,6 +2140,7 @@ async function _lote4bInput(planIn, ev){
   const plan = _lote4Vivo(planIn);
   const t = ev.target;
   if(!t) return;
+  const _cur = _lote29Cursor(t); // AARMS lote29
   if(t.id === 'phTiraHora' || t.id === 'phTiraValor'){
     const ph = await _lote4bTomar(plan);
     ph.campo.tira = ph.campo.tira || { hora: '', valor: '' };
@@ -2116,7 +2161,7 @@ async function _lote4bInput(planIn, ev){
     // AARMS lote4bb: al completar el pie se abre el bloque siguiente.
     _lote4bPintar();
     const pie = document.querySelector('#phCampoMount [data-l4="'+id+'"][data-k="'+k+'"]');
-    if(pie) { try{ pie.focus(); }catch(_){} }
+    if(pie) _lote29PonerCursor(pie, _cur);
     return;
   }
   const i = Number(t.getAttribute('data-i'));
@@ -2128,9 +2173,10 @@ async function _lote4bInput(planIn, ev){
   _lote4EstamparSiLectura(fila, k, t.value);
   if(id === 'b4') ph.campo.rango = _lote4RangoDe(ph.campo.b4);
   await _lote4Guardar(plan);
+  if(k === 'hora' || k === 'fecha') return; // AARMS lote29
   _lote4bPintar();
   const nxt = document.querySelector('#phCampoMount [data-l4="'+id+'"][data-i="'+i+'"][data-k="'+k+'"]');
-  if(nxt) { try{ nxt.focus(); }catch(_){} }
+  if(nxt) _lote29PonerCursor(nxt, _cur);
 }
 async function _lote4bRepetir(planIn, id){
   const plan = _lote4Vivo(planIn);
@@ -11546,9 +11592,14 @@ function _folioTomarSync(tipo, n, ctx){
   // AARMS lote25b: si se escribió a mano el folio de este documento, las hojas salen consecutivas desde ahí.
   const _man = _lote25FolioManualDe(ctx.planId, tipo);
   if(_man){
-    const base = parseInt(_man, 10);
-    for(let i=0;i<count;i++) out.push(_folioFmt(base + i));
-    const last = base + count - 1;
+    const lista = String(_man).split('|').map(s => s.trim()).filter(Boolean);
+    const base = parseInt(lista[0], 10);
+    let last = base;
+    for(let i=0;i<count;i++){
+      const n = (lista[i] && /^\d+$/.test(lista[i])) ? parseInt(lista[i], 10) : base + i;
+      out.push(_folioFmt(n));
+      last = Math.max(last, n);
+    }
     t.high = Math.max(t.high||0, last);
     t.next = Math.max(t.next||1, last + 1);
   } else
@@ -12530,7 +12581,7 @@ function _pintarCondFlujoStepper(paso){
   const legacy = document.getElementById('condFlujoLegacyHint');
   const btnCont = document.getElementById('condFlujoBtnContinuar');
   const btnLab = document.getElementById('condFlujoBtnLab');
-  const on = !!_condFlujoActivo;
+  const on = !!_condFlujoActivo && _condFlujoOrigen !== 'plan'; // AARMS lote29
   if(hint) hint.style.display = on ? '' : 'none';
   if(legacy) legacy.style.display = on ? 'none' : '';
   if(btnCont) btnCont.style.display = on ? '' : 'none';
@@ -12542,9 +12593,9 @@ async function abrirFlujoConductimetro(opts){
   const paso = opts.paso || 'auto';
   const origen = opts.origen || 'plan';
   if(!omar?.ts){ toast('Primero captura el OMAR','w'); return; }
-  _condFlujoActivo = true;
-  _condFlujoOrigen = origen;
   const quiereCampo = paso==='campo' || (paso==='auto' && (origen==='condcamp' || origen==='hoja'));
+  _condFlujoActivo = quiereCampo || origen !== 'plan'; // AARMS lote29: desde el laboratorio del plan no se fuerza el paso a campo
+  _condFlujoOrigen = origen;
   if(quiereCampo && !_colabLabMinimoListo()){
     toast('Primero completa el laboratorio (identificación y Patrón KCl L1–L3)','w');
     await abrirPagColab();
@@ -12599,6 +12650,7 @@ async function abrirPagColab(){
   if(p) p.textContent = (omar.folio?'OMAR '+omar.folio:'OMAR');
   _aplicarDocEstadoBadge('colab');
   _pintarCondFlujoStepper(1);
+  try{ _lote25AutoKcl(); setTimeout(() => { try{ _lote25AutoKcl(); }catch(e){} }, 400); }catch(e){} // AARMS lote29: también el campo
   if(pgCol){
     pgCol.querySelectorAll('[data-lote21-dirty]').forEach(el => el.removeAttribute('data-lote21-dirty'));
     if(!pgCol.dataset.lote21DirtyBound){
@@ -16948,7 +17000,7 @@ function _catalogoMarcaDesdeNombre(nombre){
 // Para forzar actualización desde catálogo, ver botón "↻" planificado en v67.
 function _lvarSetCaducidad(inp, valor){
   if(!inp) return;
-  if(inp.value) return; // no sobreescribir manual del usuario
+  if(inp.value && !inp.readOnly) return; // no sobreescribir manual del usuario (los campos de solo lectura sí se refrescan)
   const v = String(valor || '').trim();
   if(v === 'N/A' || v.toLowerCase() === 'na' || v.toLowerCase() === 'n/a'){
     // Cambiar input a type="text" para que acepte "N/A" como valor literal
@@ -16967,7 +17019,7 @@ function _lvarSetCaducidad(inp, valor){
   }
   // Valor de fecha normal
   if(v){
-    inp.value = v;
+    inp.value = (inp.type !== 'date' && typeof fmtFDoc === 'function') ? (fmtFDoc(v) || v) : v; // AARMS lote29: aa/mm/dd en los campos de texto
     inp.dispatchEvent(new Event('input', {bubbles:true}));
   }
 }
