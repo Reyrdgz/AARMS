@@ -977,7 +977,7 @@ function _catalogoMatchPorNombre(nombre){
   // AARMS lote10a: el subíndice ₃ de HNO₃ cuenta como 3, y el nombre con marca entre paréntesis sigue siendo el mismo reactivo.
   const norm = s => String(s||'')
     .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, ch => String('₀₁₂₃₄₅₆₇₈₉'.indexOf(ch)))
-    .toLowerCase().replace(/[^a-z0-9]/g,'');
+    .toLowerCase().replace(/\bde\b/g, ' ').replace(/[^a-z0-9]/g,''); // AARMS lote26b: «lavado de electrodo» = «lavado electrodo»
   const buscar = norm(nombre);
   let m = _catalogoCache.disoluciones.find(d => norm(d.nombre) === buscar);
   if(m) return m;
@@ -18264,10 +18264,27 @@ window._renderAjustesSupervisor = _renderAjustesSupervisor;
 
 function _lote10Texto(v){ return String(v == null ? '' : v).trim(); }
 function _lote10Lleno(v){ return _lote10Texto(v) !== ''; }
+// AARMS lote26b: nombres comparados sin acentos, subíndices ni la palabra «de», para que «HCl 1:1 (lavado de electrodo)» y
+// «HCl 1:1 (lavado electrodo)» sean el mismo renglón, y un «HCl 1:1» sin sufijo cuente como «uso general».
+function _lote26NormNombre(s){
+  return String(s || '')
+    .replace(/[₀₁₂₃₄₅₆₇₈₉]/g, ch => String('₀₁₂₃₄₅₆₇₈₉'.indexOf(ch)))
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\bde\b/g, ' ')
+    .replace(/[^a-z0-9]/g, '');
+}
 function _lote10DisolPorNombre(nombre){
   const lista = (_catalogoCache && _catalogoCache.disoluciones) || [];
   const t = _lote10Texto(nombre).toLowerCase();
-  return lista.find(d => _lote10Texto(d.nombre).toLowerCase() === t) || null;
+  const exacto = lista.find(d => _lote10Texto(d.nombre).toLowerCase() === t);
+  if(exacto) return exacto;
+  const n = _lote26NormNombre(nombre);
+  const sinAlterno = d => !/\(lote alterno\)/i.test(String(d.nombre || ''));
+  let m = lista.find(d => sinAlterno(d) && _lote26NormNombre(d.nombre) === n);
+  if(m) return m;
+  if(n === 'hcl11usogeneral') m = lista.find(d => sinAlterno(d) && _lote26NormNombre(d.nombre) === 'hcl11');
+  return m || null;
 }
 function _lote10EqOk(tipo){
   const lista = _catalogoCache && _catalogoCache.equipos && _catalogoCache.equipos[tipo];
@@ -19152,3 +19169,75 @@ document.addEventListener('DOMContentLoaded', () => {
   try{ _lote15bPodarTodo(); }catch(_){}
 });
 setTimeout(() => { try{ _adminBindGatillo(); }catch(_){} }, 800);
+
+// AARMS lote26b: las etiquetas «Vencido» / «Vence mañana» se calculan al dibujar el Inventario. Al fijar o corregir una caducidad
+// (o borrarla) el Inventario se vuelve a dibujar para que la etiqueta y la tarjeta de configuración reflejen el cambio.
+(function _lote26RefrescarEtiquetas(){
+  const pos = { catalogoUpDisolucion:1, catalogoUpConductividad:1, catalogoUpOtro:1, catalogoUpBuffer:2 };
+  Object.keys(pos).forEach(n => {
+    const orig = window[n];
+    if(typeof orig !== 'function' || orig.__l26b) return;
+    const w = async function(){
+      const r = await orig.apply(this, arguments);
+      const campo = String(arguments[pos[n]] || '');
+      if(campo === 'caducidad' || campo === 'usoDesde' || campo === 'usoHasta'){
+        try{ catalogoRender(); }catch(e){}
+        try{ if(typeof _lote10PintarArranque === 'function') _lote10PintarArranque(); }catch(e){}
+      }
+      return r;
+    };
+    w.__l26b = true;
+    window[n] = w;
+  });
+})();
+
+// AARMS lote26a: al escribir, varias pantallas se vuelven a dibujar con cada letra y el cursor se perdía (había que tocar el campo
+// carácter por carácter). Estas funciones conservan el campo activo, lo que ya se escribió y la posición del cursor.
+(function _lote26ConservarFoco(){
+  const nombres = ['catalogoUpDisolucion','catalogoUpConductividad','catalogoUpOtro','catalogoUpBuffer',
+                   'catalogoUpEquipo','catalogoUpOdDisol','bitCondUp','bitFlujosUp','bitODCalibUp','bitODLectUp',
+                   'bitPhSetSlopeGrupo','bitPhUp','bitTempUp','lote17Cal','lote17Lect','lote17Up','lote17Ver'];
+  const SEL = 'input,select,textarea';
+  function capturar(){
+    const el = document.activeElement;
+    if(!el || !el.matches || !el.matches(SEL)) return null;
+    const raiz = el.closest('.page') || document.body;
+    const lista = Array.from(raiz.querySelectorAll(SEL));
+    const idx = lista.indexOf(el);
+    if(idx < 0) return null;
+    let ini = null, fin = null;
+    try{ ini = el.selectionStart; fin = el.selectionEnd; }catch(e){}
+    return { el, raizId: raiz.id || '', idx, tag: el.tagName, tipo: el.type, valor: el.value, ini, fin };
+  }
+  function restaurar(c){
+    if(!c) return;
+    const act = document.activeElement;
+    if(act && act !== document.body && document.body.contains(act) && act !== c.el) return; // el foco se movió a propósito
+    if(act === c.el && document.body.contains(c.el)) return;                              // el mismo campo sigue ahí
+    const raiz = c.raizId ? document.getElementById(c.raizId) : document.body;
+    if(!raiz) return;
+    const nuevo = Array.from(raiz.querySelectorAll(SEL))[c.idx];
+    if(!nuevo || nuevo.tagName !== c.tag || nuevo.type !== c.tipo) return;
+    try{
+      if(c.tipo !== 'checkbox' && c.tipo !== 'radio' && c.tipo !== 'file' && nuevo.value !== c.el.value) nuevo.value = c.el.value;
+      nuevo.focus({ preventScroll: true });
+      // el cursor se toma del campo viejo AHORA (por si se siguió escribiendo mientras se redibujaba)
+      let ini = c.ini, fin = c.fin;
+      try{ if(c.el.selectionStart != null){ ini = c.el.selectionStart; fin = c.el.selectionEnd; } }catch(e){}
+      if(ini != null && nuevo.setSelectionRange){ const n = String(nuevo.value || '').length; nuevo.setSelectionRange(Math.min(ini, n), Math.min(fin != null ? fin : ini, n)); }
+    }catch(e){}
+  }
+  nombres.forEach(n => {
+    const orig = window[n];
+    if(typeof orig !== 'function' || orig.__l26) return;
+    const envuelta = function(){
+      const c = capturar();
+      const r = orig.apply(this, arguments);
+      if(r && typeof r.then === 'function') return r.then(v => { restaurar(c); return v; }, e => { restaurar(c); throw e; });
+      restaurar(c);
+      return r;
+    };
+    envuelta.__l26 = true;
+    window[n] = envuelta;
+  });
+})();
