@@ -4898,9 +4898,9 @@ async function generarPDFLVAR(){
   // AARMS lote21d: el PDF sale de una copia. La fusión del catálogo no se escribe en el plan.
   const data = JSON.parse(JSON.stringify(plan.lvar || {}));
   // AARMS lote25e: si el supervisor ya firmó (PIN), su nombre, fecha y hora salen en el LVAR.
-  const _supF = _lote25FirmaSupDelPlan(plan);
+  const _supF = _lote25FirmaSupDelPlan(plan, 'lab'); // AARMS lote28
   if(_supF){
-    if(!String(data.sup || '').trim()) data.sup = _supF.nombre || '';
+    if(!String(data.sup || '').trim()) data.sup = _supF.nombre || _lote27SupNombre() || '';
     if(!String(data.supFecha || '').trim()) data.supFecha = _supF.fecha || '';
     if(!String(data.supHora || '').trim()) data.supHora = _supF.hora || '';
   }
@@ -5095,7 +5095,7 @@ async function generarPDFLVAR(){
   }
   const _lvarFirmasCached = await (async () => {
     const baseM = (plan.firmas && plan.firmas.muestreador) || {};
-    const baseS = (plan.firmas && plan.firmas.supervisor) || {};
+    const baseS = _lote28FirmaSup(plan, 'lab') || {}; // AARMS lote28: LVAR = firma de laboratorio
     return {
       muestreador: {
         nombre: String(data.asig || baseM.nombre || '').trim(),
@@ -9741,7 +9741,7 @@ async function buildPDF(omarIdPedido){
   doc.setDrawColor(220,228,236);doc.setLineWidth(0.3);doc.line(mx2+8,ry+16,mx2+sigBoxW-8,ry+16);
   doc.text('Cargo:    '+gv('mn_car'),mx2+8,ry+26);
   doc.line(mx2+8,ry+28,mx2+sigBoxW-8,ry+28);
-  doc.text('Supervisó: '+gv('mn_sup'),mx2+8,ry+38);
+  doc.text('Supervisó: '+(gv('mn_sup') || _lote27SupNombre() || ''),mx2+8,ry+38); // AARMS lote27
   doc.line(mx2+8,ry+40,mx2+sigBoxW-8,ry+40);
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(8);
   doc.text('Firma:',mx2+8,ry+52);
@@ -10835,7 +10835,7 @@ async function buildPDFCadena(omarIdPedido){
   pintarPersona(py, 'PERSONA QUE RECIBE EN LABORATORIO MATRIZ', lab.lrnom, lab.lrfir, fmtDate(lab.lrfec), fmtTime(lab.lrhor));
   py += pieRowH;
   fillRect(M,py,CW,pieRowH,[248,250,253]);
-  lineField(M+4, py+2, 280, pieRowH-4, 'SUPERVISÓ:', lab.sup || _lote25SupNombrePara(omar) || '', 7, 40); // AARMS lote8ba / lote25e
+  lineField(M+4, py+2, 280, pieRowH-4, 'SUPERVISÓ:', lab.sup || _lote25SupNombrePara(omar) || _lote27SupNombre() || '', 7, 40); // AARMS lote8ba / lote25e / lote27
   doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);doc.setFontSize(7);
   doc.text('F-AA-01A-13', W-M-4, py+pieRowH/2+2.5, {align:'right'});
 
@@ -16512,6 +16512,7 @@ function catalogoRenderDisoluciones(){
         ${puedePromover ? `<button type="button" onclick="_lote24f5PromoverDisol(${idx})" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.4);color:#34d399;padding:4px 8px;border-radius:8px;font-size:11px;cursor:pointer;font-weight:700">Usar como principal</button>` : ''}
         <button onclick="catalogoBorrarDisolucion(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:3px 8px;border-radius:6px;font-size:10px;cursor:pointer">✕</button>
       </div>
+      ${(('marca' in d) || /hno/i.test(String(d.nombre || ''))) ? `<div class="f" style="margin:0 0 8px"><label>Marca</label><input type="text" value="${(d.marca||'').replace(/"/g,'&quot;')}" oninput="catalogoUpDisolucion(${idx},'marca',this.value)"></div>` : ''}
       <div class="g3">
         <div class="f" style="margin:0"><label>Lote</label><input type="text" value="${(d.lote||'').replace(/"/g,'&quot;')}" oninput="catalogoUpDisolucion(${idx},'lote',this.value)"></div>
         <div class="f" style="margin:0"><label>Caducidad</label>${d.caducidad === 'N/A'
@@ -17850,14 +17851,16 @@ async function _hashPin(pin){
   const buf = await crypto.subtle.digest('SHA-256', enc);
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
-async function _supervisorSet(nombre, cargo, pin){
+async function _supervisorSet(nombre, cargo, pin, firmaPng){
   const c = _appConfigGet();
   const pinHash = await _hashPin(pin);
+  const prev = (c.supervisores || [])[0] || {};
   c.supervisores = [{
     id: 'sup1',
     nombre: (nombre||'').trim(),
     cargo: (cargo||'Supervisor').trim() || 'Supervisor',
-    pinHash
+    pinHash,
+    firmaPng: (firmaPng !== undefined) ? firmaPng : (prev.firmaPng || '') // AARMS lote27: la firma se dibuja una vez, al inicio
   }];
   await _appConfigSave(c);
 }
@@ -18050,11 +18053,23 @@ function _firmaMuestreadorAuto(plan){
   };
   return plan.firmas.muestreador;
 }
-async function _estamparFirmaSupervisor(plan, supervisor, firmaPng){
+// AARMS lote28: DOS firmas del supervisor por plan. «lab» (al terminar el laboratorio) sale en BPM, LVAR y BLMP;
+// «cierre» (al terminar el muestreo) sale en el resto. Los planes viejos con una sola firma la usan para las dos.
+function _lote28FirmaSup(plan, tipo){
+  const f = plan && plan.firmas;
+  if(!f) return null;
+  const nueva = (tipo === 'lab') ? f.supervisorLab : f.supervisorCierre;
+  if(nueva && (nueva.firmaPng || nueva.nombre)) return nueva;
+  if(!f.supervisorLab && !f.supervisorCierre && f.supervisor && (f.supervisor.firmaPng || f.supervisor.nombre)) return f.supervisor;
+  return null;
+}
+window._lote28FirmaSup = _lote28FirmaSup;
+async function _estamparFirmaSupervisor(plan, supervisor, firmaPng, tipo){
   if(!plan) return;
   if(!plan.firmas) plan.firmas = {};
   const now = new Date();
-  plan.firmas.supervisor = {
+  const clave = (tipo === 'lab') ? 'supervisorLab' : 'supervisorCierre';
+  plan.firmas[clave] = {
     nombre: supervisor.nombre,
     cargo: supervisor.cargo || 'Supervisor',
     firmaPng: firmaPng || '',
@@ -18063,36 +18078,75 @@ async function _estamparFirmaSupervisor(plan, supervisor, firmaPng){
     supId: supervisor.id,
     ts: now.getTime()
   };
+  if(plan.firmas.supervisor) delete plan.firmas.supervisor; // la firma única anterior ya no se usa
   if(typeof guardarPlan === 'function') await guardarPlan(plan);
   try{ _lote25PintarFirmaSup(); }catch(e){} // AARMS lote25e
 }
 window._firmaMuestreadorAuto = _firmaMuestreadorAuto;
 window._estamparFirmaSupervisor = _estamparFirmaSupervisor;
 
+// AARMS lote27: el supervisor no se escribe a mano en ningún formato. El nombre sale del supervisor configurado (desde el inicio);
+// la fecha y la hora salen de su firma con PIN. Cadena (c_sup), Hoja (mn_sup) y LVAR (lv_sup, lv_supFecha, lv_supHora).
+function _lote27SupNombre(){
+  try{ const s = _supervisorActual(); return (s && s.nombre) ? String(s.nombre) : ''; }catch(e){ return ''; }
+}
+function _lote27Bloquear(el, texto){
+  if(!el) return;
+  const wrap = el.closest && el.closest('.lote24-fecha');
+  if(wrap){
+    const vis = wrap.querySelector('.lote24-fecha-txt'); if(vis){ vis.readOnly = true; vis.tabIndex = -1; vis.style.opacity = '.85'; if(!vis.value) vis.placeholder = texto || ''; }
+    const btn = wrap.querySelector('.lote24-fecha-btn'); if(btn) btn.disabled = true;
+    return;
+  }
+  el.readOnly = true;
+  el.tabIndex = -1;
+  el.style.opacity = '.85';
+  if(!el.value && texto) el.placeholder = texto;
+}
+function _lote27SupervisorEnCampos(){
+  const f = _lote25FirmaSupDelPlan(null, 'lab'); // AARMS lote28: el LVAR lleva la firma de laboratorio
+  const nombre = _lote27SupNombre();
+  const aviso = nombre ? 'Pendiente de firma' : 'Sin supervisor configurado';
+  [['c_sup', nombre], ['mn_sup', nombre], ['lv_sup', nombre]].forEach(([id, v]) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(String(el.value || '') !== v) el.value = v;
+    _lote27Bloquear(el, aviso);
+  });
+  const fe = document.getElementById('lv_supFecha');
+  if(fe){ const v = (f && f.fecha) ? String(f.fecha).slice(0, 10) : ''; if(String(fe.value || '') !== v) fe.value = v; _lote27Bloquear(fe, aviso); }
+  const ho = document.getElementById('lv_supHora');
+  if(ho){ const v = (f && f.hora) ? String(f.hora).slice(0, 5) : ''; if(String(ho.value || '') !== v) ho.value = v; _lote27Bloquear(ho, aviso); }
+}
+setInterval(() => { try{ _lote27SupervisorEnCampos(); }catch(e){} }, 1200);
+
 // AARMS lote25e: «Firma de supervisor» en cada bitácora de laboratorio y de campo (misma firma y PIN del plan).
 const _LOTE25_PAGS_SUP = ['pgBpm','pgLVAR','pgBlmp','pgPh2644','pgColab','pgBitPH','pgBitCond','pgBitTemp','pgBitOD','pgBitFlujos'];
-function _lote25FirmaSupDelPlan(planOpt){
+const _LOTE28_PAGS_LAB = ['pgBpm','pgLVAR','pgBlmp']; // el resto firma el cierre
+function _lote25FirmaSupDelPlan(planOpt, tipo){
   try{
     const plan = planOpt || ((typeof _planActivo === 'function') ? _planActivo() : null);
-    const s = plan && plan.firmas && plan.firmas.supervisor;
-    return (s && (s.firmaPng || s.nombre)) ? s : null;
+    return _lote28FirmaSup(plan, tipo || 'cierre');
   }catch(e){ return null; }
 }
 function _lote25SupNombrePara(omarRef){
   try{
     const plan = (omarRef && omarRef.ts && typeof getPlanDeMuestreo === 'function') ? getPlanDeMuestreo(omarRef.ts) : null;
-    const s = _lote25FirmaSupDelPlan(plan);
+    const s = _lote25FirmaSupDelPlan(plan, 'cierre');
     return s ? String(s.nombre || '') : '';
   }catch(e){ return ''; }
 }
 function _lote25PintarFirmaSup(){
-  const s = _lote25FirmaSupDelPlan();
   document.querySelectorAll('.lote25-sup-estado').forEach(el => {
+    const tipo = el.getAttribute('data-tipo') || 'cierre';
+    const s = _lote25FirmaSupDelPlan(null, tipo);
+    const etq = (tipo === 'lab') ? 'Firma de laboratorio' : 'Firma de cierre';
     el.textContent = s
-      ? ('Firmado por ' + (s.nombre || 'supervisor') + ' — ' + (typeof fmtF === 'function' ? fmtF(s.fecha) : s.fecha) + ' ' + (s.hora || ''))
-      : 'Pendiente de firma del supervisor';
+      ? (etq + ': firmada por ' + (s.nombre || 'supervisor') + ' — ' + (typeof fmtF === 'function' ? fmtF(s.fecha) : s.fecha) + ' ' + (s.hora || ''))
+      : (etq + ': pendiente de firma del supervisor');
     el.style.color = s ? '#34d399' : 'var(--g2)';
   });
+  try{ if(typeof _renderSelloFirmaPlan === 'function') _renderSelloFirmaPlan(); }catch(e){}
 }
 function _lote25InyectarFirmaSup(){
   _LOTE25_PAGS_SUP.forEach(id => {
@@ -18100,7 +18154,8 @@ function _lote25InyectarFirmaSup(){
     if(!pg || pg.querySelector('.lote25-sup')) return;
     const box = document.createElement('div');
     box.className = 'lote25-sup';
-    box.innerHTML = '<div class="lote25-sup-estado"></div><button type="button" class="btn btn-p" onclick="firmarComoSupervisor()">✎ Firma de supervisor</button>';
+    const _t = _LOTE28_PAGS_LAB.indexOf(id) >= 0 ? 'lab' : 'cierre';
+    box.innerHTML = '<div class="lote25-sup-estado" data-tipo="' + _t + '"></div><button type="button" class="btn btn-p" onclick="firmarComoSupervisor(\'' + _t + '\')">✎ ' + (_t === 'lab' ? 'Firma de laboratorio (supervisor)' : 'Firma de cierre (supervisor)') + '</button>';
     pg.appendChild(box);
   });
   _lote25PintarFirmaSup();
@@ -18118,10 +18173,20 @@ function _lote25InyectarFirmaSup(){
   }
 })();
 // AARMS sub9-firma: iniciar firma de supervisor
-function firmarComoSupervisor(){
+function firmarComoSupervisor(tipo){
+  tipo = (tipo === 'lab') ? 'lab' : 'cierre';
   if(!_supervisorConfigurado()){ toast('Pide al administrador que configure el supervisor','w'); return; }
   const plan = typeof _planActivo === 'function' ? _planActivo() : null;
   if(!plan){ toast('Abre un plan primero','w'); return; }
+  // AARMS lote28: la firma de laboratorio va al terminar el laboratorio; la de cierre, al terminar el muestreo.
+  try{
+    if(tipo === 'lab' && typeof _labCompleto === 'function' && !_labCompleto(plan)){
+      if(!confirm('El laboratorio todavía no aparece completo. ¿Firmar la firma de laboratorio de todos modos?')) return;
+    }
+    if(tipo === 'cierre' && typeof _planEstadoDoc === 'function' && _planEstadoDoc(plan, 'omars') !== 'completo'){
+      if(!confirm('El muestreo todavía no aparece completo. ¿Firmar el cierre de todos modos?')) return;
+    }
+  }catch(e){}
   _abrirModalPin(async (pin) => {
     const sup = await _supervisorValidarPin(pin);
     if(!sup){
@@ -18136,16 +18201,37 @@ function firmarComoSupervisor(){
       return;
     }
     _lote15aFallos = 0;
-    _abrirModalFirma('Firma de supervisor', sup.nombre, async (firmaPng) => {
-      await _estamparFirmaSupervisor(plan, sup, firmaPng);
-      toast('Firmado por ' + sup.nombre, 'g');
+    const _alFirmar = async (firmaPng) => {
+      await _estamparFirmaSupervisor(plan, sup, firmaPng, tipo);
+      toast((tipo === 'lab' ? 'Firma de laboratorio' : 'Firma de cierre') + ': ' + sup.nombre + '. Vuelve a generar los PDFs para que salga.', 'g');
       if(typeof _renderSelloFirmaPlan === 'function') _renderSelloFirmaPlan();
       if(typeof renderPlanDocs === 'function') renderPlanDocs();
-    });
+      try{ _lote27SupervisorEnCampos(); }catch(e){}
+    };
+    // AARMS lote27: con el PIN correcto se estampa la firma guardada; solo se dibuja si todavía no hay una.
+    if(sup.firmaPng) await _alFirmar(sup.firmaPng);
+    else _abrirModalFirma('Firma de supervisor', sup.nombre, _alFirmar);
   });
 }
 window.firmarComoSupervisor = firmarComoSupervisor;
 
+// AARMS lote27: la firma del supervisor se dibuja UNA vez (zona de administrador), como la del muestreador.
+function dibujarFirmaSupervisor(){
+  if(typeof _cartasAdminSesionValida !== 'function' || !_cartasAdminSesionValida()){
+    toast('Pide al administrador que configure el supervisor','w');
+    return;
+  }
+  const s = _supervisorActual();
+  if(!s || !s.pinHash){ toast('Guarda primero el nombre y el PIN del supervisor','w'); return; }
+  _abrirModalFirma('Firma del supervisor', s.nombre, async (png) => {
+    const c = _appConfigGet();
+    if(c.supervisores && c.supervisores[0]){ c.supervisores[0].firmaPng = png; await _appConfigSave(c); }
+    toast('Firma del supervisor guardada','g');
+    _lote15aPintarAdmin();
+    try{ _renderAjustesSupervisor(); }catch(e){}
+  });
+}
+window.dibujarFirmaSupervisor = dibujarFirmaSupervisor;
 async function guardarSupervisorUI(){
   // AARMS lote15a: solo desde la sesión de administrador.
   if(typeof _cartasAdminSesionValida !== 'function' || !_cartasAdminSesionValida()){
@@ -18198,6 +18284,9 @@ function _lote15aPintarAdmin(){
     <div class="f" style="margin-bottom:8px"><label>Cargo</label><input type="text" id="lote15SupCargo" placeholder="Supervisor" value="${_lote6aEsc(s && s.cargo || '')}"></div>
     <div class="f" style="margin-bottom:8px"><label>PIN (4-6 dígitos)</label><input type="password" id="lote15SupPin" inputmode="numeric" maxlength="6" autocomplete="new-password"></div>
     <div class="f" style="margin-bottom:8px"><label>Confirmar PIN</label><input type="password" id="lote15SupPin2" inputmode="numeric" maxlength="6" autocomplete="new-password"></div>
+    <div class="f" style="margin-bottom:8px"><label>Firma del supervisor (se dibuja una sola vez)</label>
+      <div style="margin:6px 0">${(s && s.firmaPng) ? `<img src="${s.firmaPng}" alt="Firma" style="max-height:64px;max-width:100%;background:#fff;border-radius:8px;padding:4px">` : '<span style="font-size:12px;color:var(--g2)">Sin firma todavía</span>'}</div>
+      <button type="button" class="btn btn-g" style="width:auto" onclick="dibujarFirmaSupervisor()">✎ Dibujar firma</button></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
       <button type="button" class="btn btn-p" style="width:auto" onclick="guardarSupervisorUI()">Guardar supervisor</button>
       <button type="button" class="btn btn-g" style="width:auto" onclick="_lote15aRestablecerPin()">Restablecer PIN</button>
@@ -18359,7 +18448,7 @@ function _lote10Pendientes(){
   const ver = _catalogoCache && _catalogoCache.buffers && _catalogoCache.buffers.verificacion;
   const filas = [
     { nombre: 'Nombre del muestreador y su firma', ..._lote22bSi(_lote10Lleno(m.nombre) && _lote10Lleno(m.firmaPng)), ir: { tipo: 'ajustes', id: 'mestNombre' } },
-    { nombre: 'Supervisor y su PIN', ..._lote22bSi(!!(s && _lote10Lleno(s.nombre) && _lote10Lleno(s.pinHash))), ir: { tipo: 'ajustes', id: 'supEstado' } },
+    { nombre: 'Supervisor, su PIN y su firma', ..._lote22bSi(!!(s && _lote10Lleno(s.nombre) && _lote10Lleno(s.pinHash) && _lote10Lleno(s.firmaPng))), ir: { tipo: 'ajustes', id: 'supEstado' } },
     { nombre: 'Potenciómetro', ..._lote22bSi(_lote10EqOk('potenciometros')), ir: { tipo: 'eq', id: 'potenciometros' } },
     { nombre: 'Conductímetro', ..._lote22bSi(_lote10EqOk('conductimetros')), ir: { tipo: 'eq', id: 'conductimetros' } },
     { nombre: 'Termómetro', ..._lote22bSi(_lote10EqOk('termometros')), ir: { tipo: 'eq', id: 'termometros' } },
@@ -18528,20 +18617,21 @@ function _renderSelloFirmaPlan(){
   const host = document.getElementById('planFirmaSello');
   if(!host) return;
   const plan = typeof _planActivo === 'function' ? _planActivo() : null;
-  const sup = plan && plan.firmas && plan.firmas.supervisor;
-  if(sup && (sup.nombre || sup.firmaPng)){
-    host.style.display = 'block';
-    const img = sup.firmaPng
-      ? `<img src="${sup.firmaPng}" alt="" style="height:36px;max-width:120px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 6px;margin-right:8px">`
+  if(!plan){ host.style.display = 'none'; host.innerHTML = ''; return; }
+  // AARMS lote28: dos firmas del supervisor por plan (laboratorio y cierre)
+  const fila = (tipo, etq) => {
+    const s = _lote28FirmaSup(plan, tipo);
+    const img = (s && s.firmaPng)
+      ? `<img src="${s.firmaPng}" alt="" style="height:30px;max-width:100px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 6px">`
       : '';
-    host.innerHTML = `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      ${img}
-      <div style="font-size:12px;color:var(--green);font-weight:700">✓ Revisado por ${sup.nombre||'Supervisor'} · ${fmtFDoc(sup.fecha)||''} · ${sup.hora||''}</div>
-    </div>`;
-  } else {
-    host.style.display = 'none';
-    host.innerHTML = '';
-  }
+    const txt = s
+      ? `<span style="font-size:12px;color:var(--green);font-weight:700">✓ ${etq}: ${s.nombre || 'Supervisor'} · ${fmtFDoc(s.fecha) || ''} · ${s.hora || ''}</span>`
+      : `<span style="font-size:12px;color:var(--g2)">${etq}: pendiente</span>`;
+    return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0">${img}${txt}
+      <button type="button" class="btn btn-g" style="width:auto;margin-left:auto;padding:6px 12px;font-size:12px" onclick="firmarComoSupervisor('${tipo}')">✎ ${s ? 'Volver a firmar' : 'Firmar'}</button></div>`;
+  };
+  host.style.display = 'block';
+  host.innerHTML = fila('lab', 'Firma de laboratorio') + fila('cierre', 'Firma de cierre');
 }
 window._renderSelloFirmaPlan = _renderSelloFirmaPlan;
 

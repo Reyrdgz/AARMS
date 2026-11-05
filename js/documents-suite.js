@@ -600,7 +600,7 @@ function _lote16Datos(plan){
   const mu = typeof _muestreadorActual === 'function' ? _muestreadorActual() : {};
   if(plan && typeof _firmaMuestreadorAuto === 'function') _firmaMuestreadorAuto(plan);
   const fm = (plan && plan.firmas && plan.firmas.muestreador) || {};
-  const fs = (plan && plan.firmas && plan.firmas.supervisor) || null;
+  const fs = (typeof _lote28FirmaSup === 'function' ? _lote28FirmaSup(plan, 'lab') : (plan && plan.firmas && plan.firmas.supervisor)) || null; // AARMS lote28: BPM = firma de laboratorio
   return {
     anio, foliosOmar, lvar: lvar || '', folPh: folPh || '', clave, blanco, lote,
     fecha: (plan && plan.fecha) || '',
@@ -2121,7 +2121,7 @@ function _pdfFirmaPremium(doc, paginaLabel, formatoCodigo, opts){
   if(plan && typeof _firmaMuestreadorAuto === 'function') _firmaMuestreadorAuto(plan);
   const firmas = opts.firmas || (plan && plan.firmas) || {};
   const fM = firmas.muestreador || {};
-  const fS = firmas.supervisor || {};
+  const fS = (opts.firmas && opts.firmas.supervisor) || ((typeof _lote28FirmaSup === 'function' && plan) ? _lote28FirmaSup(plan, opts.supTipo || 'cierre') : firmas.supervisor) || {}; // AARMS lote28
 
   _pdfEstamparFirma(doc, fM, midLeft, y, FONT, {
     rolLabel: fM.nombre ? '' : 'MUESTREADOR',
@@ -4496,7 +4496,7 @@ async function _lote17GenerarPDFOD(plan){
   const clave = (eq && typeof _equipoClave === 'function') ? _equipoClave('oximetros', eq) : '';
   const dis = (typeof _lote17OdDisoluciones === 'function') ? _lote17OdDisoluciones() : [{}, {}];
   const mu = typeof _muestreadorActual === 'function' ? _muestreadorActual() : {};
-  const su = (plan.firmas && plan.firmas.supervisor) || {};
+  const su = (typeof _lote28FirmaSup === 'function' ? _lote28FirmaSup(plan, 'cierre') : (plan.firmas && plan.firmas.supervisor)) || {}; // AARMS lote28: OD = firma de cierre
   const omarFolios = [];
   lects.forEach(r => { if(r.folioOmar && omarFolios.indexOf(r.folioOmar) < 0) omarFolios.push(r.folioOmar); });
   const txt = (t, x, y, w, size, lead) => _lote16Texto(doc, fuente, t, x, y, w, size, lead);
@@ -4965,7 +4965,7 @@ window._blmpGenerarPdfFiel = async function _blmpGenerarPdfFiel(rec){
 
   if(typeof _pdfFirmaPremium === 'function'){
     // AARMS blmppulido2: pie "Pág. X de N" + código LMP-1 separado
-    _pdfFirmaPremium(doc, 'Pág. 1 de 2', 'LMP-1', { font: FONT, W, H, yOffset: 88 });
+    _pdfFirmaPremium(doc, 'Pág. 1 de 2', 'LMP-1', { font: FONT, W, H, yOffset: 88, supTipo: 'lab' });
   } else {
     doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
     doc.text('Pág. 1 de 2', W - M, H - 22, { align: 'right' });
@@ -5073,7 +5073,7 @@ window._blmpGenerarPdfFiel = async function _blmpGenerarPdfFiel(rec){
   y = drawObsBox(y, rec.obs, H - 100);
 
   if(typeof _pdfFirmaPremium === 'function'){
-    _pdfFirmaPremium(doc, 'Pág. 2 de 2', 'LMP-1', { font: FONT, W, H, yOffset: 88 });
+    _pdfFirmaPremium(doc, 'Pág. 2 de 2', 'LMP-1', { font: FONT, W, H, yOffset: 88, supTipo: 'lab' });
   } else {
     doc.setFont(FONT, 'bold'); doc.setFontSize(8); doc.setTextColor(...NAVY);
     doc.text('Pág. 2 de 2', W - M, H - 22, { align: 'right' });
