@@ -6570,6 +6570,7 @@ async function cargarMuestreo(id, opts){
       try{ toast('Se recuperaron ' + tomas.length + ' toma(s) del respaldo','g'); }catch(e){}
     }
   }
+  window._lote35OmarPlanId = m.planId || ''; // AARMS lote35b: de qué plan es lo que está en memoria
   window._lote30Cargando = false;
   // AARMS sub2-temp: migrar tomas de 1 lectura → 3 lecturas
   let tempMigrado = false;
@@ -8889,18 +8890,41 @@ function _lote21HojaTomar(id, previo){
 // AARMS lote30: LAS TOMAS NO SE PIERDEN. (1) guardar nunca pisa tomas ya guardadas con una lista vacía, salvo que se hayan borrado a
 // propósito; (2) no se guarda mientras se carga una OMAR; (3) respaldo aparte de las tomas por OMAR en cada cambio, al salir de la
 // pantalla y cada 15 s, que se recupera al cargar si el registro viene sin tomas.
-function _lote30Clave(id){ return 'aarms_tomas_' + String(id); }
+// AARMS lote35b: el número de OMAR SE REPITE (al borrar los planes y crear otros vuelve a ser 1, 2, 3…). La llave del respaldo incluía
+// solo ese número y las tomas del plan de ayer reaparecían en la OMAR nueva. Ahora la llave lleva el id del PLAN (único), el respaldo
+// solo se recupera si es del mismo plan, se borra al borrar el plan o al vaciar las tomas a propósito, y los respaldos viejos se purgan.
+function _lote30PlanIdDe(id){
+  try{
+    const m = (_cachedMuestreos || []).find(x => String(x.id) === String(id));
+    return (m && m.planId) || ((omar && String(omar.ts) === String(id) && omar.planId) ? omar.planId : '') || (typeof _pendingNewPlanId !== 'undefined' && _pendingNewPlanId ? _pendingNewPlanId : '') || '';
+  }catch(e){ return ''; }
+}
+function _lote30Clave(id){
+  const pid = _lote30PlanIdDe(id);
+  return pid ? ('aarms_tomas_' + pid + '_' + String(id)) : '';
+}
+function _lote30PurgarRespaldos(pred){
+  try{
+    const claves = [];
+    for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.indexOf('aarms_tomas_') === 0 && pred(k)) claves.push(k); }
+    claves.forEach(k => localStorage.removeItem(k));
+  }catch(e){}
+}
 function _lote30RespaldarTomas(id, lista){
   try{
-    if(!id || !lista || !lista.length) return;
-    localStorage.setItem(_lote30Clave(id), JSON.stringify({ t: Date.now(), tomas: lista }, (k, v) => (v instanceof Set ? [...v] : v)));
+    const clave = _lote30Clave(id);
+    if(!clave || !lista || !lista.length) return;
+    localStorage.setItem(clave, JSON.stringify({ t: Date.now(), planId: _lote30PlanIdDe(id), tomas: lista }, (k, v) => (v instanceof Set ? [...v] : v)));
   }catch(e){ console.warn('[lote30 respaldo]', e); }
 }
 function _lote30LeerRespaldo(id){
   try{
-    const raw = localStorage.getItem(_lote30Clave(id));
+    const clave = _lote30Clave(id);
+    if(!clave) return null;
+    const raw = localStorage.getItem(clave);
     if(!raw) return null;
     const o = JSON.parse(raw);
+    if(!o || o.planId !== _lote30PlanIdDe(id)) return null; // solo si es del mismo plan
     return Array.isArray(o.tomas) ? o.tomas : null;
   }catch(e){ return null; }
 }
@@ -8913,7 +8937,19 @@ function _lote30TomasParaGuardar(mid, prev){
     salida = guardadas;
   }
   if(salida.length){ _lote30RespaldarTomas(mid, salida); if(window._lote30Borradas) delete window._lote30Borradas[String(mid)]; }
+  else if(aProposito){ try{ const k = _lote30Clave(mid); if(k) localStorage.removeItem(k); }catch(e){} } // borradas a propósito: no se recuperan
   return salida;
+}
+// AARMS lote35b: tras borrar un plan u OMAR, la OMAR abierta en memoria (y sus tomas) puede ser de algo que ya no existe; se vacía para
+// que el número de OMAR, que se reutiliza, no herede las tomas y horas de ayer.
+async function _lote35LimpiarMemoriaHuerfana(){
+  if(!omar || !omar.ts) return;
+  const todos = await idbGetAll();
+  const sigue = (todos || []).find(x => String(x.id) === String(omar.ts));
+  if(sigue && (!window._lote35OmarPlanId || !sigue.planId || sigue.planId === window._lote35OmarPlanId)) return;
+  omar = {}; tomas = []; sigData = null; sigData2 = null; photoData = null; photoData2 = null;
+  window._lote35OmarPlanId = '';
+  try{ lastPDFBlob = null; lastPDFClienteBlob = null; lastPDFCadenaBlob = null; }catch(e){}
 }
 (function _lote30RespaldoPeriodico(){
   const copiar = () => {
@@ -8923,10 +8959,30 @@ function _lote30TomasParaGuardar(mid, prev){
       _lote30RespaldarTomas(omar.ts, tomas.map(t => _tomaSanitized(t)));
     }catch(e){}
   };
+  _lote30PurgarRespaldos(k => /^aarms_tomas_\d+$/.test(k)); // formato anterior (solo el número de OMAR): ya no sirve
   setInterval(copiar, 15000);
   document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') copiar(); });
   window.addEventListener('pagehide', copiar);
   document.addEventListener('input', () => { clearTimeout(window.__l30t); window.__l30t = setTimeout(copiar, 1500); }, true);
+  // al borrar un plan se borran los respaldos de sus tomas
+  const ep = (typeof eliminarPlan === 'function') ? eliminarPlan : null;
+  if(ep){
+    window.eliminarPlan = eliminarPlan = async function(planId){
+      try{ _lote30PurgarRespaldos(k => k.indexOf('aarms_tomas_' + planId + '_') === 0); }catch(e){}
+      const r = await ep.apply(this, arguments);
+      try{ await _lote35LimpiarMemoriaHuerfana(); }catch(e){}
+      return r;
+    };
+  }
+  const em = (typeof eliminarMuestreo === 'function') ? eliminarMuestreo : null;
+  if(em){
+    window.eliminarMuestreo = eliminarMuestreo = async function(id){
+      try{ const k = _lote30Clave(id); if(k) localStorage.removeItem(k); }catch(e){}
+      const r = await em.apply(this, arguments);
+      try{ await _lote35LimpiarMemoriaHuerfana(); }catch(e){}
+      return r;
+    };
+  }
   // por si algo falla durante la carga, la bandera nunca se queda puesta
   const orig = (typeof cargarMuestreo === 'function') ? cargarMuestreo : null;
   if(orig){
@@ -8973,6 +9029,8 @@ async function _lote32GuardarSoloTomas(forzar){
     const todos = await idbGetAll();
     const rec = (todos || []).find(x => String(x.id) === String(omar.ts));
     if(!rec) return false;
+    // AARMS lote35b: el número de OMAR se reutiliza; si el registro actual es de otro plan, lo que hay en memoria es viejo
+    if(rec.planId && window._lote35OmarPlanId && rec.planId !== window._lote35OmarPlanId) return false;
     rec.tomas = lista;
     await idbPut(rec);
     _lote32Hash = hash;
@@ -8993,6 +9051,11 @@ async function _saveMuestreoActualInterno(){
   if(window._lote3baSinGuardar) return;
   // AARMS lote30: mientras se carga una OMAR la lista de tomas está vacía a propósito; guardar en ese momento borraba las tomas.
   if(window._lote30Cargando) return;
+  // AARMS lote35b: si ese número de OMAR ya es de otro plan (se borró el plan y se creó otro), la memoria es de un plan que ya no existe
+  try{
+    const _pv = (_cachedMuestreos || []).find(x => omar && String(x.id) === String(omar.ts));
+    if(_pv && _pv.planId && window._lote35OmarPlanId && _pv.planId !== window._lote35OmarPlanId) return;
+  }catch(e){}
   _flushTomasDesdeDOM();
   if(typeof _snapshotOmarFromPg0==='function') _snapshotOmarFromPg0();
   // Antes requería omar.folio; ahora guarda siempre — incluso borradores parciales.
