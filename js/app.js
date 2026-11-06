@@ -12519,6 +12519,7 @@ function leerColabAlOmar(conservar){
   });
   prev.mant_na=mant_na;
   omar.colabLab=prev;
+  try{ _lote33CartaCond(prev); }catch(e){} // AARMS lote33b: carta de conductividad
 }
 
 // AARMS condfiel: VN±I automático (Valor Nominal ± Incertidumbre)
@@ -14955,6 +14956,7 @@ function lote17Ver(modo, field, value){
   const de = document.getElementById('lote17Dic');
   if(pe) pe.value = Number.isFinite(prom) ? prom.toFixed(2) : '';
   if(de){ de.textContent = dic; de.style.color = dic === 'Se rechaza' ? '#f87171' : '#86efac'; }
+  clearTimeout(window._odCartaT); window._odCartaT = setTimeout(() => _lote33CartaOd(modo), 600); // AARMS lote33b
   clearTimeout(window._odSave);
   window._odSave = setTimeout(() => { void _persistPlanBitOD(); try{ renderPlanDocs(); }catch(e){} }, 300);
 }
@@ -19263,6 +19265,56 @@ window._cartasRegistrarPunto = _cartasRegistrarPunto;
 window._cartasFeedDesdePhCampo = _cartasFeedDesdePhCampo;
 window._cartasFeedDesdeBitPhV = _cartasFeedDesdeBitPhV;
 
+// AARMS lote33b: cartas de control de OXÍGENO DISUELTO y CONDUCTIVIDAD. Un punto por verificación (id fijo: si se corrige la
+// lectura el punto se REEMPLAZA, no se duplica). Antes solo el pH alimentaba las cartas y las demás pestañas salían vacías.
+async function _cartasUpsertPunto(clave, opts){
+  try{
+    opts = opts || {};
+    const aceRaw = String(opts.aceptaRechaza || '').trim();
+    const ace = /^(se )?acepta$/i.test(aceRaw) ? 'Acepta' : (/^(se )?rechaza$/i.test(aceRaw) ? 'Rechaza' : '');
+    let valor = parseFloat(opts.valor);
+    if(!ace || isNaN(valor)) return null;
+    valor = Math.round(valor * 100) / 100;
+    const per = _cartasPeriodoActivo();
+    if(!per) return null;
+    const rec = {
+      id: 'cc_' + String(clave).replace(/[^A-Za-z0-9_.-]/g, '_'),
+      equipo: opts.equipo, fecha: String(opts.fecha || ''), hora: String(opts.hora || ''), valor,
+      folioOMAR: String(opts.folioOMAR || ''), planId: opts.planId || '', periodoId: per.id, aceptaRechaza: ace,
+      nominal: (opts.nominal != null && !isNaN(parseFloat(opts.nominal))) ? parseFloat(opts.nominal) : null
+    };
+    await idbCartasPut(rec);
+    return rec;
+  }catch(e){ _lote32Log('carta', e); return null; }
+}
+function _lote33CartaOd(modo){
+  try{
+    const plan = _bitODPlan();
+    if(!plan) return;
+    const b = _lote17OdAsegurar(plan);
+    const v = modo === 'campo' ? b.verifCampo : b.verifLab;
+    if(!v || !String(v.l1 || '').trim() || !String(v.l2 || '').trim()) return;
+    const prom = _lote17OdProm(v.l1, v.l2);
+    if(!Number.isFinite(prom)) return;
+    const dic = _lote17OdDictamen(prom); // «Se acepta» / «Se rechaza»
+    void _cartasUpsertPunto('od_' + plan.id + '_' + modo, { equipo: 'oxigeno', valor: prom, fecha: v.fecha || '', hora: v.hora || '', folioOMAR: String(plan.folio || ''), planId: plan.id, aceptaRechaza: dic });
+  }catch(e){ _lote32Log('carta-od', e); }
+}
+function _lote33CartaCond(c){
+  try{
+    const plan = (typeof _planActivo === 'function') ? _planActivo() : null;
+    if(!plan || !c) return;
+    [['lab', 'ver_'], ['campo', 'campo_ver_']].forEach(([ambito, pre]) => {
+      const ls = [c[pre + 'l1'], c[pre + 'l2'], c[pre + 'l3']].map(x => _condParseNum(x)).filter(x => !isNaN(x));
+      if(ls.length < 3) return;
+      const prom = ls.reduce((s, x) => s + x, 0) / ls.length;
+      const nom = _condParseNum(c[pre + 'vn']);
+      if(isNaN(nom) || nom <= 0) return;
+      const dif = Math.abs(prom - nom) / nom * 100;
+      void _cartasUpsertPunto('cond_' + plan.id + '_' + ambito, { equipo: 'conductividad', valor: prom, nominal: nom, fecha: c[pre + 'fecha'] || '', hora: c[pre + 'hora'] || '', folioOMAR: String(plan.folio || ''), planId: plan.id, aceptaRechaza: dif <= 5 ? 'Acepta' : 'Rechaza' });
+    });
+  }catch(e){ _lote32Log('carta-cond', e); }
+}
 async function _cartasCerrarPeriodo(){
   // AARMS cartaspublic: validación real en la función (no solo UI/CSS)
   if(!_cartasAdminSesionValida()){
@@ -19334,7 +19386,7 @@ function _cartasDrawChart(canvas, puntos, unidad, equipo){
   ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg2')?.trim() || '#0f1420';
   ctx.fillRect(0, 0, W, H);
   const esPh = (equipo || '') === 'ph';
-  const pad = { l: 44, r: 12, t: 16, b: esPh ? 48 : 36 };
+  const pad = { l: 44, r: 12, t: 16, b: 48 }; // AARMS lote33b: todas las cartas llevan OMAR y valor bajo cada punto
   const plotW = W - pad.l - pad.r;
   const plotH = H - pad.t - pad.b;
   ctx.strokeStyle = 'rgba(148,163,184,.35)';
@@ -19347,9 +19399,15 @@ function _cartasDrawChart(canvas, puntos, unidad, equipo){
     return;
   }
   // AARMS lote24f4 D: carta pH — eje Y fijo 6–10; eje X = OMAR; rechazos visibles.
-  let ymin, ymax;
+  let ymin, ymax, bandaMin = null, bandaMax = null;
   if(esPh){
     ymin = 6; ymax = 10;
+  }else if(equipo === 'oxigeno'){
+    ymin = 0; ymax = 1.6; bandaMin = 0; bandaMax = 1.6; // criterio de la verificación de OD: 0 – 1.6 mg/L
+  }else if(equipo === 'conductividad' && puntos.some(p => p.nominal)){
+    const nom = Number((puntos.find(p => p.nominal) || {}).nominal);
+    bandaMin = nom * 0.95; bandaMax = nom * 1.05;  // tolerancia ±5 % del valor nominal
+    ymin = nom * 0.90; ymax = nom * 1.10;
   }else{
     const vals = puntos.map(p => Number(p.valor));
     ymin = Math.min(...vals); ymax = Math.max(...vals);
@@ -19360,6 +19418,12 @@ function _cartasDrawChart(canvas, puntos, unidad, equipo){
   const n = puntos.length;
   const xAt = i => pad.l + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const yAt = v => pad.t + plotH - ((Number(v) - ymin) / (ymax - ymin)) * plotH;
+  if(bandaMin != null){ // límites de tolerancia
+    ctx.save();
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = 'rgba(251,191,36,.7)'; ctx.lineWidth = 1;
+    [bandaMin, bandaMax].forEach(v => { ctx.beginPath(); ctx.moveTo(pad.l, yAt(v)); ctx.lineTo(pad.l + plotW, yAt(v)); ctx.stroke(); });
+    ctx.restore();
+  }
   ctx.strokeStyle = '#3b82f6';
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -19390,7 +19454,7 @@ function _cartasDrawChart(canvas, puntos, unidad, equipo){
       ctx.arc(x, y, 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
-    if(esPh){
+    {
       ctx.fillStyle = rech ? '#f87171' : 'rgba(148,163,184,.95)';
       ctx.font = '9px sans-serif';
       ctx.textAlign = 'center';
@@ -19408,7 +19472,7 @@ function _cartasDrawChart(canvas, puntos, unidad, equipo){
   }
   ctx.fillText(String(ymin.toFixed(2)), pad.l - 4, pad.t + plotH);
   ctx.textAlign = 'center';
-  ctx.fillText(esPh ? (unidad || 'pH 25°C') + ' · eje X: OMAR' : (unidad || ''), W / 2, H - 8);
+  ctx.fillText((unidad || '') + ' · eje X: OMAR', W / 2, H - 8);
 }
 
 async function _cartasRenderVista(){
