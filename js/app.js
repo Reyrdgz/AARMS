@@ -6386,7 +6386,9 @@ async function abrirPlanDesdeOmar(planId){
 async function saltarAOmar(mid){
   _flushTomasDesdeDOM();
   await guardarBorradorActual();
-  await cargarMuestreo(mid);
+  // AARMS lote35c: si estoy en la HOJA DE CAMPO, el botón de otra OMAR abre SU HOJA (antes abría la Orden de servicio)
+  const enHoja = !!(document.getElementById('pg1') && document.getElementById('pg1').classList.contains('on'));
+  await cargarMuestreo(mid, enHoja ? { irHoja: true } : undefined);
 }
 
 // Guarda los valores actualmente visibles en pg0 (OMAR) y pg1 (Hoja/Cadena) al
@@ -6620,7 +6622,7 @@ async function cargarMuestreo(id, opts){
   // AARMS lote3ba: la hoja se restaura antes de que goPage guarde la pantalla.
   // Sin folio la OMAR igual tiene campo; si no se pinta, el guardado lo borra.
   loadCampoFromOMAR();
-  const omarLlena = !!omar.folio;
+  const omarLlena = !!omar.folio || !!(omar.empresa && String(omar.empresa).trim()) || !!(omar.campo && omar.campo.emp && String(omar.campo.emp).trim()); // AARMS lote35c: con folio o con empresa ya se puede abrir la Hoja
   // AARMS lote14a: cargar una OMAR abre su formulario. La Hoja solo si quien llama lo pide.
   const irHoja = !!opts.irHoja && omarLlena;
 
