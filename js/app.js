@@ -1061,9 +1061,21 @@ function loadTile(url){
 }
 
 // Construye mapa completo tile por tile en canvas
+// AARMS lote34: el croquis es una imagen SATELITAL (Esri World Imagery) centrada en las coordenadas; si no se puede descargar
+// (sin internet o sin imagen en esa zona) se usa el mapa de calles de OpenStreetMap. Requiere internet al generar el PDF.
+function _lote34UrlTile(proveedor, s, z, x, y){
+  if(proveedor === 'sat') return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+  return `https://${s}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+}
 async function loadMapImage(lat, lng, zoom=16, width=600, height=400){
+  const r = await _lote34MapaConProveedor('sat', lat, lng, Math.min(18, zoom + 1), width, height);
+  if(r) return r;
+  return await _lote34MapaConProveedor('osm', lat, lng, zoom, width, height);
+}
+async function _lote34MapaConProveedor(proveedor, lat, lng, zoom, width, height){
   try{
     const TILE_SIZE=256;
+    let cargados = 0;
     const center=latLngToTile(lat,lng,zoom);
     
     // Cuántos tiles necesitamos
@@ -1096,19 +1108,25 @@ async function loadMapImage(lat, lng, zoom=16, width=600, height=400){
         const ty=center.y+dy;
         if(ty<0||ty>=n) continue;
         const s=servers[Math.abs(dx+dy)%3];
-        // Usar tile.openstreetmap.org que tiene CORS abierto
-        const url=`https://${s}.tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`;
+        const url=_lote34UrlTile(proveedor, s, zoom, tx, ty); // AARMS lote34
         const drawX=width/2-centerXPx+dx*TILE_SIZE;
         const drawY=height/2-centerYPx+dy*TILE_SIZE;
         promises.push(
           loadTile(url).then(img=>{
-            if(img) ctx.drawImage(img,Math.round(drawX),Math.round(drawY),TILE_SIZE,TILE_SIZE);
+            if(img){ ctx.drawImage(img,Math.round(drawX),Math.round(drawY),TILE_SIZE,TILE_SIZE); cargados++; }
           })
         );
       }
     }
     
     await Promise.all(promises);
+    if(!cargados) return null; // AARMS lote34: ningún tile → que el llamador pruebe otro proveedor
+    // Atribución de la imagen
+    ctx.fillStyle='rgba(10,22,40,.75)';
+    ctx.fillRect(0,height-16,width,16);
+    ctx.fillStyle='#ffffff';
+    ctx.font='11px sans-serif';
+    ctx.fillText(proveedor === 'sat' ? 'Imagen satelital © Esri, Maxar, Earthstar Geographics' : '© OpenStreetMap contributors', 6, height-4);
     
     // Pin marcador en el centro
     const px=width/2, py=height/2;
@@ -9991,6 +10009,112 @@ async function buildPDF(omarIdPedido){
     const sr1=document.getElementById('shareRow'); if(sr1)sr1.style.display='flex';
   }catch(e){ doc.save(fileName); toast('PDF guardado ✓','g'); }
 }
+// AARMS lote34: el reporte a cliente trae los datos de pH, temperatura y flujo por toma y, por OMAR, las gráficas contra el tiempo.
+function _lote34MinHora(h){
+  const m = String(h || '').match(/^(\d{1,2}):(\d{2})/);
+  return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : NaN;
+}
+function _lote34DatosTomas(omarTs, tomas){
+  return (tomas || []).map((t, i) => {
+    const n = i + 1;
+    const num = (f) => { try{ const v = f(omarTs, n); return (typeof v === 'number' && !isNaN(v)) ? v : NaN; }catch(e){ return NaN; } };
+    let ph = num(_bitPhPromPorToma);
+    if(isNaN(ph) && t && String(t.ph || '').trim() !== ''){ const x = parseFloat(String(t.ph).replace(',', '.')); if(!isNaN(x)) ph = x; }
+    let flujo = num(_bitFlujosPromPorToma);
+    if(isNaN(flujo) && t && String(t.ls || '').trim() !== ''){ const x = parseFloat(String(t.ls).replace(',', '.')); if(!isNaN(x)) flujo = x; }
+    const pct = (() => { try{ const v = _flujoPctPorToma(omarTs, n); return isNaN(v) ? NaN : v; }catch(e){ return NaN; } })();
+    return { n, hora: (t && t.hora) || '', min: _lote34MinHora(t && t.hora), ph, tagua: num(_bitTempPromAguaPorToma), tamb: num(_bitTempPromAmbPorToma), flujo, pct };
+  });
+}
+function _lote34Grafica(doc, x, y, w, h, titulo, unidad, filas, series){
+  // Marco
+  doc.setDrawColor(138, 154, 176); doc.setLineWidth(0.4); doc.rect(x, y, w, h, 'S');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 41, 59);
+  doc.text(titulo, x + 6, y + 11);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+  doc.text(unidad + '  ·  eje X: hora de la toma', x + w - 6, y + 11, { align: 'right' });
+  const pl = 36, pr = 14, pt = 20, pb = 26;
+  const px = x + pl, py = y + pt, pw = w - pl - pr, ph = h - pt - pb;
+  doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.3); doc.rect(px, py, pw, ph, 'S');
+  const vals = [];
+  series.forEach(s => filas.forEach(f => { const v = f[s.campo]; if(typeof v === 'number' && !isNaN(v)) vals.push(v); }));
+  if(!vals.length){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(148, 163, 184);
+    doc.text('Sin datos capturados', px + pw / 2, py + ph / 2, { align: 'center' });
+    return;
+  }
+  let ymin = Math.min(...vals), ymax = Math.max(...vals);
+  if(ymin === ymax){ ymin -= 0.5; ymax += 0.5; }
+  const span = ymax - ymin; ymin -= span * 0.12; ymax += span * 0.12;
+  const todasConHora = filas.length > 1 && filas.every(f => !isNaN(f.min));
+  const m0 = todasConHora ? Math.min(...filas.map(f => f.min)) : 0, m1 = todasConHora ? Math.max(...filas.map(f => f.min)) : 1;
+  const xAt = (f, i) => px + (filas.length === 1 ? pw / 2 : (todasConHora && m1 > m0 ? (f.min - m0) / (m1 - m0) : i / (filas.length - 1)) * pw);
+  const yAt = v => py + ph - ((v - ymin) / (ymax - ymin)) * ph;
+  // Cuadrícula horizontal y valores del eje Y
+  doc.setFontSize(6.5); doc.setTextColor(100, 116, 139);
+  for(let k = 0; k <= 4; k++){
+    const v = ymin + (ymax - ymin) * k / 4, yy = yAt(v);
+    doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.2); doc.line(px, yy, px + pw, yy);
+    doc.text(Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2), px - 3, yy + 2, { align: 'right' });
+  }
+  // Etiquetas de hora
+  filas.forEach((f, i) => { doc.text(f.hora || ('T' + f.n), xAt(f, i), py + ph + 10, { align: 'center' }); });
+  // Series
+  series.forEach(s => {
+    const pts = filas.map((f, i) => ({ f, i, v: f[s.campo] })).filter(p => typeof p.v === 'number' && !isNaN(p.v));
+    doc.setDrawColor(...s.color); doc.setLineWidth(1.2);
+    for(let k = 1; k < pts.length; k++) doc.line(xAt(pts[k - 1].f, pts[k - 1].i), yAt(pts[k - 1].v), xAt(pts[k].f, pts[k].i), yAt(pts[k].v));
+    doc.setFillColor(...s.color);
+    pts.forEach(p => doc.circle(xAt(p.f, p.i), yAt(p.v), 2.2, 'F'));
+  });
+  // Leyenda cuando hay más de una serie
+  if(series.length > 1){
+    let lx = px;
+    series.forEach(s => {
+      doc.setFillColor(...s.color); doc.rect(lx, py + ph + 17, 6, 4, 'F');
+      doc.setFontSize(6.5); doc.setTextColor(71, 85, 105); doc.text(s.nombre, lx + 9, py + ph + 21);
+      lx += 80;
+    });
+  }
+}
+function _lote34SeccionCliente(doc, o){
+  const { ML, CW, PH, K, secH, omarTs, tomas, folioOmar } = o;
+  let y = o.y;
+  const filas = _lote34DatosTomas(omarTs, tomas);
+  if(!filas.length) return y;
+  const necesita = (alto) => { if(y + alto > PH - 30){ doc.addPage(); y = 20; } };
+  necesita(60);
+  y = secH('Resultados de campo por toma' + (folioOmar ? ' — OMAR ' + folioOmar : ''), y);
+  const cols = [['Toma', 36], ['Hora', 46], ['pH (25 °C)', 70], ['T agua (°C)', 76], ['T ambiente (°C)', 86], ['Flujo (L/s)', 76], ['% del flujo', 0]];
+  const usado = cols.reduce((s, c) => s + c[1], 0); cols[cols.length - 1][1] = Math.max(60, CW - usado);
+  const RH = 14;
+  let cx = ML;
+  doc.setFillColor(...K.rowBg); doc.rect(ML, y, CW, RH, 'F');
+  cols.forEach(([t, w]) => { doc.setDrawColor(...K.bdr); doc.setLineWidth(0.3); doc.rect(cx, y, w, RH, 'S'); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(51, 51, 51); doc.text(t, cx + w / 2, y + 9.5, { align: 'center' }); cx += w; });
+  y += RH;
+  const f2 = (v, d) => (typeof v === 'number' && !isNaN(v)) ? v.toFixed(d) : '—';
+  filas.forEach(f => {
+    necesita(RH + 4);
+    cx = ML;
+    const cel = ['T' + f.n, f.hora || '—', f2(f.ph, 2), f2(f.tagua, 0), f2(f.tamb, 0), f2(f.flujo, 2), (typeof f.pct === 'number' && !isNaN(f.pct)) ? f.pct.toFixed(2) + ' %' : '—'];
+    cols.forEach(([t, w], k) => { doc.setDrawColor(...K.bdr); doc.setLineWidth(0.3); doc.rect(cx, y, w, RH, 'S'); doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(30, 41, 59); doc.text(String(cel[k]), cx + w / 2, y + 9.5, { align: 'center' }); cx += w; });
+    y += RH;
+  });
+  y += 10;
+  // Gráficas por OMAR
+  const GH = 112;
+  necesita(GH + 30);
+  y = secH('Gráficas de campo — OMAR ' + (folioOmar || ''), y);
+  _lote34Grafica(doc, ML, y, CW, GH, 'pH de la muestra contra el tiempo', 'pH (25 °C)', filas, [{ campo: 'ph', nombre: 'pH', color: [37, 99, 235] }]);
+  y += GH + 8;
+  necesita(GH + 8);
+  _lote34Grafica(doc, ML, y, CW, GH, 'Temperatura contra el tiempo', '°C', filas, [{ campo: 'tagua', nombre: 'Agua', color: [14, 165, 233] }, { campo: 'tamb', nombre: 'Ambiente', color: [245, 158, 11] }]);
+  y += GH + 8;
+  necesita(GH + 8);
+  _lote34Grafica(doc, ML, y, CW, GH, 'Flujo contra el tiempo', 'L/s', filas, [{ campo: 'flujo', nombre: 'Flujo', color: [22, 163, 74] }]);
+  y += GH + 10;
+  return y;
+}
 async function buildPDFCliente(omarIdPedido){
   const fuente = await _lote21HojaFuente(omarIdPedido);
   if(!fuente){ toast('No hay OMAR para el Reporte de Muestreo','w'); return; }
@@ -10321,6 +10445,10 @@ async function buildPDFCliente(omarIdPedido){
   // Antes mostraba "Conservadores utilizados" con columnas de conservador
   // que revelaba el método operativo. Ahora solo muestra qué analito se
   // recolectó por toma (el dato que el cliente necesita ver como alcance).
+  // AARMS lote34: datos de campo y gráficas por OMAR (pH, temperatura y flujo)
+  try{
+    y = _lote34SeccionCliente(doc, { y, ML, CW, PH, K, secH, omarTs: fuente.id, tomas, folioOmar: (fuente.folio || (typeof _bitPhFolioLegible === 'function' ? _bitPhFolioLegible(fuente.id) : '') || '') });
+  }catch(e){ _lote32Log('reporte-cliente-graficas', e); }
   y=secH('Analitos solicitados por toma',y);
 
   // Diccionario legible para el cliente (nombres completos, no códigos internos)
@@ -19152,8 +19280,8 @@ function _cartasPeriodoActivo(){
 const _CARTAS_EQUIPOS = [
   { id: 'ph', label: 'pH-metro', unidad: 'pH 25°C' },
   { id: 'conductividad', label: 'Conductivímetro', unidad: 'µS/cm' },
-  { id: 'oxigeno', label: 'Oxímetro', unidad: 'mg/L O2' },
-  { id: 'temperatura', label: 'Temperatura', unidad: '°C' }
+  { id: 'oxigeno', label: 'Oxímetro', unidad: 'mg/L O2' }
+  // AARMS lote34b: la carta de temperatura se quitó (innecesaria, confirmado por Reynaldo)
 ];
 
 let _cartasUi = { equipo: 'ph', periodoId: null };
