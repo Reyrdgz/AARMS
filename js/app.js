@@ -14848,7 +14848,6 @@ function _lote17Pintar(plan, contInfo, contSec){
       <div>Folios OMAR: <b style="color:var(--w)">${_lote17Inp(uniq.join(', '))}</b></div>
       <div>Oxímetro: <b style="color:var(--w)">${clave ? _lote17Inp(clave) : 'Registra el oxímetro en Inventario'}</b></div>
       <div>Año de bitácoras: <b style="color:var(--w)">${anio}</b></div>
-      ${disDoc.map(d => `<div>${_lote17Inp(d.nombre)}: lote ${_lote17Inp(d.lote)}${d.vencido ? ' <span style="color:#f87171">(Vencido: registra el lote nuevo)</span>' : ''} · recipiente ${_lote17Inp(d.recipiente)} · BDBO5D ${anio} folio ${_lote17Inp(d.folioBdbo)}</div>`).join('')}
       ${(!disDoc[0] || !disDoc[0].lote || !disDoc[1] || !disDoc[1].lote) ? '<div style="color:#fbbf24;margin-top:6px">Falta lote, recipiente o folio de las disoluciones de OD en Inventario. Esos huecos salen en blanco.</div>' : ''}
     </div>`;
   if(modo === 'campo' && _planDocGateLocked(plan, 'bitod')){
@@ -14880,10 +14879,22 @@ function _lote17Pintar(plan, contInfo, contSec){
       <div class="f"><label>Folio BPA hasta</label><input id="lote17Bpa2" type="text" value="${_lote17Inp(b.bpaHasta)}" oninput="lote17Up('bpaHasta',this.value)"></div>
     </div>`;
   }
+  // AARMS lote33: cada disolución del Inventario se muestra en la tabla donde se usa (calibración = estándar de calibración;
+  // verificación = estándar de trabajo), ya no en un recuadro arriba.
+  const disLinea = (d) => {
+    if(!d) return '';
+    const faltan = !d.lote ? '<span style="color:#fbbf24"> · falta el lote en Inventario</span>' : '';
+    return `<div style="font-size:11.5px;line-height:1.55;color:var(--g1);background:var(--bg2);border:1px solid var(--ln);border-radius:8px;padding:7px 9px;margin-bottom:8px">`
+      + `<b style="color:var(--w)">${_lote17Inp(d.nombre)}</b><br>`
+      + `Lote <b style="color:var(--w)">${_lote17Inp(d.lote) || '—'}</b>${d.vencido ? ' <span style="color:#f87171">(Vencido: registra el lote nuevo)</span>' : ''}`
+      + ` · Recipiente <b style="color:var(--w)">${_lote17Inp(d.recipiente) || '—'}</b>`
+      + ` · BDBO5D ${anio} folio <b style="color:var(--w)">${_lote17Inp(d.folioBdbo) || '—'}</b>${faltan}</div>`;
+  };
   html += `<div style="font-family:var(--syne);font-weight:800;margin:10px 0 6px">Tabla ${modo==='lab'?'1':'3'} — calibración</div>`;
+  html += disLinea(disDoc[0]);
   html += fila('zero', 'Calibración a 0 mg/L ó concentración nula');
   html += fila('sat', 'Calibración / Concentración al 100%');
-  html += `<div style="font-family:var(--syne);font-weight:800;margin:10px 0 6px">Tabla ${modo==='lab'?'2':'4'} — verificación</div>
+  html += `<div style="font-family:var(--syne);font-weight:800;margin:10px 0 6px">Tabla ${modo==='lab'?'2':'4'} — verificación</div>` + disLinea(disDoc[1]) + `
     <div class="g3">
       <div class="f" style="margin:0"><label>Lectura 1</label><input id="lote17L1" type="number" step="0.01" value="${_lote17Inp(ver.l1)}" oninput="lote17Ver('${modo}','l1',this.value)"></div>
       <div class="f" style="margin:0"><label>Lectura 2</label><input id="lote17L2" type="number" step="0.01" value="${_lote17Inp(ver.l2)}" oninput="lote17Ver('${modo}','l2',this.value)"></div>
@@ -15172,12 +15183,15 @@ function _lote25ClaveOrden(r){
   let toma;
   if(r && r.calibGrupo) toma = (r.calibPos === 'cierre') ? 999 : 0;
   else toma = parseInt(r && r.toma, 10) || 0;
-  return { dia: _lote25DiaOmarDeFila(r), toma };
+  // AARMS lote33: en cada toma, primero la verificación (V) y después el pH de la muestra (M)
+  const sub = (r && !r.calibGrupo && r.act === 'M') ? 1 : 0;
+  return { dia: _lote25DiaOmarDeFila(r), toma, sub };
 }
 function _lote25Comparar(ra, rb, tsa, tsb){
   const ka = _lote25ClaveOrden(ra), kb = _lote25ClaveOrden(rb);
   if(ka.dia !== kb.dia) return ka.dia < kb.dia ? -1 : 1;
   if(ka.toma !== kb.toma) return ka.toma - kb.toma;
+  if(ka.sub !== kb.sub) return ka.sub - kb.sub; // AARMS lote33
   if(tsa !== tsb) return tsa - tsb;
   const c = (_bitPhFolioLegible(ra.omarId) || '').localeCompare(_bitPhFolioLegible(rb.omarId) || '');
   if(c !== 0) return c;
@@ -16832,6 +16846,7 @@ function catalogoRenderConductividad(){
         <div class="f" style="margin:0"><label>Valor (µS/cm)</label><input type="number" value="${d.valor||''}" oninput="catalogoUpConductividad(${idx},'valor',this.value)"></div>
         <div class="f" style="margin:0"><label>Marca</label><input type="text" value="${(d.marca||'').replace(/"/g,'&quot;')}" oninput="catalogoUpConductividad(${idx},'marca',this.value)"></div>
       </div>
+      <div class="f" style="margin:0 0 8px"><label>Marca</label><input type="text" value="${(d.marca||'').replace(/"/g,'&quot;')}" oninput="catalogoUpConductividad(${idx},'marca',this.value)"></div>
       <div class="g3">
         <div class="f" style="margin:0"><label>Lote</label><input type="text" value="${(d.lote||'').replace(/"/g,'&quot;')}" oninput="catalogoUpConductividad(${idx},'lote',this.value)"></div>
         <div class="f" style="margin:0"><label>Caducidad</label>${d.caducidad === 'N/A'
@@ -17477,15 +17492,20 @@ function _lote25KclDatos(){
     const marca = String(item.marca || '').trim() || (typeof _catalogoMarcaDesdeNombre === 'function' ? _catalogoMarcaDesdeNombre(item.nombre) : '');
     return { lote: String(item.lote || '').trim(), marca, valor };
   };
-  return { patron: leer(lista[0]), comercial: leer(lista[1] || lista[0]) };
+  // AARMS lote33: se busca por nombre (patrón / comercial); si no, por posición
+  const it0 = lista.find(x => /patr[oó]n/i.test(String((x && x.nombre) || ''))) || lista[0];
+  const it1 = lista.find(x => x !== it0 && /comercial|control|muestra/i.test(String((x && x.nombre) || ''))) || (lista[0] === it0 ? lista[1] : lista[0]) || it0;
+  return { patron: leer(it0), comercial: leer(it1 || it0) };
 }
 function _lote25AutoKcl(){
   const k = _lote25KclDatos();
   const poner = (id, v) => {
     const el = document.getElementById(id);
     if(!el || v === '' || v == null) return;
-    if(String(el.value || '').trim()) return;
+    const actual = String(el.value || '').trim();
+    if(actual && !/^n\/?a$/i.test(actual)) return; // AARMS lote33: un «N/A» que quedó puesto no impide traer el dato del Inventario
     el.value = v;
+    try{ el.dispatchEvent(new Event('input', { bubbles:true })); }catch(e){}
   };
   [['lab', ''], ['campo', 'campo_']].forEach(([ambito, pre]) => {
     ['cal', 'comp'].forEach(b => {
