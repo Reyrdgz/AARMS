@@ -6388,6 +6388,7 @@ async function cargarMuestreo(id, opts){
   // RESET COMPLETO de estado antes de cargar el registro.
   // Sin esto, datos y tomas de muestreos anteriores se quedan pegados en pantalla.
   tomas = [];
+  window._lote30Cargando = true; // AARMS lote30: no guardar hasta que las tomas estén restauradas
   sigData = null;
   sigData2 = null;
   analitosSel = new Set();
@@ -6511,6 +6512,15 @@ async function cargarMuestreo(id, opts){
     const s=_tomaSanitized({...t, params:new Set(t.params||[])});
     return {...s, params:new Set(s.params||[])};
   }));
+  // AARMS lote30: si el registro no trae tomas pero hay un respaldo, se recuperan (los datos no se pierden)
+  if(!tomas.length){
+    const rescate = _lote30LeerRespaldo(m.id);
+    if(rescate && rescate.length){
+      tomas = _normalizarTomasIds(rescate.map(t => { const s = _tomaSanitized({...t, params:new Set(t.params||[])}); return {...s, params:new Set(s.params||[])}; }));
+      try{ toast('Se recuperaron ' + tomas.length + ' toma(s) del respaldo','g'); }catch(e){}
+    }
+  }
+  window._lote30Cargando = false;
   // AARMS sub2-temp: migrar tomas de 1 lectura → 3 lecturas
   let tempMigrado = false;
   tomas.forEach(t => { if(_migrarTomaTemperatura(t)) tempMigrado = true; });
@@ -7343,6 +7353,7 @@ function delToma(id){
   const card=document.querySelector('#tomasDiv [data-toma-id="'+id+'"]');
   if(card) card.remove();
   tomas=tomas.filter(t=>t.id!==id);
+  if(!tomas.length && omar && omar.ts){ (window._lote30Borradas = window._lote30Borradas || {})[String(omar.ts)] = true; } // AARMS lote30: quedó vacía a propósito
   _renumberTomaBadges();
   if(typeof _bitPhSyncAllTomasFromCampo==='function') _bitPhSyncAllTomasFromCampo();
   if(typeof _bitCondSyncAllTomasFromCampo==='function') _bitCondSyncAllTomasFromCampo();
@@ -8820,9 +8831,62 @@ function _lote21HojaTomar(id, previo){
   return '';
 }
 
+// AARMS lote30: LAS TOMAS NO SE PIERDEN. (1) guardar nunca pisa tomas ya guardadas con una lista vacía, salvo que se hayan borrado a
+// propósito; (2) no se guarda mientras se carga una OMAR; (3) respaldo aparte de las tomas por OMAR en cada cambio, al salir de la
+// pantalla y cada 15 s, que se recupera al cargar si el registro viene sin tomas.
+function _lote30Clave(id){ return 'aarms_tomas_' + String(id); }
+function _lote30RespaldarTomas(id, lista){
+  try{
+    if(!id || !lista || !lista.length) return;
+    localStorage.setItem(_lote30Clave(id), JSON.stringify({ t: Date.now(), tomas: lista }, (k, v) => (v instanceof Set ? [...v] : v)));
+  }catch(e){ console.warn('[lote30 respaldo]', e); }
+}
+function _lote30LeerRespaldo(id){
+  try{
+    const raw = localStorage.getItem(_lote30Clave(id));
+    if(!raw) return null;
+    const o = JSON.parse(raw);
+    return Array.isArray(o.tomas) ? o.tomas : null;
+  }catch(e){ return null; }
+}
+function _lote30TomasParaGuardar(mid, prev){
+  let salida = tomas.map(t => _tomaSanitized(t));
+  const guardadas = (prev && Array.isArray(prev.tomas)) ? prev.tomas : [];
+  const aProposito = !!(window._lote30Borradas && window._lote30Borradas[String(mid)]);
+  if(!salida.length && guardadas.length && !aProposito){
+    console.warn('[lote30] la lista de tomas estaba vacía; se conservan las guardadas');
+    salida = guardadas;
+  }
+  if(salida.length){ _lote30RespaldarTomas(mid, salida); if(window._lote30Borradas) delete window._lote30Borradas[String(mid)]; }
+  return salida;
+}
+(function _lote30RespaldoPeriodico(){
+  const copiar = () => {
+    try{
+      if(window._lote30Cargando || !omar || !omar.ts || !tomas || !tomas.length) return;
+      if(typeof _syncTomasFromDOM === 'function') _syncTomasFromDOM();
+      _lote30RespaldarTomas(omar.ts, tomas.map(t => _tomaSanitized(t)));
+    }catch(e){}
+  };
+  setInterval(copiar, 15000);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') copiar(); });
+  window.addEventListener('pagehide', copiar);
+  document.addEventListener('input', () => { clearTimeout(window.__l30t); window.__l30t = setTimeout(copiar, 1500); }, true);
+  // por si algo falla durante la carga, la bandera nunca se queda puesta
+  const orig = (typeof cargarMuestreo === 'function') ? cargarMuestreo : null;
+  if(orig){
+    window.cargarMuestreo = cargarMuestreo = async function(){
+      try{ return await orig.apply(this, arguments); }
+      finally{ window._lote30Cargando = false; }
+    };
+  }
+})();
+
 async function saveMuestreoActual(){
   // AARMS lote3ba: generar el Machiote no puede escribir la pantalla encima del registro
   if(window._lote3baSinGuardar) return;
+  // AARMS lote30: mientras se carga una OMAR la lista de tomas está vacía a propósito; guardar en ese momento borraba las tomas.
+  if(window._lote30Cargando) return;
   _flushTomasDesdeDOM();
   if(typeof _snapshotOmarFromPg0==='function') _snapshotOmarFromPg0();
   // Antes requería omar.folio; ahora guarda siempre — incluso borradores parciales.
@@ -8951,7 +9015,7 @@ async function saveMuestreoActual(){
     tipo:omar.tipo||'',
     muestreador:omar.muestreador||'',
     ts:mid,
-    tomas:tomas.map(t=>_tomaSanitized(t)),
+    tomas:_lote30TomasParaGuardar(mid, prev),
     omar:JSON.stringify(omar),
     sigData:sigData||null, sigData2:sigData2||null,
     // CRÍTICO: las fotos por OMAR. Sin esto se compartían entre OMARs y se perdían.
@@ -19353,17 +19417,17 @@ setTimeout(() => { try{ _adminBindGatillo(); }catch(_){} }, 800);
   }
   function restaurar(c){
     if(!c) return;
-    const act = document.activeElement;
-    if(act && act !== document.body && document.body.contains(act) && act !== c.el) return; // el foco se movió a propósito
-    if(act === c.el && document.body.contains(c.el)) return;                              // el mismo campo sigue ahí
     const raiz = c.raizId ? document.getElementById(c.raizId) : document.body;
     if(!raiz) return;
     const nuevo = Array.from(raiz.querySelectorAll(SEL))[c.idx];
     if(!nuevo || nuevo.tagName !== c.tag || nuevo.type !== c.tipo) return;
+    const act = document.activeElement;
+    if(act === c.el && document.body.contains(c.el)) return;                                   // el mismo campo sigue ahí
+    if(act && act !== document.body && document.body.contains(act) && act !== nuevo) return;   // el foco se movió a otro campo a propósito
+    // AARMS lote30: si el programa ya puso el foco en el campo equivalente, solo se corrigen el valor y el cursor
     try{
-      if(c.tipo !== 'checkbox' && c.tipo !== 'radio' && c.tipo !== 'file' && nuevo.value !== c.el.value) nuevo.value = c.el.value;
-      nuevo.focus({ preventScroll: true });
-      // el cursor se toma del campo viejo AHORA (por si se siguió escribiendo mientras se redibujaba)
+      if(c.tipo !== 'checkbox' && c.tipo !== 'radio' && c.tipo !== 'file' && c.tipo !== 'time' && c.tipo !== 'date' && nuevo.value !== c.el.value) nuevo.value = c.el.value;
+      if(act !== nuevo) nuevo.focus({ preventScroll: true });
       let ini = c.ini, fin = c.fin;
       try{ if(c.el.selectionStart != null){ ini = c.el.selectionStart; fin = c.el.selectionEnd; } }catch(e){}
       if(ini != null && nuevo.setSelectionRange){ const n = String(nuevo.value || '').length; nuevo.setSelectionRange(Math.min(ini, n), Math.min(fin != null ? fin : ini, n)); }
