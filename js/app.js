@@ -2011,9 +2011,9 @@ function _lote4aPintar(plan){
   html += '<div class="f"><label>Folio Hoja 1</label><input type="text" id="phLabFolio1"'+_atr+' value="'+_lote4esc(_g1)+'"></div>';
   html += '<div class="f"><label>Folio Hoja 2</label><input type="text" id="phLabFolio2"'+_atr+' value="'+_lote4esc(_g2)+'"></div>';
   html += '</div></div>';
-  html += _lote4BloqueHtml({ id:'b1', titulo:'1. Calibración en el laboratorio', filas: lab.b1.filas, nodo: lab.b1, esCal: true, verif: false, off: cerrado, cerrado });
-  html += _lote4BloqueHtml({ id:'b2', titulo:'2. Comprobación en el laboratorio', filas: lab.b2.filas, nodo: lab.b2, esCal: false, verif: false, off: cerrado || !b1ok, cerrado });
-  html += _lote4BloqueHtml({ id:'b3', titulo:'3. Verificación en el laboratorio', filas: lab.b3.filas, nodo: lab.b3, esCal: false, verif: true, off: cerrado || !b2ok, cerrado });
+  html += _lote4BloqueHtml({ id:'b1', titulo:'1. Calibración en el laboratorio', filas: lab.b1.filas, nodo: lab.b1, esCal: true, verif: false, off: false, cerrado }); // AARMS lote35: todo siempre editable
+  html += _lote4BloqueHtml({ id:'b2', titulo:'2. Comprobación en el laboratorio', filas: lab.b2.filas, nodo: lab.b2, esCal: false, verif: false, off: false, cerrado });
+  html += _lote4BloqueHtml({ id:'b3', titulo:'3. Verificación en el laboratorio', filas: lab.b3.filas, nodo: lab.b3, esCal: false, verif: true, off: false, cerrado });
   html += '<div class="card"><div class="ch"><div class="ct">Observaciones</div></div><div class="cb"><div class="f"><textarea id="phLabObs" rows="3">'+_lote4esc((ph&&ph.obs)||'')+'</textarea></div></div></div>';
   html += '<div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">';
   html += '<button type="button" class="btn btn-p" id="phLabPdf">Generar PDF</button>';
@@ -2165,8 +2165,8 @@ function _lote4bPintar(){
   html += '<div class="f"><label>Valor aproximado</label><input type="text" inputmode="decimal" id="phTiraValor" value="'+_lote4esc(campo.tira&&campo.tira.valor||'')+'"></div>';
   html += '</div></div>';
   html += _lote4BloqueHtml({ id:'b4', titulo:'4. Calibración en el campo', filas: campo.b4.filas, nodo: campo.b4, esCal: true, verif: false, off: false, cerrado: false });
-  html += _lote4BloqueHtml({ id:'b5', titulo:'5. Comprobación en el campo', filas: campo.b5.filas, nodo: campo.b5, esCal: false, verif: false, off: !b4ok, cerrado: false });
-  html += _lote4BloqueHtml({ id:'b6', titulo:'6. Verificación en el campo', filas: campo.b6.filas, nodo: campo.b6, esCal: false, verif: true, off: !b5ok, cerrado: false });
+  html += _lote4BloqueHtml({ id:'b5', titulo:'5. Comprobación en el campo', filas: campo.b5.filas, nodo: campo.b5, esCal: false, verif: false, off: false, cerrado: false });
+  html += _lote4BloqueHtml({ id:'b6', titulo:'6. Verificación en el campo', filas: campo.b6.filas, nodo: campo.b6, esCal: false, verif: true, off: false, cerrado: false });
   html += '<div class="card"><div class="cb g2">';
   html += '<div class="f"><label>Rango de</label><input type="text" id="phRangoDe" readonly tabindex="-1" value="'+_lote4esc(rango.de||'')+'"></div>';
   html += '<div class="f"><label>Rango a</label><input type="text" id="phRangoA" readonly tabindex="-1" value="'+_lote4esc(rango.a||'')+'"></div>';
