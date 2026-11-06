@@ -2576,6 +2576,7 @@ function _pdfBmTablaPhEntreToma(doc, plan, omarRef, y, ctx){
   regs = regs.filter(r => r && !r.calibGrupo && (
     !r.omarId || String(r.omarId) === String(omarRef.ts) || String(r.omarTs) === String(omarRef.ts)
   ));
+  regs = regs.filter(r => r.act === 'M'); // AARMS lote31: solo el pH de la muestra (no las verificaciones con buffer)
   regs = [...regs].sort((a,b) => Number(a.toma) - Number(b.toma));
   const heads = [
     'Hora',
@@ -2604,11 +2605,7 @@ function _pdfBmTablaPhEntreToma(doc, plan, omarRef, y, ctx){
       const ph25 = (typeof _phA25 === 'function')
         ? _phA25(r.l1, r.l2, r.l3)
         : (typeof _phRedondeo25 === 'function' ? _phRedondeo25(prom) : (prom != null ? Number(prom).toFixed(2) : ''));
-      let ar = '';
-      if(typeof _phAceptaRechaza === 'function'){
-        ar = _phAceptaRechaza(r.l1, r.l2, r.l3, r.buffer);
-        if(ar === 'PENDIENTE') ar = '';
-      }
+      const ar = ''; // AARMS lote31: la muestra no lleva Acepta/Rechaza
       vals = [
         _pdfBmHoraDeToma(omarRef, r),
         String(r.toma || i + 1),
@@ -3143,7 +3140,7 @@ async function _pdfBmPag3(doc, plan, omarRef, snapshot, ctx){
   doc.setFont(FONT, 'normal'); doc.setFontSize(5.8); doc.setTextColor(80);
   const notes = [
     'Criterio de aceptación de lecturas de muestra: No debe haber una diferencia mayor a 0.03 unidades de pH entre lecturas independientes realizadas',
-    'Código de actividad de control: Ca = Calibración  Co = Comprobación  V = Verificación',
+    'Código de actividad de control: Ca = Calibración  Co = Comprobación  V = Verificación  M = Muestra',
     'Código de Limpieza: 1.- Agua tridestilada  2.- Detergente suave  3.- Disolución de HCl 1:1',
     'Nota: La lectura aproximada de pH se puede realizar con tiras comerciales, papel pH o cualquier otro medio que el laboratorio autorice.'
   ];
@@ -4229,6 +4226,12 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
       p25 = ph25Calc(r.l1, r.l2, r.l3);
       ace = aceCalc(r.l1, r.l2, r.l3, r.buffer);
       if(ace === 'PENDIENTE' && (r.pendienteBuf1 || r.pendienteBuf2)) ace = 'PENDIENTE';
+    } else if(act === 'M'){
+      // AARMS lote31: pH de la muestra: promedio y pH a 25 °C, sin Acepta/Rechaza
+      const p = prom3(r.l1, r.l2, r.l3);
+      promStr = p != null ? p.toFixed(2) : '';
+      p25 = ph25Calc(r.l1, r.l2, r.l3);
+      ace = '';
     }
 
     const vals = [
@@ -4277,7 +4280,7 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
 
   const blmpFol = (omar && omar.blmp && (omar.blmp.folio || omar.blmp.aapt)) || '____';
   const notaBlmp = 'La limpieza entre lecturas se encuentra registrada en la bitácora BLMP____/AA/N-3/____ Folio. ' + asci(String(blmpFol));
-  const codAct = 'CÓDIGO DE ACTIVIDAD DE CONTROL: CA: Calibración · CO: Comprobación · V: Verificación';
+  const codAct = 'CÓDIGO DE ACTIVIDAD DE CONTROL: CA: Calibración · CO: Comprobación · V: Verificación · M: Muestra';
   const crit = 'CRITERIO DE ACEPTACIÓN O RECHAZO: La medición no debe desviarse por más de ± 0,05 UpH del valor nominal del patrón de referencia. No deberá haber una diferencia mayor a 0,03 UpH entre las lecturas independientes realizadas.';
   if(y > H - 160){
     doc.addPage('letter', 'landscape');

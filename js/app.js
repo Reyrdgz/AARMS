@@ -627,7 +627,7 @@ function _bitTempPromAmbPorToma(omarTs, tomaNum){
 function _bitPhPromPorToma(omarTs, tomaNum){
   const plan = _planParaHojaCampo();
   if(!plan || !Array.isArray(plan.bitPh)) return NaN;
-  const reg = plan.bitPh.find(r => !r.calibGrupo && String(r.omarId ?? '') === String(omarTs) && String(r.toma) === String(tomaNum));
+  const reg = plan.bitPh.find(r => !r.calibGrupo && r.act === 'M' && String(r.omarId ?? '') === String(omarTs) && String(r.toma) === String(tomaNum)); // AARMS lote31: solo la muestra
   if(!reg) return NaN;
   const prom = _phPromedio(reg.l1, reg.l2, reg.l3);
   if(prom != null && !isNaN(prom)){
@@ -2031,6 +2031,7 @@ function _lote29Cursor(t){
 }
 function _lote29PonerCursor(nuevo, cur){
   if(!nuevo) return;
+  if(nuevo.type === 'number'){ nuevo.setAttribute('inputmode','decimal'); nuevo.type = 'text'; } // AARMS lote31
   try{ nuevo.focus({ preventScroll: true }); }catch(e){ try{ nuevo.focus(); }catch(_){} }
   if(!cur) return;
   try{
@@ -8089,8 +8090,11 @@ function checkCamposCompletos(){
   if(!omar.folio) faltantes.push('Folio OMAR');
   if(!omar.empresa) faltantes.push('Empresa');
   if(tomas.length===0) faltantes.push('Al menos una toma');
-  const tomasSinPH=tomas.filter(t=>!t.ph).length;
-  const tomasSinFlujo=tomas.filter(t=>!t.ls).length;
+  // AARMS lote31: el pH y el flujo viven en las bitácoras del plan; antes solo se miraba el campo de la toma y decía que faltaban
+  const _tienePh=(t,i)=>{ if(t && String(t.ph||'').trim()) return true; try{ return !isNaN(_bitPhPromPorToma(omar.ts, i+1)); }catch(e){ return false; } };
+  const _tieneFl=(t,i)=>{ if(t && String(t.ls||'').trim()) return true; try{ return !isNaN(_bitFlujosPromPorToma(omar.ts, i+1)); }catch(e){ return false; } };
+  const tomasSinPH=tomas.filter((t,i)=>!_tienePh(t,i)).length;
+  const tomasSinFlujo=tomas.filter((t,i)=>!_tieneFl(t,i)).length;
   if(tomasSinPH>0) faltantes.push(`pH en ${tomasSinPH} toma(s)`);
   if(tomasSinFlujo>0) faltantes.push(`Flujo en ${tomasSinFlujo} toma(s)`);
   // AARMS bmconserv: cloro obligatorio si la toma pide CTYF/ENTE/ECOL (mismo toast faltantes)
@@ -8103,7 +8107,9 @@ function checkCamposCompletos(){
 
 function genPDFConCheck(tipo){
   const faltantes=checkCamposCompletos();
-  const tomasCompletas=tomas.filter(t=>t.ph&&t.ls).length;
+  const _tPh=(t,i)=>{ if(t && String(t.ph||'').trim()) return true; try{ return !isNaN(_bitPhPromPorToma(omar.ts, i+1)); }catch(e){ return false; } };
+  const _tFl=(t,i)=>{ if(t && String(t.ls||'').trim()) return true; try{ return !isNaN(_bitFlujosPromPorToma(omar.ts, i+1)); }catch(e){ return false; } };
+  const tomasCompletas=tomas.filter((t,i)=>_tPh(t,i)&&_tFl(t,i)).length; // AARMS lote31
   const analitos=(omar.analitos||[]).slice(0,6).join(', ')+(omar.analitos&&omar.analitos.length>6?` +${omar.analitos.length-6} más`:'');
   // Sin firma del cliente, NINGÚN PDF se genera.
   const tieneFirma = tieneFirmaValida();
@@ -13091,6 +13097,7 @@ function _bitPhUsaPatronRef(act){
 }
 function _bitPhFaltaPatron(r){
   if(!r) return true;
+  if(r.act === 'M') return false; // AARMS lote31: la muestra no se compara con ningún patrón
   const buf = String(r.buffer == null ? '' : r.buffer).trim();
   const lote = String(r.lote == null ? '' : r.lote).trim();
   const marca = String(r.marca == null ? '' : r.marca).trim();
@@ -13106,6 +13113,7 @@ function _bitPhMsgFaltaPatron(r){
 }
 function _bitPhDictamenFila(r){
   if(!r) return 'PENDIENTE';
+  if(r.act === 'M') return ''; // AARMS lote31: la muestra no lleva Acepta/Rechaza
   if(_bitPhFaltaPatron(r)) return 'PENDIENTE';
   if(/^ca$/i.test(String(r.act || '').trim())){
     const ace = (typeof _phAceptaRechaza === 'function') ? _phAceptaRechaza(r.l1, r.buffer) : null;
@@ -15706,7 +15714,7 @@ function _lote25PintarBotonTerminar(regs){
   let listo = false;
   try{
     const opts = _bitPhOpcionesTomaSelect();
-    const asign = new Set((regs || []).filter(r => !r.calibGrupo && !_bitPhEsIntentoRechazado(r)).map(r => _bitPhTomaSelectValue(r)).filter(Boolean));
+    const asign = new Set((regs || []).filter(r => !r.calibGrupo && r.act !== 'M' && !_bitPhEsIntentoRechazado(r)).map(r => _bitPhTomaSelectValue(r)).filter(Boolean));
     listo = opts.length > 0 && opts.every(o => asign.has(o.value));
   }catch(e){ listo = false; }
   b.classList.toggle('lote25-listo', listo);
@@ -15743,7 +15751,85 @@ function _bitPhRender(){
   if(btnExtra) btnExtra.style.display=_bitPhTieneBloqueCalib2()?'':'none';
 }
 
+// AARMS lote31: «pH de la muestra en campo»: 3 lecturas de la muestra, su promedio y el pH a 25 °C. Sin Acepta/Rechaza y sin
+// comparar con buffer ni patrón. Ese promedio es el que va a la Hoja de campo y a la tabla de pH del Machiote.
+function bitPhAgregarMuestra(){
+  const regs=_bitPhRegs();
+  if(!regs) return;
+  if(!(tomas&&tomas.length)){ toast('Primero agrega tomas en la hoja de campo','w'); return; }
+  const opts=_bitPhOpcionesTomaSelect();
+  const asign=new Set((regs||[]).filter(r=>r.act==='M').map(r=>_bitPhTomaSelectValue(r)).filter(Boolean));
+  let prox='';
+  for(const o of opts){ if(!asign.has(o.value)){ prox=o.value; break; } }
+  if(!prox && opts.length) prox=opts[0].value;
+  const pipe=prox.indexOf('|');
+  const omarId=pipe>=0?prox.slice(0,pipe):String(omar.ts);
+  const tomaNum=pipe>=0?prox.slice(pipe+1):'';
+  regs.push({
+    fecha: _defaultBitRegistroFecha(),
+    hora: new Date().toTimeString().substring(0,5),
+    omarId, toma: tomaNum,
+    folioOmar: _bitPhFolioLegible(omarId)||'',
+    act:'M', limp:'1', aprox:'', buffer:'', lote:'', marca:'',
+    l1:'', l2:'', l3:'', obs:'',
+  });
+  _bitPhOrdenarRegsPorFechaHora(regs);
+  _bitPhRender();
+  _bitAplicarPromediosAToma('ph');
+  guardarBorradorActual();
+  void _persistPlanBitPh();
+}
+function _renderBitPhCardMuestra(r, idx){
+  const tomaOptsList=_bitPhOpcionesTomaSelect();
+  const selVal=_bitPhTomaSelectValue(r);
+  const tomaOpts = tomaOptsList.map(o =>
+    `<option value="${String(o.value).replace(/"/g,'&quot;')}" ${o.value===selVal?'selected':''}>${String(o.label).replace(/</g,'&lt;')}</option>`
+  ).join('');
+  const esc=(s)=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const promCalc=_phPromedio(r.l1, r.l2, r.l3);
+  const promDisp=r.promedio||(promCalc!=null?promCalc.toFixed(2):'');
+  const ph25Disp=r.ph25||_phRedondeo25(promCalc);
+  const completa=[r.l1,r.l2,r.l3].every(x=>String(x==null?'':x).trim()!=='');
+  const titulo=_bitPhLabelToma(r);
+  return `
+    <div data-bit-ph="${idx}" style="background:var(--bg2);border:1px solid rgba(96,165,250,.35);border-radius:11px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--w)">${String(titulo).replace(/</g,'&lt;')}</div>
+          <span style="background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.4);color:#60a5fa;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800">pH DE LA MUESTRA</span>
+          <span style="font-size:10px;font-weight:700;color:${completa?'#86efac':'#fbbf24'}">${completa?'✓ completa':'pendiente'}</span>
+        </div>
+        <button onclick="bitPhEliminar(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:5px 10px;border-radius:7px;font-size:11px;cursor:pointer">✕</button>
+      </div>
+      <div class="f" style="margin-bottom:10px">
+        <label>OMAR y número de toma</label>
+        <select onchange="bitPhUp(${idx},'tomaOmar',this.value)"><option value="">— Elige OMAR y toma —</option>${tomaOpts}</select>
+      </div>
+      <div class="g2" style="margin-bottom:10px">
+        <div class="f" style="margin-bottom:0"><label>Fecha</label><input type="date" value="${r.fecha||''}" oninput="bitPhUp(${idx},'fecha',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>Hora</label><input type="time" value="${r.hora||''}" oninput="bitPhUp(${idx},'hora',this.value)"></div>
+      </div>
+      <div class="g2" style="margin-bottom:10px">
+        <div class="f" style="margin-bottom:0"><label>Actividad</label><input type="text" value="M · Muestra" readonly tabindex="-1"></div>
+        <div class="f" style="margin-bottom:0"><label>Limpieza (código)</label>
+          <select data-f="limp" onchange="bitPhUp(${idx},'limp',this.value)"><option value="">— Elige —</option>${LIMPIEZA_COD.map(l=>`<option value="${l.code}" ${r.limp===l.code?'selected':''}>${l.code} · ${l.label||l.txt||''}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div style="font-size:10.5px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono);margin-bottom:6px">Lecturas de pH de la muestra (3 independientes)</div>
+      <div class="g3" style="margin-bottom:12px">
+        <div class="f" style="margin-bottom:0"><label>L1</label><input type="text" inputmode="decimal" placeholder="pH" value="${esc(r.l1)}" oninput="bitPhUp(${idx},'l1',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>L2</label><input type="text" inputmode="decimal" placeholder="pH" value="${esc(r.l2)}" oninput="bitPhUp(${idx},'l2',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>L3</label><input type="text" inputmode="decimal" placeholder="pH" value="${esc(r.l3)}" oninput="bitPhUp(${idx},'l3',this.value)"></div>
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f" style="margin-bottom:0"><label>Promedio</label><input type="text" data-f="promedio" readonly style="background:rgba(255,255,255,.06);color:var(--w)" value="${esc(promDisp)}"></div>
+        <div class="f" style="margin-bottom:0"><label>pH 25°C</label><input type="text" data-f="ph25" readonly style="background:rgba(255,255,255,.06);color:var(--w)" value="${esc(ph25Disp)}"></div>
+      </div>
+      <div style="font-size:10.5px;color:var(--g2);line-height:1.45">Sin dictamen: la muestra no se compara con buffer ni patrón. Este promedio es el pH de la toma en la Hoja de campo y en el Machiote.</div>
+    </div>`;
+}
 function _renderBitPhCard(r, idx){
+  if(r && r.act === 'M') return _renderBitPhCardMuestra(r, idx); // AARMS lote31
   const tomaOptsList=_bitPhOpcionesTomaSelect();
   const selVal=_bitPhTomaSelectValue(r);
   const tomaOpts = tomaOptsList.map(o =>
@@ -15883,7 +15969,7 @@ function bitPhAgregarRegistro(){
     return;
   }
   const tomaOptsList=_bitPhOpcionesTomaSelect();
-  const asignadas=new Set((regs||[]).filter(r=>!_bitPhEsIntentoRechazado(r)).map(r=>{
+  const asignadas=new Set((regs||[]).filter(r=>!_bitPhEsIntentoRechazado(r) && r.act!=='M').map(r=>{
     const v=_bitPhTomaSelectValue(r);
     return v||null;
   }).filter(Boolean));
@@ -16432,17 +16518,16 @@ function _bitAplicarPromediosAToma(tipo /* 'ph' | 'cond' */){
   fuente.forEach(r=>{
     if(!r.toma || r.calibGrupo) return;
     if(tipo==='ph'){
-      // AARMS lote24f4 B: no hay camino de muestra con V sin patrón; criterio de muestra = solo Δ≤0.03.
+      // AARMS lote31: a la Hoja de campo solo llega el pH de la MUESTRA (fila «M»); las verificaciones con buffer no cuentan.
+      if(r.act !== 'M') return;
       if(typeof _bitPhEsIntentoRechazado === 'function' && _bitPhEsIntentoRechazado(r)) return;
-      if(typeof _bitPhFaltaPatron === 'function' && _bitPhFaltaPatron(r)) return;
-      if(typeof _phAceptaMuestra === 'function' && _phAceptaMuestra(r.l1, r.l2, r.l3) !== 'Acepta') return;
     }
     const rid = (r.omarId!=null && r.omarId!=='') ? String(r.omarId) : activeTs;
     const Ls=[r.l1,r.l2,r.l3].map(x=>parseFloat(x)).filter(x=>!isNaN(x));
     if(Ls.length===0) return;
     const prom=Ls.reduce((a,b)=>a+b,0)/Ls.length;
     if(!porOmar[rid]) porOmar[rid]={};
-    porOmar[rid][parseInt(r.toma)] = tipo==='ph' ? prom.toFixed(2) : prom.toFixed(0);
+    porOmar[rid][parseInt(r.toma)] = tipo==='ph' ? ((typeof _phA25 === 'function' && _phA25(r.l1, r.l2, r.l3)) || prom.toFixed(2)) : prom.toFixed(0);
   });
 
   // 1) OMAR activo en pantalla: escribir a memoria + DOM
@@ -18267,6 +18352,51 @@ function _lote27SupervisorEnCampos(){
 }
 setInterval(() => { try{ _lote27SupervisorEnCampos(); }catch(e){} }, 1200);
 
+// AARMS lote31: la firma del muestreador ya está en Ajustes; en la Hoja de campo no se pide dibujarla otra vez.
+function _lote31FirmaMuestreadorEnHoja(){
+  const wrap = document.getElementById('cvswrap2');
+  if(!wrap) return;
+  let m = null;
+  try{ m = _muestreadorActual(); }catch(e){}
+  const png = m && m.firmaPng;
+  const fila = wrap.nextElementSibling;
+  let nota = document.getElementById('lote31FirmaMuest');
+  if(!png){
+    if(nota) nota.remove();
+    wrap.style.display = ''; if(fila) fila.style.display = '';
+    return;
+  }
+  if(!sigData2 || sigData2 === 'p') sigData2 = png;
+  wrap.style.display = 'none'; if(fila) fila.style.display = 'none';
+  if(!nota){ nota = document.createElement('div'); nota.id = 'lote31FirmaMuest'; wrap.parentNode.insertBefore(nota, wrap); }
+  const nombre = String((m && m.nombre) || '').replace(/</g, '&lt;');
+  nota.innerHTML = '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--ln2);border-radius:10px;background:var(--bg2)">'
+    + '<img src="' + png + '" alt="Firma" style="height:44px;max-width:160px;object-fit:contain;background:#fff;border-radius:6px;padding:3px 6px">'
+    + '<div style="font-size:12px;line-height:1.4"><b>' + nombre + '</b><br><span style="color:var(--g2)">Firma tomada de Ajustes</span></div></div>';
+  const nom = document.getElementById('mn_nom');
+  if(nom && !nom.value && m && m.nombre) nom.value = m.nombre;
+}
+setInterval(() => { try{ _lote31FirmaMuestreadorEnHoja(); }catch(e){} }, 1500);
+
+// AARMS lote31: los campos numéricos pasan a texto con teclado decimal, para que el cursor se pueda controlar (en un campo
+// numérico el navegador no deja fijar el cursor y al volver a dibujar la pantalla se escribía de atrás hacia adelante).
+function _lote31ConvNum(raiz){
+  try{
+    (raiz || document).querySelectorAll('input[type="number"]').forEach(el => {
+      const paso = el.getAttribute('step');
+      el.setAttribute('inputmode', (paso && paso !== '1' && paso !== 'any') || paso === 'any' ? 'decimal' : (el.getAttribute('inputmode') || 'decimal'));
+      el.type = 'text';
+    });
+  }catch(e){}
+}
+(function(){
+  const arrancar = () => {
+    _lote31ConvNum(document);
+    new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n && n.nodeType === 1){ if(n.matches && n.matches('input[type="number"]')) _lote31ConvNum(n.parentNode); else _lote31ConvNum(n); } }))).observe(document.body, { childList:true, subtree:true });
+  };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar); else arrancar();
+})();
+
 // AARMS lote25e: «Firma de supervisor» en cada bitácora de laboratorio y de campo (misma firma y PIN del plan).
 const _LOTE25_PAGS_SUP = ['pgBpm','pgLVAR','pgBlmp','pgPh2644','pgColab','pgBitPH','pgBitCond','pgBitTemp','pgBitOD','pgBitFlujos'];
 const _LOTE28_PAGS_LAB = ['pgBpm','pgLVAR','pgBlmp']; // el resto firma el cierre
@@ -19450,8 +19580,9 @@ setTimeout(() => { try{ _adminBindGatillo(); }catch(_){} }, 800);
     if(!c) return;
     const raiz = c.raizId ? document.getElementById(c.raizId) : document.body;
     if(!raiz) return;
+    try{ if(typeof _lote31ConvNum === 'function') _lote31ConvNum(raiz); }catch(e){}
     const nuevo = Array.from(raiz.querySelectorAll(SEL))[c.idx];
-    if(!nuevo || nuevo.tagName !== c.tag || nuevo.type !== c.tipo) return;
+    if(!nuevo || nuevo.tagName !== c.tag || (nuevo.type !== c.tipo && !(nuevo.type === 'text' && c.tipo === 'number'))) return;
     const act = document.activeElement;
     if(act === c.el && document.body.contains(c.el)) return;                                   // el mismo campo sigue ahí
     if(act && act !== document.body && document.body.contains(act) && act !== nuevo) return;   // el foco se movió a otro campo a propósito
