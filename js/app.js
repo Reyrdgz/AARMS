@@ -732,16 +732,44 @@ function _flujoSumaOmar(omarTs){
   return suma;
 }
 
-function _flujoPctPorToma(omarTs, tomaNum){
+// AARMS lote31: los porcentajes salen con 2 decimales y SUMAN EXACTAMENTE 100.00 (método del mayor residuo: el ajuste cae en las
+// últimas tomas, p. ej. 16.67 ×4 y 16.66 ×2, nunca un 16.67 junto a un 17).
+function _lote31PctsAjustados(proms){
+  const sal = proms.map(() => NaN);
+  const idx = [], vals = [];
+  proms.forEach((p, i) => { if(!isNaN(p) && p > 0){ idx.push(i); vals.push(p); } });
+  const suma = vals.reduce((x, y) => x + y, 0);
+  if(!suma) return sal;
+  const exacto = vals.map(v => v / suma * 10000);        // centésimas de %
+  const base = exacto.map(e => Math.floor(e + 1e-9));
+  let falta = 10000 - base.reduce((x, y) => x + y, 0);
+  const orden = exacto.map((e, i) => ({ i, r: e - Math.floor(e + 1e-9) })).sort((x, y) => (y.r - x.r) || (x.i - y.i));
+  for(let k = 0; k < falta; k++) base[orden[k % orden.length].i]++;
+  idx.forEach((ix, k) => { sal[ix] = base[k] / 100; });
+  return sal;
+}
+function _lote31PctsOmar(omarTs){
   const plan = _planParaHojaCampo();
-  if(!plan || !Array.isArray(plan.bitFlujos)) return NaN;
-  const reg = plan.bitFlujos.find(r => String(r.omarTs) === String(omarTs) && Number(r.toma) === Number(tomaNum));
-  if(!reg) return NaN;
-  const prom = _flujoPromedio3(reg.l1, reg.l2, reg.l3);
-  if(isNaN(prom)) return NaN;
-  const suma = _flujoSumaOmar(omarTs);
-  if(suma === 0) return NaN;
-  return (prom / suma) * 100;
+  if(!plan || !Array.isArray(plan.bitFlujos)) return [];
+  const regs = plan.bitFlujos.filter(r => String(r.omarTs) === String(omarTs));
+  if(!regs.length) return [];
+  const n = Math.max(...regs.map(r => Number(r.toma) || 0));
+  const proms = [];
+  for(let i = 0; i < n; i++){
+    const reg = regs.find(r => Number(r.toma) === i + 1);
+    proms.push(reg ? _flujoPromedio3(reg.l1, reg.l2, reg.l3) : NaN);
+  }
+  return _lote31PctsAjustados(proms);
+}
+function _flujoPctPorToma(omarTs, tomaNum){
+  const arr = _lote31PctsOmar(omarTs);
+  const v = arr[Number(tomaNum) - 1];
+  return (v === undefined) ? NaN : v;
+}
+function _lote31PctTxt(omarTs, tomaNum, escrito){
+  const v = _flujoPctPorToma(omarTs, tomaNum);
+  if(!isNaN(v)) return v.toFixed(2) + '%';
+  return (escrito !== undefined && escrito !== null && String(escrito).trim() !== '') ? (String(escrito).trim() + '%') : '';
 }
 
 function _bitFlujosPromPorToma(omarTs, tomaNum){
@@ -3670,8 +3698,8 @@ const LVAR_PATRONES = [
   {key:'pat_tra1', label:'Patrón de trabajo pH',     conValor:true},
   {key:'pat_tra2', label:'Patrón de trabajo pH',     conValor:true},
   {key:'pat_tra3', label:'Patrón de trabajo pH',     conValor:true},
-  {key:'kcl_pat',  label:'Sol. KCl Conductividad patrón', conValor:false},
-  {key:'kcl_com',  label:'Sol. KCl Conductividad comercial', conValor:false},
+  {key:'kcl_pat',  label:'Sol. KCl Conductividad patrón', conValor:true},
+  {key:'kcl_com',  label:'Sol. KCl Conductividad comercial', conValor:true},
   {key:'agua_r',   label:'Agua Reactivo', conValor:false},
 ];
 const LVAR_SECUNDARIO = [
@@ -4583,7 +4611,7 @@ function buildLvarPatrones(){
     const phMap = _LVAR_PATRON_CAT[p.key];
     const phAttrs = phMap ? `data-lvar-patron-ph="${phMap}"` : '';
     if(res.vencido){
-      const valorV = (p.conValor && res.item && res.item.ph != null) ? Number(res.item.ph).toFixed(2) : '';
+      const valorV = (p.conValor && res.item && res.item.ph != null) ? Number(res.item.ph).toFixed(2) : ((p.conValor && res.item && res.item.valor != null && res.item.valor !== '') ? String(res.item.valor) : ''); // AARMS lote31: KCl = 1412 / 1413
       return `
       <div data-lv-row="${p.key}" style="padding:8px 0;border-bottom:1px solid var(--ln)">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
@@ -4605,7 +4633,7 @@ function buildLvarPatrones(){
     const lote = doc.lote || ((s.lote && String(s.lote).trim()) ? s.lote : '');
     const marca = doc.marca || ((s.marca && String(s.marca).trim()) ? s.marca : '');
     const cad = doc.cad || ((s.cad && String(s.cad).trim()) ? s.cad : '');
-    const valor = (s.valor && String(s.valor).trim()) ? s.valor : (p.conValor && cat.ph != null && cat.ph !== '' ? Number(cat.ph).toFixed(2) : (s.valor || ''));
+    const valor = (s.valor && String(s.valor).trim()) ? s.valor : (p.conValor && cat.ph != null && cat.ph !== '' ? Number(cat.ph).toFixed(2) : ((p.conValor && cat.valor != null && cat.valor !== '') ? String(cat.valor) : (s.valor || '')));
     const tieneLote = !!(String(lote).trim() || String(marca).trim() || String(cad).trim());
     const hasData = tieneLote;
     const aviso = tieneLote ? '' : _lote10MsgFalta(p.label);
@@ -5011,9 +5039,11 @@ async function generarPDFLVAR(){
       if(!docC.item) return;
       if(docC.item.ph != null){
         actual.valor = (typeof docC.item.ph === 'number') ? docC.item.ph.toFixed(2) : (docC.item.ph || '');
+      } else if(p.conValor && docC.item.valor != null && docC.item.valor !== ''){
+        actual.valor = String(docC.item.valor); // AARMS lote31: KCl patrón 1412, comercial 1413
       }
       actual.lote = docC.lote;
-      actual.marca = docC.marca;
+      actual.marca = docC.marca || _catalogoMarcaDesdeNombre(docC.item.nombre) || '';
       actual.cad = docC.cad;
       data.patrones[p.key] = actual;
     });
@@ -9488,7 +9518,7 @@ async function buildPDF(omarIdPedido){
       const phBit = _lote24TxtBit(_bitPhPromPorToma(fuente.id, idx + 1), 2, false);
       const condBit = _lote24TxtBit(_bitCondPromPorToma(fuente.id, idx + 1), 1, true);
       const flujoBit = _lote24TxtBit(_bitFlujosPromPorToma(fuente.id, idx + 1), 2, false);
-      const fixVals=[`T${idx+1}`,t.hora||'',t.pct?t.pct+'%':'',flujoBit,
+      const fixVals=[`T${idx+1}`,t.hora||'',_lote31PctTxt(fuente.id, idx + 1, t.pct),flujoBit,
         rep.amb?rep.amb+'°':'',rep.agua?rep.agua+'°':'',phBit,t.mat||'',
         condBit,t.od||'',t.color||'',t.olor===true?'SI':t.olor===false?'NO':'',
         t.cloro===true?'SI':t.cloro===false?'NO':''];
@@ -14046,7 +14076,8 @@ function _renderBitFlujosCard(reg, idx, sumaTotal){
   const calc=_calcBitFlujosRegistro(reg);
   const pct=(!isNaN(calc.promedio)&&sumaTotal>0)?(calc.promedio/sumaTotal)*100:NaN;
   const fmtDiff=(v)=>isNaN(v)?'—':v.toFixed(2);
-  const pctTxt=isNaN(pct)?'—':pct.toFixed(2)+' %';
+  const _pctAj = (reg && reg.omarTs != null && reg.toma) ? _flujoPctPorToma(reg.omarTs, reg.toma) : NaN; // AARMS lote31
+  const pctTxt=!isNaN(_pctAj)?_pctAj.toFixed(2)+' %':(isNaN(pct)?'—':pct.toFixed(2)+' %');
   const promTxt=isNaN(calc.promedio)?'—':calc.promedio.toFixed(2)+' L/s';
   const completa=_bitFlujosCalcCompleta(reg);
   const badgeColor=completa?'#86efac':'#fbbf24';

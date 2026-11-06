@@ -2740,7 +2740,7 @@ function _pdfBmTablaCompuesta(doc, plan, omarRef, y, ctx){
       ? [
           String(f.tomaNum),
           !isNaN(f.q) ? f.q.toFixed(2) : '',
-          !isNaN(f.pct) ? f.pct.toFixed(1) : '',
+          !isNaN(f.pct) ? f.pct.toFixed(2) : '', // AARMS lote31: 2 decimales
           !isNaN(f.ml) ? String(f.ml) : ''
         ]
       : [String(f.tomaNum), '', '', ''];
@@ -2751,7 +2751,7 @@ function _pdfBmTablaCompuesta(doc, plan, omarRef, y, ctx){
     }
   });
   const sigmaVals = nData > 0
-    ? ['Σ', sumQ.toFixed(2).replace(/\.00$/, ''), '100', volTotal > 0 ? String(volTotal) : '']
+    ? ['Σ', sumQ.toFixed(2).replace(/\.00$/, ''), '100.00', volTotal > 0 ? String(volTotal) : '']
     : ['Σ', '', '', ''];
   y = _pdfFilaTablaOficial(doc, sigmaVals, x0, y, cws, rh + 1, 99, { fontSize:6.5, maxChars:10 });
   return { y: y + 4, volTotal };
