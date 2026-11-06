@@ -2291,6 +2291,7 @@ function _syncTomasFromDOM(){
 /** Sincroniza tomas desde DOM antes de guardado o navegación. */
 function _flushTomasDesdeDOM(){
   if(typeof _syncTomasFromDOM==='function') _syncTomasFromDOM();
+  try{ void _lote32GuardarSoloTomas(false); }catch(e){} // AARMS lote32: persistencia independiente de las tomas
 }
 
 function _captureTomaInputs(card){
@@ -8918,7 +8919,58 @@ function _lote30TomasParaGuardar(mid, prev){
   }
 })();
 
+// AARMS lote32: LAS TOMAS NUNCA DEPENDEN DE NADA MÁS. Causa encontrada: antes de escribir la OMAR, el guardado esperaba la asignación de
+// los folios HCAR y CCIAR; si esa asignación fallaba o se colgaba, el guardado se interrumpía ANTES de escribir el registro (las tomas
+// se perdían) y la promesa rota se quedaba pegada, así que todos los guardados siguientes fallaban igual. Ahora: (1) la asignación de
+// folios tiene tiempo límite y su falla no detiene el guardado; (2) si algo falla, las tomas se escriben aparte (_lote32GuardarSoloTomas);
+// (3) cada flush de las tomas también las persiste por esa vía independiente; (4) hay un registro de fallas para diagnóstico.
+function _lote32Log(tag, e){
+  try{
+    const arr = JSON.parse(localStorage.getItem('aarms_log_guardado') || '[]');
+    arr.push({ t: new Date().toISOString(), tag, msg: String((e && e.message) || e || '').slice(0, 200), pila: String((e && e.stack) || '').slice(0, 400) });
+    localStorage.setItem('aarms_log_guardado', JSON.stringify(arr.slice(-20)));
+  }catch(_){}
+  console.warn('[lote32]', tag, e);
+}
+let _lote32UltimoAviso = 0;
+function _lote32Aviso(){
+  if(Date.now() - _lote32UltimoAviso < 60000) return;
+  _lote32UltimoAviso = Date.now();
+  try{ toast('⚠ No se pudo guardar todo el registro; las tomas quedaron a salvo','w'); }catch(_){}
+}
+function _lote32ConTiempo(promesa, ms){
+  return new Promise((ok, mal) => {
+    const t = setTimeout(() => mal(new Error('tiempo agotado asignando folio')), ms || 4000);
+    Promise.resolve(promesa).then(v => { clearTimeout(t); ok(v); }, e => { clearTimeout(t); mal(e); });
+  });
+}
+let _lote32Hash = '';
+async function _lote32GuardarSoloTomas(forzar){
+  try{
+    if(window._lote30Cargando || window._lote3baSinGuardar) return false;
+    if(!omar || !omar.ts || !tomas || !tomas.length) return false;
+    const lista = tomas.map(t => _tomaSanitized(t));
+    const hash = String(omar.ts) + JSON.stringify(lista);
+    if(!forzar && hash === _lote32Hash) return true;
+    const todos = await idbGetAll();
+    const rec = (todos || []).find(x => String(x.id) === String(omar.ts));
+    if(!rec) return false;
+    rec.tomas = lista;
+    await idbPut(rec);
+    _lote32Hash = hash;
+    return true;
+  }catch(e){ _lote32Log('solo-tomas', e); return false; }
+}
 async function saveMuestreoActual(){
+  try{
+    return await _saveMuestreoActualInterno();
+  }catch(e){
+    _lote32Log('guardar', e);
+    try{ await _lote32GuardarSoloTomas(true); }catch(_){}
+    _lote32Aviso();
+  }
+}
+async function _saveMuestreoActualInterno(){
   // AARMS lote3ba: generar el Machiote no puede escribir la pantalla encima del registro
   if(window._lote3baSinGuardar) return;
   // AARMS lote30: mientras se carga una OMAR la lista de tomas está vacía a propósito; guardar en ese momento borraba las tomas.
@@ -9012,6 +9064,7 @@ async function saveMuestreoActual(){
   }
   const hayDatosFolio = (Array.isArray(tomas) && tomas.length > 0) || !!(omar.empresa && String(omar.empresa).trim()) || !!(omar.campo.emp && String(omar.campo.emp).trim());
   if(hayDatosFolio && planId){
+   try{ // AARMS lote32: una falla de folios no impide guardar las tomas
     const planFol = (planObj || {}).folio || '';
     const ctxOmar = { omarId: omar.ts || '', omarFolio: omar.folio || '' };
     if(!omar.campo.hcar){
@@ -9023,7 +9076,7 @@ async function saveMuestreoActual(){
           aplicar: (out)=>{ omar.campo.hcar = out[0]; }
         });
       }
-      const nums = await _hcarFolioPendiente;
+      const nums = await _lote32ConTiempo(_hcarFolioPendiente, 4000);
       omar.campo.hcar = omar.campo.hcar || nums[0];
       _hcarFolioPendiente = null;
     }
@@ -9036,12 +9089,16 @@ async function saveMuestreoActual(){
           aplicar: (out)=>{ omar.campo.cciar = out[0]; }
         });
       }
-      const nums = await _cciarFolioPendiente;
+      const nums = await _lote32ConTiempo(_cciarFolioPendiente, 4000);
       omar.campo.cciar = omar.campo.cciar || nums[0];
       _cciarFolioPendiente = null;
     }
     _lote2aPintarCampo('h_hcar', omar.campo.hcar);
     _lote2aPintarCampo('h_cciar', omar.campo.cciar);
+   }catch(e){
+    _hcarFolioPendiente = null; _cciarFolioPendiente = null; // la promesa rota no se queda pegada
+    _lote32Log('folios', e);
+   }
   }
   const entry={
     id:mid,
@@ -9059,7 +9116,8 @@ async function saveMuestreoActual(){
     photoData2: photoData2 || null,
   };
   if(planId) entry.planId = planId;
-  await idbPut(entry);
+  try{ await idbPut(entry); }
+  catch(e){ _lote32Log('idbPut', e); await _lote32GuardarSoloTomas(true); _lote32Aviso(); throw e; } // AARMS lote32
   // Si es nuevo, agregar al plan pendiente y limpiar flag
   if(_pendingNewPlanId && _pendingNewMuestreoId===mid){
     await planAgregarOmar(_pendingNewPlanId, mid);
