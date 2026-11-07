@@ -3383,6 +3383,7 @@ async function generarPDFBm(omarId){
 
   // AARMS lote5c: una versión nueva solo si la huella de los datos cambió. El PDF descargado es el mismo.
   try {
+    try{ if(typeof _lote37SelloSiCancelada === 'function') _lote37SelloSiCancelada(doc, (typeof omarId !== 'undefined' && omarId != null) ? omarId : (omar && omar.ts)); }catch(e){} // AARMS lote37
     const blobVer = doc.output('blob');
     if(typeof _lote5cRegistrar === 'function') await _lote5cRegistrar(plan, omar, blobVer);
   } catch(e){ console.warn('[lote5c]', e); }

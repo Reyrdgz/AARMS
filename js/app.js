@@ -9184,6 +9184,7 @@ async function _saveMuestreoActualInterno(){
    }
   }
   const entry={
+    cancelada: !!(prev && prev.cancelada), cancelMotivo: (prev && prev.cancelMotivo) || '', canceladaTs: (prev && prev.canceladaTs) || null, // AARMS lote37
     id:mid,
     folio:omar.folio||'',
     empresa:omar.empresa||'',
@@ -10065,6 +10066,7 @@ async function buildPDF(omarIdPedido){
   const fileName=buildFileName(empresa_lab,'Hoja de Campo',fecha);
   
   try{
+    try{ _lote37SelloSiCancelada(doc, (typeof fuente !== 'undefined' && fuente && fuente.id != null) ? fuente.id : omarIdPedido); }catch(e){} // AARMS lote37
     const pdfBlob=doc.output('blob');
     lastPDFBlob=pdfBlob; lastPDFBlob.name=fileName;
     await entregarPDF(pdfBlob, fileName, {
@@ -10181,6 +10183,7 @@ function _lote34SeccionCliente(doc, o){
   return y;
 }
 async function buildPDFCliente(omarIdPedido){
+  if(_lote37Cancelada(omarIdPedido != null ? omarIdPedido : (omar && omar.ts))){ toast('OMAR cancelada: no se genera el Reporte a cliente','w'); return null; } // AARMS lote37
   const fuente = await _lote21HojaFuente(omarIdPedido);
   if(!fuente){ toast('No hay OMAR para el Reporte de Muestreo','w'); return; }
   const tomas = fuente.tomas;
@@ -10701,6 +10704,7 @@ function genCadena(){
 }
 
 async function buildPDFCadena(omarIdPedido){
+  if(_lote37Cancelada(omarIdPedido != null ? omarIdPedido : (omar && omar.ts))){ toast('OMAR cancelada: no se genera la Cadena de custodia','w'); return null; } // AARMS lote37
   const fuente = await _lote21HojaFuente(omarIdPedido);
   if(!fuente){ toast('No hay OMAR para la Cadena de Custodia','w'); return; }
   const tomas = fuente.tomas;
@@ -18679,6 +18683,97 @@ function _lote31ConvNum(raiz){
     new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n && n.nodeType === 1){ if(n.matches && n.matches('input[type="number"]')) _lote31ConvNum(n.parentNode); else _lote31ConvNum(n); } }))).observe(document.body, { childList:true, subtree:true });
   };
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar); else arrancar();
+})();
+
+// AARMS lote37: CANCELAR UNA OMAR (incidencia: sin descarga, punto no apto…). La OMAR sigue contando en el LVAR; su Hoja de campo y su
+// Machiote salen sellados «CANCELADO» con el motivo; la Cadena y el Reporte a cliente NO se generan; en las bitácoras (pH, conductividad,
+// flujos, temperatura, OD) no se documenta nada. Se puede reactivar. Borrar, en cambio, no se puede deshacer.
+function _lote37Reg(id){ return (_cachedMuestreos || []).find(x => String(x.id) === String(id)) || null; }
+function _lote37Cancelada(id){ const r = (id == null || id === '') ? null : _lote37Reg(id); return !!(r && r.cancelada); }
+function _lote37Motivo(id){ const r = _lote37Reg(id); return (r && r.cancelMotivo) || ''; }
+async function _lote37Marcar(id, cancelada, motivo){
+  const todos = await idbGetAll();
+  const rec = (todos || []).find(x => String(x.id) === String(id));
+  if(!rec) return false;
+  rec.cancelada = !!cancelada;
+  rec.cancelMotivo = cancelada ? String(motivo || '') : '';
+  rec.canceladaTs = cancelada ? Date.now() : null;
+  await idbPut(rec);
+  await refreshCache();
+  try{ _lote37PintarBarra(true); }catch(e){}
+  try{ if(typeof renderPlanPage === 'function') renderPlanPage(); }catch(e){}
+  return true;
+}
+async function cancelarOmarActual(){
+  const id = omar && omar.ts;
+  if(!id){ toast('Abre una OMAR primero','w'); return; }
+  let motivo = prompt('Motivo de la cancelación (ej. sin descarga, punto no apto):', '');
+  if(motivo === null) return;
+  motivo = String(motivo).trim();
+  if(!motivo){ toast('Escribe el motivo de la cancelación','w'); return; }
+  if(!confirm('¿Cancelar esta OMAR?\n\nSu Hoja de campo y su Machiote saldrán CANCELADOS con el motivo; no se generan su Cadena ni su Reporte; se quita de las bitácoras. Cuenta en el LVAR. Se puede reactivar.')) return;
+  try{ _flushTomasDesdeDOM(); await saveMuestreoActual(); }catch(e){}
+  if(await _lote37Marcar(id, true, motivo)) toast('OMAR cancelada','g');
+}
+async function reactivarOmarActual(){
+  const id = omar && omar.ts;
+  if(!id) return;
+  if(!confirm('¿Reactivar esta OMAR?')) return;
+  if(await _lote37Marcar(id, false, '')) toast('OMAR reactivada','g');
+}
+function _lote37PintarBarra(forzar){
+  ['pg0', 'pg1'].forEach(pid => {
+    const pg = document.getElementById(pid);
+    if(!pg) return;
+    const id = omar && omar.ts;
+    const estado = !id ? 'sin' : (_lote37Cancelada(id) ? 'cancelada:' + _lote37Motivo(id) : 'activa');
+    let box = document.getElementById('lote37Barra_' + pid);
+    if(!box){
+      box = document.createElement('div'); box.id = 'lote37Barra_' + pid; box.style.cssText = 'margin:8px 0';
+      const h = document.getElementById(pid + 'Hermanas');
+      if(h && h.parentNode === pg) pg.insertBefore(box, h.nextSibling); else pg.insertBefore(box, pg.firstChild);
+    }
+    if(!forzar && box.getAttribute('data-estado') === estado) return;
+    box.setAttribute('data-estado', estado);
+    if(estado === 'sin'){ box.innerHTML = ''; return; }
+    if(estado === 'activa'){
+      box.innerHTML = '<button type="button" onclick="cancelarOmarActual()" style="width:100%;background:transparent;border:1px dashed rgba(248,113,113,.5);color:#f87171;padding:9px;border-radius:10px;font-weight:700;cursor:pointer;font-size:12px">Cancelar esta OMAR (incidencia)</button>';
+    }else{
+      const mot = String(_lote37Motivo(id)).replace(/</g, '&lt;');
+      box.innerHTML = '<div style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.5);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><b style="color:#f87171">OMAR CANCELADA</b><br><span style="font-size:12px">Motivo: ' + mot + '</span></div><button type="button" onclick="reactivarOmarActual()" style="background:transparent;border:1px solid var(--ln2);color:var(--w);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px">Reactivar</button></div>';
+    }
+  });
+}
+setInterval(() => { try{ _lote37PintarBarra(false); }catch(e){} }, 1500);
+// Sello «CANCELADO» en todas las páginas de la Hoja de campo y del Machiote de una OMAR cancelada
+function _lote37SelloSiCancelada(doc, id){
+  if(!doc || !_lote37Cancelada(id)) return;
+  const motivo = _lote37Motivo(id);
+  const n = doc.internal.getNumberOfPages();
+  for(let p = 1; p <= n; p++){
+    doc.setPage(p);
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    try{ doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: 0.16 })); }catch(e){}
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(96); doc.setTextColor(220, 38, 38);
+    doc.text('CANCELADO', W / 2, H / 2, { align: 'center', angle: 35 });
+    try{ doc.restoreGraphicsState(); }catch(e){}
+    doc.setFillColor(254, 226, 226); doc.rect(0, 0, W, 18, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(185, 28, 28);
+    doc.text('OMAR CANCELADA — Motivo: ' + (motivo || 'sin especificar'), W / 2, 12, { align: 'center' });
+  }
+}
+// En las bitácoras no se documenta una OMAR cancelada (sus tomas no aparecen para elegir)
+(function(){
+  Object.keys(window).filter(k => /ListaTomasOMAR$/.test(k) && typeof window[k] === 'function' && !window[k].__l37).forEach(k => {
+    const orig = window[k];
+    const w = function(mid){ return _lote37Cancelada(mid) ? [] : orig.apply(this, arguments); };
+    w.__l37 = true; window[k] = w;
+  });
+  const lbl = (typeof _omarLabelConFecha === 'function') ? _omarLabelConFecha : null;
+  if(lbl && !lbl.__l37){
+    const w = function(mid){ const r = lbl.apply(this, arguments); return _lote37Cancelada(mid) ? (r + ' (CANCELADA)') : r; };
+    w.__l37 = true; window._omarLabelConFecha = _omarLabelConFecha = w;
+  }
 })();
 
 // AARMS lote25e: «Firma de supervisor» en cada bitácora de laboratorio y de campo (misma firma y PIN del plan).
