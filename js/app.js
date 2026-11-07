@@ -13710,6 +13710,9 @@ function _bitPhLabelToma(r){
 
 /** Crea registro V en bitácora pH si no existe para esta OMAR + número de toma. */
 function _bitPhAsegurarRegistroV(omarTs, tomaNum, hora, opts){
+  // AARMS lote40: ya NO se crea un renglón al agregar una toma (se creaba con la hora del reloj de ese momento: todas iguales, y de todas
+  // las OMAR a la vez). Los renglones los genera _lote40GenerarRenglones con la hora de cada toma y solo para las OMAR en uso.
+  return;
   const regs=_bitPhRegs();
   if(!regs||!omarTs||!tomaNum) return;
   const val=`${omarTs}|${tomaNum}`;
@@ -16031,10 +16034,86 @@ function _lote25PintarBotonTerminar(regs){
   b.classList.toggle('lote25-listo', listo);
   b.textContent = listo ? '✓ Todas las tomas listas — Terminar tomas del día (Ca · Ca · Co · Co)' : 'Terminar tomas del día (Ca · Ca · Co · Co)';
 }
+// AARMS lote39: cada verificación (V) y cada pH de la muestra (M) lleva la HORA DE SU TOMA, tomada de la Hoja de campo, y la FECHA REAL:
+// la primera toma es del día de la OMAR y cada vez que la hora de una toma es menor que la de la anterior pasó la medianoche y es un día
+// más (25 → 26). Antes se ponía la hora y la fecha del momento de capturar (todas iguales; la toma 4 después de las 00:00 seguía en el 25).
+function _lote39SumarDias(fecha, n){
+  const m = String(fecha || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return String(fecha || '');
+  const d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10) + (n || 0));
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function _lote39DatosOmar(omarId){
+  let lista = [], base = '';
+  try{
+    if(omar && String(omar.ts) === String(omarId)){ lista = (tomas && tomas.length) ? tomas : []; base = String(omar.fecha || '').slice(0, 10); }
+    const m = (_cachedMuestreos || []).find(x => String(x.id) === String(omarId));
+    if(m){
+      if(!lista.length) lista = m.tomas || [];
+      if(!base){ try{ base = String((JSON.parse(m.omar || '{}') || {}).fecha || '').slice(0, 10); }catch(e){} }
+    }
+  }catch(e){}
+  return { lista, base: base || _defaultBitRegistroFecha() };
+}
+function _lote39FechaHoraToma(omarId, num){
+  const { lista, base } = _lote39DatosOmar(omarId);
+  let dia = 0, prev = -1;
+  for(let i = 0; i < lista.length; i++){
+    const mnt = _lote34MinHora(lista[i] && lista[i].hora);
+    if(isNaN(mnt)) continue;
+    if(prev >= 0 && mnt < prev) dia++;
+    prev = mnt;
+    if(i + 1 === Number(num)) return { fecha: _lote39SumarDias(base, dia), hora: String(lista[i].hora).slice(0, 5) };
+  }
+  return null;
+}
+function _lote39SincronizarConHoja(regs){
+  let cambio = false;
+  (regs || []).forEach(r => {
+    if(!r || r.calibGrupo || r.manualFH || !r.omarId || !r.toma) return;
+    const ft = _lote39FechaHoraToma(r.omarId, r.toma);
+    if(ft && ft.hora && (r.fecha !== ft.fecha || r.hora !== ft.hora)){ r.fecha = ft.fecha; r.hora = ft.hora; cambio = true; }
+  });
+  return cambio;
+}
+// AARMS lote40: LOS RENGLONES DEL pH ENTRE TOMAS SE GENERAN SOLOS. Por cada toma con hora en la Hoja de campo de una OMAR (no cancelada)
+// aparecen una verificación (V) y un pH de la muestra (M), con la hora y la fecha de esa toma. Solo salen las OMAR con las que se está
+// trabajando (las que ya tienen tomas con hora); cuando se agregan tomas a otras OMAR, en ese momento salen sus renglones, en el grupo
+// que esté abierto (si ya se cerró el grupo con Ca·Ca·Co·Co, van al siguiente). Cada toma se genera UNA sola vez (`plan.bitPhAuto`):
+// no se duplica y un renglón borrado a propósito no se vuelve a crear. El buffer, lote y marca los elige el muestreador.
+function _lote40GenerarRenglones(regs){
+  const pl = _bitPhPlan();
+  if(!pl || !pl.omarIds || !pl.omarIds.length || !Array.isArray(regs)) return false;
+  if(!pl.bitPhAuto) pl.bitPhAuto = {};
+  let cambio = false;
+  for(const mid of pl.omarIds){
+    if(_lote37Cancelada(mid)) continue;
+    let tl = [];
+    try{ tl = _bitPhListaTomasOMAR(mid) || []; }catch(e){ tl = []; }
+    for(const t of tl){
+      if(!t || !t.hora || t.hora === '—') continue;
+      const clave = String(mid) + '|' + t.num;
+      if(pl.bitPhAuto[clave]) continue;
+      const mismo = r => r && !r.calibGrupo && String(r.omarId) === String(mid) && String(r.toma) === String(t.num);
+      const tieneV = regs.some(r => mismo(r) && r.act === 'V');
+      const tieneM = regs.some(r => mismo(r) && r.act === 'M');
+      const ft = _lote39FechaHoraToma(mid, t.num) || { fecha: _defaultBitRegistroFecha(), hora: String(t.hora).slice(0, 5) };
+      const base = { grupo: _lote36GrupoActual(regs), fecha: ft.fecha, hora: ft.hora, omarId: String(mid), toma: String(t.num), folioOmar: _bitPhFolioLegible(mid) || '', limp: '1', aprox: '', buffer: '', lote: '', marca: '', l1: '', l2: '', l3: '', obs: '' };
+      if(!tieneV) regs.push(Object.assign({}, base, { act: 'V' }));
+      if(!tieneM) regs.push(Object.assign({}, base, { act: 'M' }));
+      pl.bitPhAuto[clave] = true;
+      cambio = true;
+    }
+  }
+  if(cambio) _bitPhOrdenarRegsPorFechaHora(regs);
+  return cambio;
+}
 function _bitPhRender(){
   const c = document.getElementById('bitPhRegistros');
   if(!c) return;
   const regs = _bitPhRegs() || [];
+  try{ if(_lote40GenerarRenglones(regs)){ void _persistPlanBitPh(); } }catch(e){ _lote32Log('pH-auto', e); } // AARMS lote40
+  try{ _lote39SincronizarConHoja(regs); }catch(e){} // AARMS lote39: hora y fecha de cada renglón = las de su toma en la Hoja
   // AARMS v64: reordenar cronológicamente in-place
   const ordenados = _bitPhOrdenarCronologico(regs);
   if(ordenados.length === regs.length){
@@ -16403,6 +16482,7 @@ function bitPhUp(idx, field, value){
     toast('Ese intento quedó rechazado. Usa la fila nueva para repetir.','w');
     return;
   }
+  if(field==='fecha' || field==='hora') regs[idx].manualFH = true; // AARMS lote39: lo editado a mano ya no se sincroniza
   if(field==='ar'){
     // AARMS lote24f4: el dictamen ya no se marca a mano.
     bitPhUpdatePromedioFila(idx);
@@ -16422,6 +16502,7 @@ function bitPhUp(idx, field, value){
       regs[idx].toma=v.slice(pipe+1);
       regs[idx].folioOmar=_bitPhFolioLegible(regs[idx].omarId)||'';
     }
+    regs[idx].manualFH = false; // AARMS lote39: al cambiar de toma vuelve a tomar la hora de esa toma
     _bitPhRender();
     _bitAplicarPromediosAToma('ph');
     if(typeof _refreshHojaCampoSiAbierta === 'function') _refreshHojaCampoSiAbierta();
