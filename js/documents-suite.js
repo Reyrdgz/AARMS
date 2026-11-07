@@ -1604,7 +1604,7 @@ function _lote5aModelo(){
   const flujos = (plan && Array.isArray(plan.bitFlujos)) ? plan.bitFlujos.filter(r => String(r.omarTs) === String(omar.ts)) : [];
   const nFlujo = flujos.filter(r => r && (r.l1 || r.l2 || r.l3)).length;
   const conds = (plan && Array.isArray(plan.bitCond)) ? plan.bitCond.filter(r => String(r.omarId ?? '') === String(omar.ts)) : [];
-  const nCond = conds.filter(r => r && (r.l1 || r.l2 || r.l3 || r.lectura)).length;
+  const nCond = conds.filter(r => r && r.act === 'M' && (r.l1 || r.l2 || r.l3 || r.lectura)).length; // AARMS lote44: solo la muestra
   const usados = typeof _analitosUsadosEnOmar === 'function' ? _analitosUsadosEnOmar(omar) : [];
   const vol = typeof _lote3aVolumenRequerido === 'function' ? _lote3aVolumenRequerido(omar) : 0;
   let nComp = 0;
@@ -2630,7 +2630,7 @@ function _pdfBmTablaConductividad(doc, plan, omarRef, y, ctx){
   let data = [];
   if(plan && Array.isArray(plan.bitCond)){
     data = plan.bitCond.filter(r =>
-      String(r.omarId ?? r.omarTs ?? '') === String(omarRef.ts) && !r.calibGrupo
+      String(r.omarId ?? r.omarTs ?? '') === String(omarRef.ts) && !r.calibGrupo && r.act === 'M' // AARMS lote44: solo la conductividad de la muestra
     );
   }
   data = [...data].sort((a,b)=>Number(a.toma)-Number(b.toma));
@@ -5639,7 +5639,8 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
     if(fa !== fb) return fa.localeCompare(fb);
     const oa = folioOmarOf(a), ob = folioOmarOf(b);
     if(oa !== ob) return oa.localeCompare(ob);
-    return (Number(a.toma) || 0) - (Number(b.toma) || 0);
+    if((Number(a.toma) || 0) !== (Number(b.toma) || 0)) return (Number(a.toma) || 0) - (Number(b.toma) || 0);
+    return (a.act === 'M' ? 1 : 0) - (b.act === 'M' ? 1 : 0); // AARMS lote44: verificación antes que muestra
   });
 
   // AARMS condpulido: encabezados oficiales completos (sin ACT/CÓD abreviados)
@@ -5696,7 +5697,7 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
       }
     }
     const p = prom3(r.l1, r.l2, r.l3);
-    const est = acePct5(r.l1, r.l2, r.l3, null); // entre tomas: dispersión ±5%
+    const est = (actUp === 'M') ? null : acePct5(r.l1, r.l2, r.l3, null); // entre tomas: dispersión ±5%; AARMS lote44: la muestra no lleva Acepta/Rechaza
     const promStr = p != null ? String(p) : '';
     const vals = [
       horaPdf, folioOmarOf(r), String(r.toma || ''), actU, r.limp || '',

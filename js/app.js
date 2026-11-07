@@ -644,7 +644,9 @@ function _bitPhPromPorToma(omarTs, tomaNum){
 function _bitCondPromPorToma(omarTs, tomaNum){
   const plan = _planParaHojaCampo();
   if(!plan || !Array.isArray(plan.bitCond)) return NaN;
-  const reg = plan.bitCond.find(r => String(r.omarId ?? '') === String(omarTs) && String(r.toma) === String(tomaNum));
+  // AARMS lote44: a la Hoja, Machiote y Reporte llega solo la conductividad de la MUESTRA (fila «M»); las verificaciones (V) no cuentan.
+  const regsM = plan.bitCond.filter(r => r && !r.calibGrupo && r.act === 'M' && String(r.omarId ?? '') === String(omarTs) && String(r.toma) === String(tomaNum));
+  const reg = regsM.find(r => [r.l1, r.l2, r.l3].some(v => !isNaN(parseFloat(v)))) || regsM[0];
   if(!reg) return NaN;
   const vals = [reg.l1, reg.l2, reg.l3].map(parseFloat).filter(v => !isNaN(v));
   if(!vals.length) return NaN;
@@ -13811,6 +13813,31 @@ function _bitCondAsegurarRegistroV(omarTs, tomaNum, hora, opts){
   if(!opts?.silent) void _persistPlanBitCond();
 }
 
+// AARMS lote44: LAS FILAS DE CONDUCTIVIDAD DE LA MUESTRA (M) SE GENERAN SOLAS, igual que el pH: por cada toma con hora de cada OMAR
+// (no cancelada) sale una fila M con la hora y la fecha de esa toma. Cada toma se genera UNA sola vez (`plan.bitCondAuto`): no se duplica
+// y una fila borrada a propósito no se vuelve a crear.
+function _bitCondGenerarMuestras(regs){
+  const pl=_bitPhPlan();
+  if(!pl||!pl.omarIds||!pl.omarIds.length||!Array.isArray(regs)) return false;
+  if(!pl.bitCondAuto) pl.bitCondAuto={};
+  let cambio=false;
+  for(const mid of pl.omarIds){
+    if(_lote37Cancelada(mid)) continue;
+    let tl=[]; try{ tl=_bitPhListaTomasOMAR(mid)||[]; }catch(e){ tl=[]; }
+    for(const t of tl){
+      if(!t||!t.hora||t.hora==='—') continue;
+      const clave=String(mid)+'|'+t.num;
+      if(pl.bitCondAuto[clave]) continue;
+      const tieneM=regs.some(r=>r&&!r.calibGrupo&&r.act==='M'&&String(r.omarId)===String(mid)&&String(r.toma)===String(t.num));
+      const ft=_lote39FechaHoraToma(mid,t.num)||{fecha:_defaultBitRegistroFecha(),hora:String(t.hora).slice(0,5)};
+      if(!tieneM) regs.push({fecha:ft.fecha,hora:ft.hora,omarId:String(mid),toma:String(t.num),folioOmar:_bitPhFolioLegible(mid)||'',act:'M',limp:'1',l1:'',l2:'',l3:''});
+      pl.bitCondAuto[clave]=true;
+      cambio=true;
+    }
+  }
+  return cambio;
+}
+
 /** Alinea registros V de conductividad con tomas de campo (plan u OMAR activa). */
 function _bitCondSyncAllTomasFromCampo(){
   _flushTomasDesdeDOM();
@@ -13849,6 +13876,7 @@ function _bitCondSyncAllTomasFromCampo(){
       }
     });
   }
+  try{ _bitCondGenerarMuestras(regs); _lote39SincronizarConHoja(regs.filter(r=>r&&r.act==='M')); }catch(e){ console.warn('[bitCond M]',e); } // AARMS lote44
   _bitCondActualizarFoliosOmarEnRegs();
   _bitPhOrdenarRegsPorFechaHora(regs);
   if(document.getElementById('pgBitCond')?.classList.contains('on')&&typeof _bitCondRender==='function') _bitCondRender();
@@ -16660,7 +16688,7 @@ function _bitCondCalcAcepta(r){
   const Ls=[r.l1,r.l2,r.l3].map(x=>parseFloat(x)).filter(x=>!isNaN(x));
   const prom=Ls.length>0?(Ls.reduce((a,b)=>a+b,0)/Ls.length):0;
   let acepta=null,motivo='';
-  if(Ls.length===3&&prom>0){
+  if(r.act!=='M'&&Ls.length===3&&prom>0){ // AARMS lote44: la muestra no se compara con ningún patrón
     const diff=Math.max(...Ls)-Math.min(...Ls);
     const pctDiff=(diff/prom)*100;
     if(pctDiff>3){ acepta=false; motivo=`Δ ${diff.toFixed(0)} (${pctDiff.toFixed(1)}% > 3%)`; }
@@ -16685,6 +16713,7 @@ function _bitCondRender(){
 }
 
 function _renderBitCondCard(r, idx){
+  if(r && r.act==='M') return _renderBitCondCardMuestra(r, idx); // AARMS lote44
   const esc=(s)=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
   const tomaOptsList=_bitPhOpcionesTomaSelect();
   const selVal=_bitPhTomaSelectValue(r);
@@ -16761,6 +16790,88 @@ function _renderBitCondCard(r, idx){
   `;
 }
 
+// AARMS lote44: tarjeta de la CONDUCTIVIDAD DE LA MUESTRA (fila «M»): 3 lecturas y promedio. Sin patrón, lote, marca ni Acepta/Rechaza.
+function _renderBitCondCardMuestra(r, idx){
+  const esc=(s)=>String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const tomaOptsList=_bitPhOpcionesTomaSelect();
+  const selVal=_bitPhTomaSelectValue(r);
+  const tomaOpts=tomaOptsList.map(o=>
+    `<option value="${String(o.value).replace(/"/g,'&quot;')}" ${o.value===selVal?'selected':''}>${String(o.label).replace(/</g,'&lt;')}</option>`
+  ).join('');
+  const limpOpts=LIMPIEZA_COD.map(l=>
+    `<option value="${l.code}" ${r.limp===l.code?'selected':''}>${l.code} — ${l.label}</option>`
+  ).join('');
+  const {prom}=_bitCondCalcAcepta(r);
+  const completa=[r.l1,r.l2,r.l3].every(x=>String(x==null?'':x).trim()!=='');
+  const titulo=_bitPhLabelToma(r);
+  const estadoBadge=completa
+    ? `<span data-bit-estado style="background:rgba(134,239,172,.15);border:1px solid rgba(134,239,172,.4);color:var(--green);padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800">COMPLETADA</span>`
+    : `<span data-bit-estado style="background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.35);color:#fbbf24;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800">PENDIENTE</span>`;
+  return `
+    <div data-bit-cond="${idx}" style="background:var(--bg2);border:1px solid rgba(96,165,250,.35);border-radius:11px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--w)">${String(titulo).replace(/</g,'&lt;')}</div>
+          <span style="background:rgba(96,165,250,.14);border:1px solid rgba(96,165,250,.4);color:#60a5fa;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800">CONDUCTIVIDAD DE LA MUESTRA</span>
+          ${estadoBadge}
+        </div>
+        <button type="button" onclick="bitCondEliminar(${idx})" style="background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer">✕</button>
+      </div>
+      <div class="f" style="margin-bottom:8px"><label>OMAR · Toma</label>
+        <select onchange="bitCondUp(${idx},'tomaOmar',this.value)"><option value="">— Elige OMAR y toma —</option>${tomaOpts}</select>
+      </div>
+      <div class="g2" style="margin-bottom:8px">
+        <div class="f" style="margin-bottom:0"><label>Fecha registro</label><input type="date" value="${esc(r.fecha)}" oninput="bitCondUp(${idx},'fecha',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>Hora</label><input type="time" value="${esc(r.hora)}" oninput="bitCondUp(${idx},'hora',this.value)"></div>
+      </div>
+      <div class="f" style="margin-bottom:8px"><label>Limpieza código</label>
+        <select data-f="limp" onchange="bitCondUp(${idx},'limp',this.value)"><option value="">—</option>${limpOpts}</select>
+      </div>
+      <div style="font-size:10.5px;color:var(--g2);text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono);margin-bottom:6px">Lecturas de conductividad de la muestra (µS/cm)</div>
+      <div class="g3" style="margin-bottom:8px">
+        <div class="f" style="margin-bottom:0"><label>L1</label><input type="number" inputmode="numeric" placeholder="µS/cm" value="${esc(r.l1)}" oninput="bitCondUp(${idx},'l1',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>L2</label><input type="number" inputmode="numeric" placeholder="µS/cm" value="${esc(r.l2)}" oninput="bitCondUp(${idx},'l2',this.value)"></div>
+        <div class="f" style="margin-bottom:0"><label>L3</label><input type="number" inputmode="numeric" placeholder="µS/cm" value="${esc(r.l3)}" oninput="bitCondUp(${idx},'l3',this.value)"></div>
+      </div>
+      <div data-bit-resumen style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;background:var(--bg3);border:1px solid var(--ln);border-radius:8px">
+        <div>
+          <div style="font-size:10.5px;color:var(--g2);text-transform:uppercase;letter-spacing:.04em">Promedio (µS/cm)</div>
+          <div style="font-family:var(--syne);font-size:20px;font-weight:800;color:var(--amber);margin-top:2px">${prom||'—'}</div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+  `;
+}
+
+function bitCondAgregarMuestra(){
+  const regs=_bitCondRegs();
+  if(!regs) return;
+  const opts=_bitPhOpcionesTomaSelect();
+  if(!opts.length){ toast('Primero agrega tomas en la hoja de campo','w'); return; }
+  const asign=new Set(regs.filter(r=>r.act==='M').map(r=>_bitPhTomaSelectValue(r)).filter(Boolean));
+  let prox='';
+  for(const o of opts){ if(!asign.has(o.value)){ prox=o.value; break; } }
+  if(!prox && opts.length) prox=opts[0].value;
+  const pipe=prox.indexOf('|');
+  const omarId=pipe>=0?prox.slice(0,pipe):String(omar.ts);
+  const tomaNum=pipe>=0?prox.slice(pipe+1):'';
+  regs.push({
+    fecha:_defaultBitRegistroFecha(),
+    hora:new Date().toTimeString().substring(0,5),
+    omarId, toma:tomaNum,
+    folioOmar:_bitPhFolioLegible(omarId)||'',
+    act:'M', limp:'1',
+    l1:'', l2:'', l3:'',
+  });
+  _bitPhOrdenarRegsPorFechaHora(regs);
+  _bitCondRender();
+  _bitAplicarPromediosAToma('cond');
+  guardarBorradorActual();
+  void _persistPlanBitCond();
+}
+window.bitCondAgregarMuestra = bitCondAgregarMuestra;
+
 function bitCondAgregarRegistro(){
   const regs=_bitCondRegs();
   if(!regs) return;
@@ -16831,6 +16942,7 @@ function bitCondUp(idx, field, value){
     return;
   }
   regs[idx][field]=value;
+  if(regs[idx].act==='M' && (field==='hora'||field==='fecha')) regs[idx].manualFH=true; // AARMS lote44: editado a mano
   // AARMS sub6-atajos: edición manual quita badge AUTO
   if(field === 'lote' || field === 'marca'){
     regs[idx]['__' + field + '_from_cat'] = false;
@@ -16910,6 +17022,7 @@ function _bitAplicarPromediosAToma(tipo /* 'ph' | 'cond' */){
   const porOmar = {};
   fuente.forEach(r=>{
     if(!r.toma || r.calibGrupo) return;
+    if(tipo==='cond' && r.act !== 'M') return; // AARMS lote44: solo la muestra
     if(tipo==='ph'){
       // AARMS lote31: a la Hoja de campo solo llega el pH de la MUESTRA (fila «M»); las verificaciones con buffer no cuentan.
       if(r.act !== 'M') return;
