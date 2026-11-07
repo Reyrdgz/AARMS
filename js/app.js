@@ -15382,11 +15382,23 @@ function _lote25ClaveOrden(r){
   const sub = (r && !r.calibGrupo && r.act === 'M') ? 1 : 0;
   return { dia: _lote25DiaOmarDeFila(r), toma, sub };
 }
+// AARMS lote36: el bloque Ca·Ca·Co·Co NO depende del día: separa GRUPOS de OMAR. Todo lo que se captura después del bloque es del grupo
+// siguiente. Dentro de un grupo: Toma 1 de todas sus OMAR, luego la Toma 2…, con la fecha y hora REALES de cada renglón (si el grupo
+// cruza la medianoche el renglón lleva la fecha nueva, pero sigue siendo el mismo grupo). El bloque va al FINAL de su grupo.
+function _lote36Grupo(r){ return parseInt(r && r.grupo, 10) || 1; }
+function _lote36GrupoActual(regs){
+  let g = 0;
+  (regs || []).forEach(r => { if(r && r.calibGrupo && r.calibPos === 'cierre') g = Math.max(g, _lote36Grupo(r)); });
+  return g + 1;
+}
 function _lote25Comparar(ra, rb, tsa, tsb){
+  const ga = _lote36Grupo(ra), gb = _lote36Grupo(rb);
+  if(ga !== gb) return ga - gb;
+  const ba = ra.calibGrupo ? 1 : 0, bb = rb.calibGrupo ? 1 : 0;
+  if(ba !== bb) return ba - bb;                                   // el bloque cierra su grupo
   const ka = _lote25ClaveOrden(ra), kb = _lote25ClaveOrden(rb);
-  if(ka.dia !== kb.dia) return ka.dia < kb.dia ? -1 : 1;
   if(ka.toma !== kb.toma) return ka.toma - kb.toma;
-  if(ka.sub !== kb.sub) return ka.sub - kb.sub; // AARMS lote33
+  if(ka.sub !== kb.sub) return ka.sub - kb.sub;                   // verificación antes que muestra
   if(tsa !== tsb) return tsa - tsb;
   const c = (_bitPhFolioLegible(ra.omarId) || '').localeCompare(_bitPhFolioLegible(rb.omarId) || '');
   if(c !== 0) return c;
@@ -15963,17 +15975,15 @@ function _bitPhOrdenarCronologico(regs){
 function bitPhTerminarTomasDia(){
   const regs = _bitPhRegs();
   if(!regs){ toast('Abre la bitácora de pH','w'); return; }
-  const hoy = _defaultBitRegistroFecha();
-  if(regs.some(r => r.calibGrupo && r.calibPos === 'cierre' && String(r.fecha) === String(hoy))){
-    toast('Ya agregaste el cierre de este día','w');
-    return;
-  }
-  bitPhInsertarBloqueCalibAlFinal('', '', '', '', hoy, true, 'cierre');
+  const g = _lote36GrupoActual(regs);
+  if(!regs.some(r => !r.calibGrupo && _lote36Grupo(r) === g)){ toast('Este grupo todavía no tiene tomas','w'); return; }
+  bitPhInsertarBloqueCalibAlFinal('', '', '', '', _defaultBitRegistroFecha(), true, 'cierre');
+  regs.forEach(r => { if(r.calibGrupo && r.calibPos === 'cierre' && r.grupo == null) r.grupo = g; }); // el bloque cierra el grupo g
   _bitPhOrdenarRegsPorFechaHora(regs);
   _bitPhRender();
   try{ guardarBorradorActual(); }catch(e){}
   try{ void _persistPlanBitPh(); }catch(e){}
-  toast('Cierre del día agregado: Ca · Ca · Co · Co (elige los patrones)','g');
+  toast('Grupo ' + g + ' cerrado: Ca · Ca · Co · Co (elige los patrones). Lo que captures ahora es del grupo ' + (g + 1), 'g');
 }
 function _lote25PintarBotonTerminar(regs){
   const b = document.getElementById('bitPhBtnTerminar');
@@ -16033,6 +16043,7 @@ function bitPhAgregarMuestra(){
   const omarId=pipe>=0?prox.slice(0,pipe):String(omar.ts);
   const tomaNum=pipe>=0?prox.slice(pipe+1):'';
   regs.push({
+    grupo: _lote36GrupoActual(regs),
     fecha: _defaultBitRegistroFecha(),
     hora: new Date().toTimeString().substring(0,5),
     omarId, toma: tomaNum,
@@ -16250,11 +16261,10 @@ function bitPhAgregarRegistro(){
   const tomaNum=pipe>=0?proxVal.slice(pipe+1):'';
   const hoy=_defaultBitRegistroFecha();
   const last=[...regs].reverse().find(r=>!r.calibGrupo && !_bitPhEsIntentoRechazado(r));
-  if(last && last.fecha && String(last.fecha)!==String(hoy)){
-    bitPhInsertarBloqueCalibAlFinal('','','','',hoy,true);
-    toast('Cambio de día → recalibración Ca/Ca/Co/Co agregada (elige los patrones)','g');
-  }
+  // AARMS lote36: ya NO se inserta un bloque solo al cambiar de día (un grupo puede cruzar la medianoche); lo agrega el muestreador
+  // con «Terminar tomas del día». El renglón nuevo pertenece al grupo actual.
   regs.push({
+    grupo: _lote36GrupoActual(regs),
     fecha: hoy,
     hora: new Date().toTimeString().substring(0,5),
     omarId, toma: tomaNum,
@@ -16280,6 +16290,7 @@ function bitPhRepetirVerif(idx){
   r.intentoRechazado = true;
   r.ar = 'Rechaza';
   const nuevo={
+    grupo: _lote36Grupo(r),
     fecha: _defaultBitRegistroFecha(),
     hora: new Date().toTimeString().substring(0,5),
     omarId: r.omarId || '',
