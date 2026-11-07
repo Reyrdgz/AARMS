@@ -11598,6 +11598,36 @@ function toast(msg,t='', opts){
 
 // Modal de confirmación custom — reemplaza confirm() nativo para evitar
 // el prefijo "origen says:" que Android muestra. Devuelve Promise<boolean>.
+// AARMS lote38: cuadros propios de la app. Los nativos (confirm/prompt/alert) muestran el dominio del sitio («reyrdgz.github.io dice…»).
+function promptAction({title='Escribe', message='', placeholder='', okText='Aceptar', cancelText='Cancelar', valor=''}={}){
+  return new Promise(resolve => {
+    const prev = document.getElementById('promptModal'); if(prev) prev.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'promptModal';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(7,8,15,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)';
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+    wrap.innerHTML = `
+      <div style="max-width:360px;width:100%;background:var(--bg1);border:1px solid var(--ln2);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+        <div style="padding:22px 22px 8px">
+          <div style="font-family:var(--syne);font-size:17px;font-weight:800;color:var(--w);margin-bottom:8px">${esc(title)}</div>
+          <div style="font-size:14px;color:var(--g1);line-height:1.5;margin-bottom:12px">${message}</div>
+          <input id="pmInput" type="text" autocomplete="off" placeholder="${esc(placeholder)}" value="${esc(valor)}" style="width:100%;box-sizing:border-box">
+        </div>
+        <div style="display:flex;gap:10px;padding:16px 18px 18px">
+          <button id="pmCancel" type="button" style="flex:1;padding:13px;background:var(--bg3);border:1px solid var(--ln2);border-radius:12px;color:var(--w);font-family:var(--syne);font-size:14px;font-weight:700;cursor:pointer">${esc(cancelText)}</button>
+          <button id="pmOk" type="button" style="flex:1;padding:13px;background:rgba(74,158,255,.15);border:1px solid rgba(74,158,255,.4);border-radius:12px;color:#4a9eff;font-family:var(--syne);font-size:14px;font-weight:700;cursor:pointer">${esc(okText)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+    const inp = wrap.querySelector('#pmInput');
+    setTimeout(() => { try{ inp.focus(); }catch(e){} }, 60);
+    const cerrar = v => { wrap.remove(); resolve(v); };
+    wrap.querySelector('#pmCancel').onclick = () => cerrar(null);
+    wrap.querySelector('#pmOk').onclick = () => cerrar(inp.value);
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter') cerrar(inp.value); if(e.key === 'Escape') cerrar(null); });
+  });
+}
+window.promptAction = promptAction;
 function confirmAction({title='Confirmar', message='¿Estás seguro?', okText='Eliminar', okDanger=true, cancelText='Cancelar'}={}){
   return new Promise(resolve=>{
     // Si ya hay un modal abierto, remover
@@ -18707,18 +18737,18 @@ async function _lote37Marcar(id, cancelada, motivo){
 async function cancelarOmarActual(){
   const id = omar && omar.ts;
   if(!id){ toast('Abre una OMAR primero','w'); return; }
-  let motivo = prompt('Motivo de la cancelación (ej. sin descarga, punto no apto):', '');
+  let motivo = await promptAction({ title: 'Cancelar OMAR', message: 'Escribe el <b>motivo</b> de la cancelación (por ejemplo: sin descarga, punto no apto).', placeholder: 'Motivo de la cancelación', okText: 'Continuar', cancelText: 'Volver' });
   if(motivo === null) return;
   motivo = String(motivo).trim();
   if(!motivo){ toast('Escribe el motivo de la cancelación','w'); return; }
-  if(!confirm('¿Cancelar esta OMAR?\n\nSu Hoja de campo y su Machiote saldrán CANCELADOS con el motivo; no se generan su Cadena ni su Reporte; se quita de las bitácoras. Cuenta en el LVAR. Se puede reactivar.')) return;
+  if(!(await confirmAction({ title: 'Cancelar esta OMAR', message: 'Su Hoja de campo y su Machiote saldrán <b>CANCELADOS</b> con el motivo; no se generan su Cadena ni su Reporte; se quita de las bitácoras. Cuenta en el LVAR. Se puede reactivar.', okText: 'Cancelar OMAR', okDanger: true, cancelText: 'Volver' }))) return;
   try{ _flushTomasDesdeDOM(); await saveMuestreoActual(); }catch(e){}
   if(await _lote37Marcar(id, true, motivo)) toast('OMAR cancelada','g');
 }
 async function reactivarOmarActual(){
   const id = omar && omar.ts;
   if(!id) return;
-  if(!confirm('¿Reactivar esta OMAR?')) return;
+  if(!(await confirmAction({ title: 'Reactivar OMAR', message: '¿Reactivar esta OMAR?', okText: 'Reactivar', okDanger: false, cancelText: 'Volver' }))) return;
   if(await _lote37Marcar(id, false, '')) toast('OMAR reactivada','g');
 }
 function _lote37PintarBarra(forzar){
@@ -18829,7 +18859,7 @@ function _lote25InyectarFirmaSup(){
   }
 })();
 // AARMS sub9-firma: iniciar firma de supervisor
-function firmarComoSupervisor(tipo){
+async function firmarComoSupervisor(tipo){
   tipo = (tipo === 'lab') ? 'lab' : 'cierre';
   if(!_supervisorConfigurado()){ toast('Pide al administrador que configure el supervisor','w'); return; }
   const plan = typeof _planActivo === 'function' ? _planActivo() : null;
@@ -18837,10 +18867,10 @@ function firmarComoSupervisor(tipo){
   // AARMS lote28: la firma de laboratorio va al terminar el laboratorio; la de cierre, al terminar el muestreo.
   try{
     if(tipo === 'lab' && typeof _labCompleto === 'function' && !_labCompleto(plan)){
-      if(!confirm('El laboratorio todavía no aparece completo. ¿Firmar la firma de laboratorio de todos modos?')) return;
+      if(!(await confirmAction({ title: 'Firma de laboratorio', message: 'El laboratorio todavía no aparece completo. ¿Firmar de todos modos?', okText: 'Firmar', okDanger: false, cancelText: 'Volver' }))) return;
     }
     if(tipo === 'cierre' && typeof _planEstadoDoc === 'function' && _planEstadoDoc(plan, 'omars') !== 'completo'){
-      if(!confirm('El muestreo todavía no aparece completo. ¿Firmar el cierre de todos modos?')) return;
+      if(!(await confirmAction({ title: 'Firma de cierre', message: 'El muestreo todavía no aparece completo. ¿Firmar el cierre de todos modos?', okText: 'Firmar', okDanger: false, cancelText: 'Volver' }))) return;
     }
   }catch(e){}
   _abrirModalPin(async (pin) => {
