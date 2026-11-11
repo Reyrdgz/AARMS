@@ -2,7 +2,7 @@
 // AARMS nobranding:
 // AARMS ghpages:
 // AARMS phslopeaccept:
-const CACHE = 'aarms-offline-v66-lote44a';
+const CACHE = 'aarms-offline-v66-lote45a';
 
 function offlineHtml(){
   return `<!DOCTYPE html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AARMS</title></head><body style="font-family:system-ui,sans-serif;background:#07080f;color:#f0f8ff;padding:24px;text-align:center"><h1>AARMS</h1><p>Sin conexión. Abre la app desde el icono instalado o vuelve a cargar cuando tengas red una vez para actualizar el caché.</p></body></html>`;
@@ -32,7 +32,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(k => k !== CACHE && k.indexOf('aarms-offline') === 0).map(k => caches.delete(k)));
     await self.clients.claim();
   })());
 });

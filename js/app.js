@@ -2456,7 +2456,7 @@ function loadSaved(){
 }
 
 // ── PAGE NAV ──
-const PAGES=['pgHome','pgPlan','pg0','pg1','pgLVAR','pgBlmp','pgColab','pgBpm','pgBm','pgPh2644','pgBitPH','pgBitCond','pgBitTemp','pgBitFlujos','pgBitOD','pgCatalogo','pgAjustes','pgCartas','pgAdmin'];
+const PAGES=['pgHome','pgPlan','pg0','pg1','pgLVAR','pgBlmp','pgColab','pgBpm','pgBm','pgPh2644','pgBitPH','pgBitCond','pgBitTemp','pgBitFlujos','pgBitOD','pgCatalogo','pgAjustes','pgCartas','pgAdmin','pgRespaldo'];
 function showPage(n){
   PAGES.forEach((id,i)=>{const e=document.getElementById(id);if(e)e.classList.toggle('on',i===n);});
   window.scrollTo({top:0,behavior:'smooth'});
@@ -19554,6 +19554,7 @@ function _adminOnLogoTap(ev){
 }
 
 function _adminAbrirModalCodigo(){
+  window._rsAdminCb = null; // AARMS lote45a: Respaldos puede pedir el código y poner aquí lo que sigue
   const m = document.getElementById('modalAdminCode');
   const inp = document.getElementById('modalAdminCodeInput');
   const err = document.getElementById('modalAdminCodeErr');
@@ -19586,6 +19587,8 @@ function _adminConfirmarCodigo(){
       return;
     }
     _adminCerrarModalCodigo();
+    // AARMS lote45a: si el código lo pidió Respaldos, se hace lo suyo y no se abre la vista de cartas
+    if(window._rsAdminCb){ const cb = window._rsAdminCb; window._rsAdminCb = null; try{ cb(); }catch(e){ console.warn(e); } return; }
     // AARMS cartaspublic: PIN correcto → sesión admin (habilita cierre de periodo)
     _cartasAdminAbrirSesion();
     _adminEntrarVista();
@@ -20273,4 +20276,719 @@ setTimeout(() => { try{ _adminBindGatillo(); }catch(_){} }, 800);
     envuelta.__l26 = true;
     window[n] = envuelta;
   });
+})();
+
+/* =====================================================================
+ * AARMS lote45a — RESPALDOS
+ *  · Descargar respaldo completo (planes, OMAR con fotos y firmas, bitácoras, cartas,
+ *    Inventario, folios). Archivo de texto por líneas; se parte si pasa de ~50 MB.
+ *  · Restaurar respaldo: revisa TODO antes de tocar nada, mezcla SIN borrar.
+ *  · Copias internas automáticas (sin fotos): diarias, y antes de restaurar. Se guardan las últimas 5.
+ *  · Aviso a los 7 días sin respaldo. «Archivar año».
+ * NO guarda: el código de administrador (no se guarda en ningún lado) ni el PIN del supervisor.
+ * ===================================================================== */
+(function(){
+'use strict';
+
+const RS_FMT = 'AARMS_RESPALDO_V1';
+const RS_LOTE = 'lote45a';
+const RS_MARCA = '__FOTO_OMITIDA__';          // lugar de un texto muy largo (foto) que una copia interna no guarda
+const RS_MAX_STR = 150000;                     // texto más largo que esto = foto (solo para copias internas)
+let RS_PARTE_BYTES = 50 * 1024 * 1024;       // tamaño máximo por archivo de respaldo
+const RS_DIAS_AVISO = 7;
+const RS_CACHE = 'aarms-respaldos-internos';
+const RS_SNAP_MAX = 5;
+const RS_STORES = ['planes', 'muestreos', 'cartas_control', 'blmp_registros', 'doc_versiones'];
+const RS_LS_FIJAS = ['aarms_config', 'aarms_folios_log'];
+const RS_LS_PREFIJO = 'aarms_tomas_';
+const RS_LS_ULTIMO = 'aarms_respaldo_ultimo';
+const RS_LS_SNOOZE = 'aarms_respaldo_snooze';
+const RS_LS_SNAP = 'aarms_respaldo_snap_ts';
+
+let _rsOcupado = false;
+let _rsPartesActuales = [];
+
+// ---------- utilidades ----------
+function _rsTipo(v){ return Object.prototype.toString.call(v); }
+function _rsP2(n){ return String(n).padStart(2, '0'); }
+function _rsFechaArch(d){ d = d || new Date(); return String(d.getFullYear()).slice(2) + '-' + _rsP2(d.getMonth() + 1) + '-' + _rsP2(d.getDate()); }
+function _rsHoraArch(d){ d = d || new Date(); return _rsP2(d.getHours()) + _rsP2(d.getMinutes()); }
+function _rsMB(b){ return (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB'; }
+function _rsEsc(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function _rsEl(id){ return document.getElementById(id); }
+function _rsPausa(){ return new Promise(r => setTimeout(r, 0)); }
+
+function _rsB64De(ab){
+  const u8 = new Uint8Array(ab); let s = ''; const T = 0x8000;
+  for(let i = 0; i < u8.length; i += T) s += String.fromCharCode.apply(null, u8.subarray(i, i + T));
+  return btoa(s);
+}
+function _rsAbDe(b64){
+  const s = atob(b64); const u8 = new Uint8Array(s.length);
+  for(let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i);
+  return u8.buffer;
+}
+
+// Serializa un registro de IndexedDB a texto. Conserva ArrayBuffer, Set y Date. omitir=true quita los textos muy largos (fotos).
+function _rsSerializar(rec, omitir){
+  return JSON.stringify(rec, function(k, v){
+    const raw = this[k];
+    const t = _rsTipo(raw);
+    if(t === '[object ArrayBuffer]') return omitir ? { __omitido: 'ab', bytes: raw.byteLength } : { __ab: _rsB64De(raw) };
+    if(t === '[object Set]') return { __set: Array.from(raw) };
+    if(t === '[object Date]') return { __date: raw.getTime() };
+    if(omitir && typeof v === 'string' && v.length > RS_MAX_STR) return RS_MARCA;
+    return v;
+  });
+}
+function _rsRevivir(txt){
+  return JSON.parse(txt, function(k, v){
+    if(v && typeof v === 'object' && !Array.isArray(v)){
+      if(typeof v.__ab === 'string') return _rsAbDe(v.__ab);
+      if(Array.isArray(v.__set)) return new Set(v.__set);
+      if(typeof v.__date === 'number') return new Date(v.__date);
+    }
+    return v;
+  });
+}
+// Si un registro trae marcas de «foto omitida», se queda con lo que ya hay en la tablet (o vacío si no había).
+function _rsSustituirMarcas(r, l){
+  if(r === RS_MARCA) return l === undefined ? null : l;
+  const t = _rsTipo(r);
+  if(Array.isArray(r)) return r.map((x, i) => _rsSustituirMarcas(x, Array.isArray(l) ? l[i] : undefined));
+  if(t === '[object Object]'){
+    const o = {};
+    Object.keys(r).forEach(k => { o[k] = _rsSustituirMarcas(r[k], (l && typeof l === 'object') ? l[k] : undefined); });
+    return o;
+  }
+  return r;
+}
+
+// ---------- lectura de IndexedDB ----------
+async function _rsRecorrer(store, fn){
+  const db = await openDB();
+  if(!db.objectStoreNames.contains(store)) return;
+  await new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const rq = tx.objectStore(store).openCursor();
+    rq.onsuccess = e => {
+      const c = e.target.result;
+      if(!c){ res(); return; }
+      try{ fn(c.value); }catch(err){ rej(err); return; }
+      c.continue();
+    };
+    rq.onerror = e => rej(e);
+    tx.onerror = e => rej(e);
+  });
+}
+async function _rsLeerUno(store, id){
+  const db = await openDB();
+  if(!db.objectStoreNames.contains(store)) return undefined;
+  return await new Promise((res, rej) => {
+    const rq = db.transaction(store, 'readonly').objectStore(store).get(id);
+    rq.onsuccess = e => res(e.target.result);
+    rq.onerror = e => rej(e);
+  });
+}
+async function _rsEscribirUno(store, rec){
+  const db = await openDB();
+  await new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(rec);
+    tx.oncomplete = () => res();
+    tx.onerror = e => rej(e);
+    tx.onabort = e => rej(e);
+  });
+}
+
+// ---------- localStorage ----------
+function _rsLlavesLS(){
+  const out = [];
+  try{
+    RS_LS_FIJAS.forEach(k => { if(localStorage.getItem(k) != null) out.push(k); });
+    for(let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if(k && k.indexOf(RS_LS_PREFIJO) === 0) out.push(k);
+    }
+  }catch(e){}
+  return out;
+}
+// aarms_config sale sin el PIN (hash) del supervisor.
+function _rsConfigSinPin(txt){
+  try{
+    const c = JSON.parse(txt);
+    if(c && Array.isArray(c.supervisores)) c.supervisores = c.supervisores.map(s => { const o = Object.assign({}, s); o.pinHash = ''; return o; });
+    return JSON.stringify(c);
+  }catch(e){ return txt; }
+}
+
+// ---------- escritor de respaldos por partes ----------
+function _rsEscritor(limite, meta){
+  const partes = [];
+  let n = 0, blobs = [], buf = [], bufLen = 0, parteBytes = 0, conteos = {};
+  function linea(s){
+    s += '\n'; buf.push(s); bufLen += s.length; parteBytes += s.length;
+    if(bufLen > 4000000){ blobs.push(new Blob(buf)); buf = []; bufLen = 0; }
+  }
+  function abrir(){
+    n++; blobs = []; buf = []; bufLen = 0; parteBytes = 0; conteos = {};
+    linea(JSON.stringify({ t: 'hdr', fmt: RS_FMT, id: meta.id, parte: n, creado: meta.creado, app: RS_LOTE, etiqueta: meta.etiqueta, conFotos: !!meta.conFotos }));
+  }
+  function cerrar(ultima){
+    linea(JSON.stringify({ t: 'fin', parte: n, ultima: !!ultima, total: ultima ? n : null, conteos }));
+    if(buf.length) blobs.push(new Blob(buf));
+    const blob = new Blob(blobs, { type: 'application/octet-stream' });
+    partes.push({ n, blob, bytes: blob.size, conteos: Object.assign({}, conteos) });
+    blobs = []; buf = [];
+  }
+  abrir();
+  return {
+    registro(store, rec, omitir){
+      if(parteBytes > limite){ cerrar(false); abrir(); }
+      linea('{"t":"r","s":' + JSON.stringify(store) + ',"d":' + _rsSerializar(rec, omitir) + '}');
+      conteos[store] = (conteos[store] || 0) + 1;
+    },
+    ls(key, val){
+      linea(JSON.stringify({ t: 'ls', k: key, v: val }));
+      conteos['ls'] = (conteos['ls'] || 0) + 1;
+    },
+    terminar(){ cerrar(true); return partes; }
+  };
+}
+
+// Recorre todo lo que se respalda y lo escribe. Devuelve las partes y un resumen.
+async function _rsConstruir({ conFotos, limite, etiqueta, alAvance }){
+  const meta = { id: 'rs' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), creado: Date.now(), etiqueta: etiqueta || '', conFotos: !!conFotos };
+  const w = _rsEscritor(limite || RS_PARTE_BYTES, meta);
+  const res = { planes: 0, omars: 0, fotos: 0, firmas: 0, cartas: 0, blmp: 0, versiones: 0, inventario: 0, bytes: 0 };
+  for(const st of RS_STORES){
+    if(alAvance) alAvance('Guardando ' + st.replace('_', ' ') + '…');
+    await _rsRecorrer(st, rec => {
+      w.registro(st, rec, !conFotos);
+      if(st === 'planes') res.planes++;
+      else if(st === 'muestreos'){
+        if(rec && rec.id === '_catalogo_aarms') res.inventario = 1;
+        else {
+          res.omars++;
+          if(rec && rec.photoData) res.fotos++;
+          if(rec && rec.photoData2) res.fotos++;
+          if(rec && rec.sigData) res.firmas++;
+        }
+      }
+      else if(st === 'cartas_control') res.cartas++;
+      else if(st === 'blmp_registros') res.blmp++;
+      else if(st === 'doc_versiones') res.versiones++;
+    });
+    await _rsPausa();
+  }
+  _rsLlavesLS().forEach(k => {
+    let v = null;
+    try{ v = localStorage.getItem(k); }catch(e){}
+    if(v == null) return;
+    if(k === 'aarms_config') v = _rsConfigSinPin(v);
+    w.ls(k, v);
+  });
+  const partes = w.terminar();
+  res.bytes = partes.reduce((a, p) => a + p.bytes, 0);
+  return { id: meta.id, partes, resumen: res };
+}
+
+function _rsNombreParte(base, n, total){
+  return total > 1 ? base + '_parte' + n + 'de' + total + '.json' : base + '.json';
+}
+function _rsDescargarBlob(blob, nombre){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nombre; a.style.display = 'none';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { try{ document.body.removeChild(a); }catch(e){} try{ URL.revokeObjectURL(url); }catch(e){} }, 60000);
+}
+
+// ---------- estado del último respaldo ----------
+function _rsUltimo(){
+  try{ return JSON.parse(localStorage.getItem(RS_LS_ULTIMO) || 'null'); }catch(e){ return null; }
+}
+function _rsMarcarUltimo(info){
+  try{ localStorage.setItem(RS_LS_ULTIMO, JSON.stringify(info)); }catch(e){}
+}
+function _rsDiasDesde(ts){ return Math.floor((Date.now() - ts) / 86400000); }
+function _rsHayDatos(){
+  try{
+    const ms = (typeof _cachedMuestreos !== 'undefined' ? _cachedMuestreos : []) || [];
+    const ps = (typeof _cachedPlanes !== 'undefined' ? _cachedPlanes : []) || [];
+    return ps.length > 0 || ms.some(m => m && m.id !== '_catalogo_aarms');
+  }catch(e){ return false; }
+}
+
+// ---------- DESCARGAR ----------
+async function rsDescargar(opts){
+  opts = opts || {};
+  if(_rsOcupado){ toast('Ya hay un respaldo en curso', 'w'); return; }
+  _rsOcupado = true;
+  const prog = _rsEl('rsProgreso'), partesEl = _rsEl('rsPartes');
+  const msg = t => { if(prog) prog.textContent = t; };
+  if(partesEl) partesEl.innerHTML = '';
+  try{
+    msg('Preparando respaldo…');
+    await _rsPausa();
+    const etiqueta = opts.archivoAnio ? ('ARCHIVO ' + opts.archivoAnio) : 'completo';
+    const r = await _rsConstruir({ conFotos: true, etiqueta, alAvance: msg });
+    const base = (opts.archivoAnio ? 'AARMS_ARCHIVO_' + opts.archivoAnio + '_' : 'AARMS_respaldo_') + _rsFechaArch() + '_' + _rsHoraArch();
+    const total = r.partes.length;
+    _rsPartesActuales = r.partes.map(p => ({ nombre: _rsNombreParte(base, p.n, total), blob: p.blob, bytes: p.bytes, bajada: false }));
+    const s = r.resumen;
+    msg('Listo: ' + s.planes + ' planes, ' + s.omars + ' OMAR, ' + s.fotos + ' fotos, ' + s.firmas + ' firmas · ' + _rsMB(s.bytes) + (total > 1 ? ' · ' + total + ' archivos' : ''));
+    _rsPintarPartes(r.resumen, opts);
+  }catch(e){
+    console.warn('[respaldo]', e);
+    msg('No se pudo armar el respaldo. No se cambió nada de tus datos.');
+    toast('No se pudo armar el respaldo', 'r');
+  }finally{
+    _rsOcupado = false;
+  }
+}
+function _rsPintarPartes(resumen, opts){
+  const el = _rsEl('rsPartes'); if(!el) return;
+  const ps = _rsPartesActuales;
+  el.innerHTML = '<div style="font-size:12px;color:var(--g1);margin:10px 0 6px;line-height:1.4">Toca cada botón para guardar el archivo en las descargas de la tablet' +
+    (ps.length > 1 ? '. <b>Tienes que bajar las ' + ps.length + ' partes</b> y guardarlas juntas.' : '.') + '</div>' +
+    ps.map((p, i) => '<button type="button" class="btn btn-p" id="rsBtnParte' + i + '" style="width:100%;margin-bottom:8px" onclick="rsBajarParte(' + i + ')">' +
+      (ps.length > 1 ? 'Guardar parte ' + (i + 1) + ' de ' + ps.length : 'Guardar respaldo') + ' (' + _rsMB(p.bytes) + ')</button>').join('');
+  el._opts = opts || {};
+  el._resumen = resumen;
+}
+function rsBajarParte(i){
+  const p = _rsPartesActuales[i]; if(!p) return;
+  _rsDescargarBlob(p.blob, p.nombre);
+  p.bajada = true;
+  const b = _rsEl('rsBtnParte' + i);
+  if(b){ b.textContent = '✓ Guardada: ' + p.nombre; b.className = 'btn btn-g'; }
+  if(_rsPartesActuales.every(x => x.bajada)){
+    const el = _rsEl('rsPartes'); const o = (el && el._opts) || {}; const s = (el && el._resumen) || {};
+    _rsMarcarUltimo({ ts: Date.now(), planes: s.planes, omars: s.omars, fotos: s.fotos, bytes: s.bytes, partes: _rsPartesActuales.length, archivoAnio: o.archivoAnio || '' });
+    if(o.archivoAnio){
+      try{
+        const c = _appConfigGet(); c.anioArchivado = Object.assign({}, c.anioArchivado || {}, { [o.archivoAnio]: Date.now() });
+        _appConfigSave(c);
+      }catch(e){}
+    }
+    toast('Respaldo guardado. Pásalo a tu computadora o a Drive.', 'g');
+    _rsRenderEstado();
+    _rsActualizarBanner();
+  }
+}
+function rsArchivarAnio(){
+  const anio = String(new Date().getFullYear());
+  confirmAction({
+    title: 'Archivar año ' + anio,
+    message: 'Se arma un respaldo completo marcado como archivo del año ' + anio + '. No se borra nada de la tablet.',
+    okText: 'Armar archivo', okDanger: false, cancelText: 'Cancelar'
+  }).then(ok => { if(ok) rsDescargar({ archivoAnio: anio }); });
+}
+
+// ---------- COPIAS INTERNAS ----------
+async function _rsSnapCrear(motivo){
+  if(typeof caches === 'undefined') return null;
+  const r = await _rsConstruir({ conFotos: false, limite: Infinity, etiqueta: 'copia interna (' + motivo + ')' });
+  const cache = await caches.open(RS_CACHE);
+  const ts = Date.now();
+  const url = location.origin + '/__respaldo_interno__/' + ts;
+  await cache.put(new Request(url), new Response(r.partes[0].blob, { headers: { 'X-Motivo': motivo, 'X-Bytes': String(r.resumen.bytes), 'X-Resumen': JSON.stringify(r.resumen) } }));
+  try{ localStorage.setItem(RS_LS_SNAP, String(ts)); }catch(e){}
+  await _rsSnapRotar();
+  return { ts, resumen: r.resumen };
+}
+async function _rsSnapLista(){
+  if(typeof caches === 'undefined') return [];
+  const cache = await caches.open(RS_CACHE);
+  const reqs = await cache.keys();
+  const out = [];
+  for(const rq of reqs){
+    const ts = parseInt(rq.url.split('/').pop(), 10);
+    const rs = await cache.match(rq);
+    let resumen = {}; try{ resumen = JSON.parse(rs.headers.get('X-Resumen') || '{}'); }catch(e){}
+    out.push({ ts, url: rq.url, motivo: rs.headers.get('X-Motivo') || '', bytes: parseInt(rs.headers.get('X-Bytes') || '0', 10), resumen });
+  }
+  return out.sort((a, b) => b.ts - a.ts);
+}
+async function _rsSnapRotar(){
+  const cache = await caches.open(RS_CACHE);
+  const lista = await _rsSnapLista();
+  for(const s of lista.slice(RS_SNAP_MAX)) await cache.delete(new Request(s.url));
+}
+async function _rsSnapAuto(){
+  try{
+    if(!_rsHayDatos() || _rsOcupado) return;
+    if(typeof window._lote30Cargando !== 'undefined' && window._lote30Cargando) return;
+    const ult = parseInt(localStorage.getItem(RS_LS_SNAP) || '0', 10);
+    if(Date.now() - ult < 20 * 3600 * 1000) return;
+    // Mientras las fotos viven dentro de los registros, no se lee todo a diario si ya hay mucho guardado.
+    try{
+      if(navigator.storage && navigator.storage.estimate){
+        const est = await navigator.storage.estimate();
+        if(est && est.usage > 150 * 1024 * 1024) return;
+      }
+    }catch(e){}
+    _rsOcupado = true;
+    try{ await _rsSnapCrear('diaria'); } finally { _rsOcupado = false; }
+  }catch(e){ console.warn('[copia interna]', e); _rsOcupado = false; }
+}
+async function rsSnapAhora(){
+  if(_rsOcupado){ toast('Espera a que termine lo que está en curso', 'w'); return; }
+  _rsOcupado = true;
+  try{
+    toast('Creando copia interna…', '');
+    const s = await _rsSnapCrear('manual');
+    toast(s ? 'Copia interna creada' : 'Este navegador no permite copias internas', s ? 'g' : 'w');
+  }catch(e){ console.warn(e); toast('No se pudo crear la copia interna', 'r'); }
+  finally { _rsOcupado = false; }
+  _rsRenderEstado();
+}
+
+// ---------- RESTAURAR ----------
+// Lee un archivo por líneas, sin cargarlo completo en la memoria.
+async function _rsLineas(file, cb){
+  const CH = 4 * 1024 * 1024;
+  const dec = new TextDecoder('utf-8');
+  let pos = 0, resto = '', num = 0;
+  while(pos < file.size){
+    const buf = await file.slice(pos, Math.min(pos + CH, file.size)).arrayBuffer();
+    pos += CH;
+    resto += dec.decode(buf, { stream: true });
+    let ix, ini = 0;
+    while((ix = resto.indexOf('\n', ini)) >= 0){
+      const ln = resto.slice(ini, ix); ini = ix + 1;
+      if(ln){ num++; await cb(ln, num); }
+    }
+    resto = resto.slice(ini);
+  }
+  resto += dec.decode();
+  if(resto.trim()){ num++; await cb(resto, num); }
+}
+const _RS_PREFIJO_R = /^\{"t":"r","s":"([a-z_]+)","d":/;
+function _rsCuerpo(ln){ const m = _RS_PREFIJO_R.exec(ln); return m ? ln.slice(m[0].length, ln.length - 1) : ''; }
+function _rsTsDe(r){
+  if(!r) return 0;
+  const v = r.ts != null ? r.ts : (r.fecha != null ? r.fecha : (r.creado != null ? r.creado : 0));
+  const n = typeof v === 'number' ? v : Date.parse(v);
+  return isNaN(n) ? 0 : n;
+}
+
+// PASO 1: revisa todos los archivos y cuenta qué pasaría. NO cambia nada.
+async function _rsValidar(archivos){
+  const info = { ok: false, problemas: [], id: null, total: null, partes: [], nuevos: 0, iguales: 0, distintos: 0, conteo: {}, creado: 0, conFotos: true };
+  const vistas = {};
+  let fmtMal = false;
+  for(const f of archivos){
+    let hdr = null, fin = null, contadas = {}, linea = 0;
+    try{
+      await _rsLineas(f.blob, async (ln, num) => {
+        linea = num;
+        let o;
+        try{ o = JSON.parse(ln); }catch(e){ throw new Error(num === 1 ? 'no es un respaldo de AARMS' : 'línea ' + num + ' dañada'); }
+        if(num === 1){
+          if(o.t !== 'hdr' || o.fmt !== RS_FMT){ fmtMal = true; throw new Error('no es un respaldo de AARMS'); }
+          hdr = o; return;
+        }
+        if(o.t === 'fin'){ fin = o; return; }
+        if(o.t === 'ls'){ contadas.ls = (contadas.ls || 0) + 1; info.conteo.ls = (info.conteo.ls || 0) + 1; return; }
+        if(o.t === 'r'){
+          contadas[o.s] = (contadas[o.s] || 0) + 1;
+          info.conteo[o.s] = (info.conteo[o.s] || 0) + 1;
+          if(RS_STORES.indexOf(o.s) < 0) return;
+          if(!o.d || o.d.id == null){ info.problemas.push(f.nombre + ': un registro sin identificador'); return; }
+          const local = await _rsLeerUno(o.s, o.d.id);
+          if(local === undefined) info.nuevos++;
+          else if(_rsSerializar(local, !hdr.conFotos) === _rsCuerpo(ln)) info.iguales++;
+          else info.distintos++;
+        }
+      });
+    }catch(e){
+      info.problemas.push(f.nombre + ': ' + (e.message || e));
+      continue;
+    }
+    if(!hdr){ info.problemas.push(f.nombre + ': no es un respaldo de AARMS'); continue; }
+    if(!fin){ info.problemas.push(f.nombre + ': el archivo está incompleto (le falta el final)'); continue; }
+    const cuentaOk = Object.keys(fin.conteos || {}).every(k => (contadas[k] || 0) === fin.conteos[k]) && Object.keys(contadas).every(k => (fin.conteos || {})[k] === contadas[k]);
+    if(!cuentaOk){ info.problemas.push(f.nombre + ': faltan o sobran registros respecto a lo que dice el archivo'); continue; }
+    if(info.id && info.id !== hdr.id){ info.problemas.push(f.nombre + ': es de otro respaldo distinto'); continue; }
+    info.id = hdr.id; info.creado = hdr.creado; info.conFotos = hdr.conFotos;
+    if(vistas[hdr.parte]){ info.problemas.push(f.nombre + ': la parte ' + hdr.parte + ' está repetida'); continue; }
+    vistas[hdr.parte] = true;
+    info.partes.push(hdr.parte);
+    if(fin.ultima) info.total = fin.total;
+  }
+  if(!info.problemas.length){
+    if(!info.total) info.problemas.push('Falta la última parte del respaldo');
+    else for(let i = 1; i <= info.total; i++) if(!vistas[i]) info.problemas.push('Falta la parte ' + i + ' de ' + info.total);
+  }
+  info.ok = !info.problemas.length && !fmtMal;
+  return info;
+}
+
+// Cuadro de 3 opciones (cuando hay registros distintos).
+function _rsPreguntarPolitica(info, esInterna){
+  return new Promise(res => {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px';
+    const hayDist = info.distintos > 0;
+    ov.innerHTML = '<div style="background:var(--bg2);border:1px solid var(--ln2);border-radius:16px;padding:18px;max-width:420px;width:100%;color:var(--w)">' +
+      '<div style="font-family:var(--syne);font-weight:800;font-size:16px;margin-bottom:8px">Restaurar respaldo</div>' +
+      '<div style="font-size:13px;line-height:1.5;color:var(--g1);margin-bottom:12px">' +
+      'Respaldo del <b>' + _rsEsc(new Date(info.creado).toLocaleString('es-MX')) + '</b>.<br>' +
+      '· <b>' + info.nuevos + '</b> registros nuevos (se agregan).<br>' +
+      '· <b>' + info.iguales + '</b> ya están iguales.<br>' +
+      '· <b>' + info.distintos + '</b> existen distintos en la tablet.' +
+      (esInterna ? '<br><i>Las copias internas no traen fotos: las fotos de la tablet no se tocan.</i>' : '') +
+      '<br><br>No se borra nada.' + (hayDist ? ' ¿Qué hago con los distintos?' : '') + '</div>' +
+      (hayDist
+        ? '<button type="button" id="rsPolLocal" class="btn btn-p" style="width:100%;margin-bottom:8px">Dejar los de la tablet</button>' +
+          '<button type="button" id="rsPolReciente" class="btn btn-g" style="width:100%;margin-bottom:8px">Quedarme con el más reciente</button>'
+        : '<button type="button" id="rsPolLocal" class="btn btn-p" style="width:100%;margin-bottom:8px">Agregar lo nuevo</button>') +
+      '<button type="button" id="rsPolCancel" class="btn btn-g" style="width:100%">Cancelar</button></div>';
+    document.body.appendChild(ov);
+    const fin = v => { try{ document.body.removeChild(ov); }catch(e){} res(v); };
+    ov.querySelector('#rsPolLocal').onclick = () => fin('local');
+    const rec = ov.querySelector('#rsPolReciente'); if(rec) rec.onclick = () => fin('reciente');
+    ov.querySelector('#rsPolCancel').onclick = () => fin(null);
+  });
+}
+
+// PASO 2: aplica. Solo agrega o (si tú eliges) reemplaza por el más reciente. Nunca borra.
+async function _rsAplicar(archivos, politica, alAvance){
+  const r = { agregados: 0, reemplazados: 0, iguales: 0, conservados: 0, ls: 0 };
+  const lsBackup = {};
+  for(const f of archivos){
+    let omitir = false;
+    await _rsLineas(f.blob, async (ln, num) => {
+      if(num === 1){ try{ omitir = JSON.parse(ln).conFotos === false; }catch(e){} return; }
+      if(ln.indexOf('{"t":"ls"') === 0){ const o = JSON.parse(ln); lsBackup[o.k] = o.v; return; }
+      const m = _RS_PREFIJO_R.exec(ln);
+      if(!m) return;
+      const store = m[1];
+      if(RS_STORES.indexOf(store) < 0) return;
+      const rec = _rsRevivir(ln.slice(m[0].length, ln.length - 1));
+      if(!rec || rec.id == null) return;
+      const local = await _rsLeerUno(store, rec.id);
+      if(local === undefined){
+        await _rsEscribirUno(store, _rsSustituirMarcas(rec, undefined));
+        r.agregados++;
+      } else if(_rsSerializar(local, omitir) === _rsSerializar(rec, false)){
+        r.iguales++;
+      } else if(politica === 'reciente' && _rsTsDe(rec) > _rsTsDe(local)){
+        await _rsEscribirUno(store, _rsSustituirMarcas(rec, local));
+        r.reemplazados++;
+      } else {
+        r.conservados++;
+      }
+      const tot = r.agregados + r.reemplazados + r.iguales + r.conservados;
+      if(tot % 25 === 0){ if(alAvance) alAvance(r); await _rsPausa(); }
+    });
+  }
+  r.ls = _rsAplicarLS(lsBackup);
+  return r;
+}
+// Mezcla de localStorage: contadores de folios con el número MÁS ALTO; supervisores de la tablet se quedan; el PIN no viaja.
+function _rsAplicarLS(bk){
+  let n = 0;
+  try{
+    if(bk['aarms_config']){
+      const b = JSON.parse(bk['aarms_config']);
+      const l = JSON.parse(localStorage.getItem('aarms_config') || '{}');
+      if(b.folios && b.folios.types){
+        if(!l.folios || typeof l.folios !== 'object') l.folios = { types: {}, absorbed: !!b.folios.absorbed };
+        if(!l.folios.types) l.folios.types = {};
+        Object.keys(b.folios.types).forEach(k => {
+          const bt = b.folios.types[k], lt = l.folios.types[k];
+          if(!lt){ l.folios.types[k] = bt; n++; }
+          else if(bt.year === lt.year){
+            const nuevo = Object.assign({}, lt, { next: Math.max(lt.next || 1, bt.next || 1), high: Math.max(lt.high || 0, bt.high || 0) });
+            if(nuevo.next !== lt.next || nuevo.high !== lt.high) n++;
+            l.folios.types[k] = nuevo;
+          } else if((bt.year || 0) > (lt.year || 0)){ l.folios.types[k] = bt; n++; }
+        });
+      }
+      ['blmp', 'conductimetro'].forEach(k => {
+        if(b[k] && typeof b[k].folioSeq === 'number'){
+          if(!l[k]) l[k] = {};
+          if(typeof l[k].folioSeq !== 'number' || b[k].folioSeq > l[k].folioSeq){ l[k].folioSeq = b[k].folioSeq; n++; }
+        }
+      });
+      if(Array.isArray(b.supervisores)){
+        l.supervisores = Array.isArray(l.supervisores) ? l.supervisores : [];
+        b.supervisores.forEach(s => {
+          if(!l.supervisores.some(x => x.nombre === s.nombre)){ l.supervisores.push(Object.assign({}, s, { pinHash: '' })); n++; }
+        });
+      }
+      ['muestreador'].forEach(k => { if(b[k] && !l[k]){ l[k] = b[k]; n++; } });
+      localStorage.setItem('aarms_config', JSON.stringify(l));
+    }
+    if(bk['aarms_folios_log']){
+      const b = JSON.parse(bk['aarms_folios_log']);
+      const l = JSON.parse(localStorage.getItem('aarms_folios_log') || '[]');
+      const vistos = new Set(l.map(x => JSON.stringify(x)));
+      b.forEach(x => { const s = JSON.stringify(x); if(!vistos.has(s)){ l.push(x); vistos.add(s); n++; } });
+      localStorage.setItem('aarms_folios_log', JSON.stringify(l));
+    }
+    Object.keys(bk).forEach(k => {
+      if(k.indexOf(RS_LS_PREFIJO) === 0 && localStorage.getItem(k) == null){ localStorage.setItem(k, bk[k]); n++; }
+    });
+  }catch(e){ console.warn('[restaurar ls]', e); }
+  return n;
+}
+
+async function _rsRestaurarArchivos(archivos, esInterna){
+  if(_rsOcupado){ toast('Espera a que termine lo que está en curso', 'w'); return; }
+  _rsOcupado = true;
+  const out = _rsEl('rsRestoResultado');
+  const msg = (t, color) => { if(out) out.innerHTML = '<div style="font-size:12.5px;line-height:1.5;color:' + (color || 'var(--g1)') + '">' + t + '</div>'; };
+  try{
+    msg('Revisando el respaldo (no se cambia nada todavía)…');
+    await _rsPausa();
+    const info = await _rsValidar(archivos);
+    if(!info.ok){
+      msg('<b>No se restauró nada.</b><br>' + info.problemas.map(_rsEsc).join('<br>'), 'var(--red,#f87171)');
+      return;
+    }
+    const pol = await _rsPreguntarPolitica(info, !!esInterna);
+    if(!pol){ msg('Cancelado. No se cambió nada.'); return; }
+    msg('Guardando una copia interna de seguridad antes de mezclar…');
+    try{ await _rsSnapCrear('antes de restaurar'); }catch(e){ console.warn('[copia previa]', e); }
+    msg('Restaurando…');
+    const r = await _rsAplicar(archivos, pol, p => msg('Restaurando… ' + (p.agregados + p.reemplazados) + ' cambios'));
+    try{ if(typeof _catalogoCache !== 'undefined') _catalogoCache = null; }catch(e){}
+    try{ await refreshCache(); }catch(e){}
+    msg('<b style="color:var(--green)">Listo.</b> Se agregaron ' + r.agregados + ' registros' + (r.reemplazados ? ', se reemplazaron ' + r.reemplazados + ' por más recientes' : '') +
+        ', ' + r.iguales + ' ya estaban iguales' + (r.conservados ? ' y ' + r.conservados + ' se dejaron como estaban en la tablet' : '') + '. Contadores de folios y firmas: ' + r.ls + ' ajustes.' +
+        (info.conFotos === false ? '' : '') + '<br>Si el supervisor se restauró, hay que volver a poner su PIN en Ajustes.');
+    toast('Respaldo restaurado', 'g');
+  }catch(e){
+    console.warn('[restaurar]', e);
+    msg('Ocurrió un error al restaurar. Lo que ya se agregó se queda; no se borró nada. Revisa en la pantalla de inicio que tus planes estén.', 'var(--red,#f87171)');
+  }finally{
+    _rsOcupado = false;
+    _rsRenderEstado();
+  }
+}
+
+function _rsPedirAdmin(cb){
+  if(typeof _adminAbrirModalCodigo !== 'function'){ cb(); return; }
+  _adminAbrirModalCodigo();
+  window._rsAdminCb = cb;
+}
+function rsRestaurarPedir(){ _rsPedirAdmin(() => { const i = _rsEl('rsArchivos'); if(i){ i.value = ''; i.click(); } }); }
+async function rsRestaurarArchivos(input){
+  const fs = Array.from((input && input.files) || []);
+  if(!fs.length) return;
+  await _rsRestaurarArchivos(fs.map(f => ({ nombre: f.name, blob: f })), false);
+  try{ input.value = ''; }catch(e){}
+}
+function rsRestaurarInterna(ts){
+  _rsPedirAdmin(async () => {
+    try{
+      const cache = await caches.open(RS_CACHE);
+      const rs = await cache.match(new Request(location.origin + '/__respaldo_interno__/' + ts));
+      if(!rs){ toast('No se encontró esa copia', 'w'); return; }
+      const blob = await rs.blob();
+      await _rsRestaurarArchivos([{ nombre: 'copia interna ' + ts, blob }], true);
+    }catch(e){ console.warn(e); toast('No se pudo leer la copia interna', 'r'); }
+  });
+}
+
+// ---------- PANTALLA ----------
+async function _rsRenderEstado(){
+  const el = _rsEl('rsEstado'); if(!el) return;
+  const u = _rsUltimo();
+  let h = '';
+  if(u){
+    const d = _rsDiasDesde(u.ts);
+    h += '<div style="font-size:13px;color:var(--w);line-height:1.5">Último respaldo: <b>' + _rsEsc(new Date(u.ts).toLocaleString('es-MX')) + '</b> (hace ' + d + (d === 1 ? ' día' : ' días') + ')<br><span style="color:var(--g1)">' +
+      u.planes + ' planes, ' + u.omars + ' OMAR, ' + u.fotos + ' fotos · ' + _rsMB(u.bytes || 0) + (u.partes > 1 ? ' · ' + u.partes + ' archivos' : '') + '</span></div>';
+  } else {
+    h += '<div style="font-size:13px;color:#fbbf24;line-height:1.5">Todavía no has descargado ningún respaldo en esta tablet.</div>';
+  }
+  el.innerHTML = h;
+  const sn = _rsEl('rsSnapLista');
+  if(sn){
+    let lista = [];
+    try{ lista = await _rsSnapLista(); }catch(e){}
+    sn.innerHTML = lista.length
+      ? lista.map(s => '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--ln)">' +
+          '<div style="font-size:12px;line-height:1.4;color:var(--w)">' + _rsEsc(new Date(s.ts).toLocaleString('es-MX')) + '<br><span style="color:var(--g1)">' + _rsEsc(s.motivo) + ' · ' + _rsMB(s.bytes) + '</span></div>' +
+          '<button type="button" class="btn btn-g" style="width:auto;font-size:11px;padding:7px 10px" onclick="rsRestaurarInterna(' + s.ts + ')">Restaurar</button></div>').join('')
+      : '<div style="font-size:12px;color:var(--g1)">Todavía no hay copias internas. Se crean solas cada día.</div>';
+  }
+}
+async function rsAbrir(){
+  goPage('pgRespaldo');
+  await _rsRenderEstado();
+}
+
+// ---------- AVISO EN INICIO ----------
+function _rsActualizarBanner(){
+  const el = _rsEl('rsBanner'); if(!el) return;
+  try{
+    const u = _rsUltimo();
+    const snooze = localStorage.getItem(RS_LS_SNOOZE);
+    const hoy = _rsFechaArch();
+    const vencido = u ? _rsDiasDesde(u.ts) >= RS_DIAS_AVISO : _rsHayDatos();
+    if(!vencido || snooze === hoy){ el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.innerHTML = '<div style="background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.40);border-radius:12px;padding:12px 14px;margin-bottom:12px">' +
+      '<div style="font-size:13px;color:var(--w);line-height:1.4;margin-bottom:8px">' + (u ? 'Hace <b>' + _rsDiasDesde(u.ts) + ' días</b> que no descargas un respaldo.' : '<b>Todavía no has descargado un respaldo.</b>') + '</div>' +
+      '<div style="display:flex;gap:8px"><button type="button" class="btn btn-p" style="width:auto;font-size:12px;padding:8px 14px" onclick="rsAbrir()">Descargar ahora</button>' +
+      '<button type="button" class="btn btn-g" style="width:auto;font-size:12px;padding:8px 14px" onclick="rsPosponer()">Más tarde</button></div></div>';
+  }catch(e){}
+}
+function rsPosponer(){
+  try{ localStorage.setItem(RS_LS_SNOOZE, _rsFechaArch()); }catch(e){}
+  _rsActualizarBanner();
+}
+
+// ---------- ENGANCHES ----------
+// Al terminar el zip del plan: si lleva más de un día sin respaldo, pregunta.
+try{
+  const _gz = window.generarTodosLosPDFs;
+  if(typeof _gz === 'function' && !_gz.__rs){
+    const env = async function(){
+      const r = await _gz.apply(this, arguments);
+      try{
+        const u = _rsUltimo();
+        if(_rsHayDatos() && (!u || _rsDiasDesde(u.ts) >= 1)){
+          const ok = await confirmAction({ title: 'Respaldo', message: '¿Bajar un respaldo ahora?', okText: 'Sí, ir a Respaldos', okDanger: false, cancelText: 'Después' });
+          if(ok) rsAbrir();
+        }
+      }catch(e){}
+      return r;
+    };
+    env.__rs = true;
+    window.generarTodosLosPDFs = env;
+  }
+}catch(e){}
+try{
+  const _gh = window.goHome;
+  if(typeof _gh === 'function' && !_gh.__rs){
+    const env = async function(){ const r = await _gh.apply(this, arguments); try{ _rsActualizarBanner(); }catch(e){} return r; };
+    env.__rs = true;
+    window.goHome = env;
+  }
+}catch(e){}
+
+// Arranque: aviso y copia interna diaria (sin estorbar la carga de la app).
+window.addEventListener('load', () => {
+  setTimeout(() => { try{ _rsActualizarBanner(); }catch(e){} }, 2500);
+  setTimeout(() => { _rsSnapAuto(); }, 9000);
+});
+
+window.rsDescargar = rsDescargar;
+window.rsBajarParte = rsBajarParte;
+window.rsArchivarAnio = rsArchivarAnio;
+window.rsSnapAhora = rsSnapAhora;
+window.rsRestaurarPedir = rsRestaurarPedir;
+window.rsRestaurarArchivos = rsRestaurarArchivos;
+window.rsRestaurarInterna = rsRestaurarInterna;
+window.rsAbrir = rsAbrir;
+window.rsPosponer = rsPosponer;
+// Para pruebas
+window._rsTest = { setLimite: n => { RS_PARTE_BYTES = n; }, leerUno: _rsLeerUno, escribirUno: _rsEscribirUno, construir: _rsConstruir, validar: _rsValidar, aplicar: _rsAplicar, snapCrear: _rsSnapCrear, snapLista: _rsSnapLista, snapAuto: _rsSnapAuto, aplicarLS: _rsAplicarLS, serializar: _rsSerializar, revivir: _rsRevivir };
 })();

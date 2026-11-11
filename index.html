@@ -597,6 +597,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
     </div>
 
     <div id="lote10Arranque" style="display:none"></div>
+    <div id="rsBanner" style="display:none"></div>
 
     <!-- Acción principal -->
     <button class="btn btn-p" style="width:100%;font-size:15px;padding:15px;font-family:var(--syne);font-weight:800;letter-spacing:.04em" onclick="abrirModalNuevoMuestreo()">+ Nuevo Muestreo</button>
@@ -2395,7 +2396,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" style="margin-bottom:14px">
       <div class="ch"><div class="ct">Supervisor</div></div>
       <div class="cb">
         <div id="supNombreVista" style="font-size:15px;font-weight:700;color:var(--w);min-height:22px"></div>
@@ -2403,6 +2404,70 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       </div>
     </div>
 
+    <div class="card">
+      <div class="ch"><div class="ct">Respaldos</div></div>
+      <div class="cb">
+        <div style="font-size:12px;color:var(--g1);line-height:1.5;margin-bottom:10px">Descarga una copia de todos tus planes, OMAR, fotos y bitácoras, o restaura una.</div>
+        <button type="button" class="btn btn-p" style="width:auto" onclick="rsAbrir()">Abrir respaldos</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="page" id="pgRespaldo">
+  <div class="bar">
+    <div class="bar-l">
+      <button type="button" class="bar-logo-home" onclick="goHome()" aria-label="Ir al inicio">
+        <img src="logo_pdf.png" class="bar-logo" alt=""/>
+      </button>
+      <div>
+        <div class="bar-name">Respaldos</div>
+        <div class="bar-sub">Copias de seguridad</div>
+      </div>
+    </div>
+    <div class="bar-r">
+      <button type="button" class="btn btn-g" style="width:auto;font-size:11px;padding:8px 12px" onclick="goHome()">Salir</button>
+    </div>
+  </div>
+  <div class="main" style="padding-bottom:80px;max-width:720px;margin:0 auto">
+    <div class="card" style="margin-bottom:14px">
+      <div class="ch"><div class="ct">Descargar respaldo</div></div>
+      <div class="cb">
+        <div id="rsEstado" style="margin-bottom:12px"></div>
+        <button type="button" class="btn btn-p" style="width:100%" onclick="rsDescargar()">Descargar respaldo completo</button>
+        <div id="rsProgreso" style="font-size:12px;color:var(--g1);margin-top:10px;line-height:1.4"></div>
+        <div id="rsPartes"></div>
+        <div style="font-size:11.5px;color:var(--g2);margin-top:12px;line-height:1.5">Incluye planes, OMAR con fotos y firmas, bitácoras, cartas de control, Inventario y contadores de folios. No incluye el código de administrador ni el PIN del supervisor.</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="ch"><div class="ct">Restaurar respaldo</div></div>
+      <div class="cb">
+        <div style="font-size:12px;color:var(--g1);line-height:1.5;margin-bottom:10px">Revisa todo el respaldo antes de tocar nada. No borra: agrega lo que falta. Pide el código de administrador. Si el respaldo viene en partes, elige todas juntas.</div>
+        <button type="button" class="btn btn-g" style="width:100%" onclick="rsRestaurarPedir()">Restaurar desde archivo…</button>
+        <input type="file" id="rsArchivos" multiple accept=".json,application/json" style="display:none" onchange="rsRestaurarArchivos(this)">
+        <div id="rsRestoResultado" style="margin-top:10px"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="ch"><div class="ct">Copias internas automáticas</div></div>
+      <div class="cb">
+        <div style="font-size:12px;color:var(--g1);line-height:1.5;margin-bottom:8px">Se guardan solas dentro de la app (sin fotos), cada día y antes de restaurar. Se conservan las últimas 5. Ayudan si un cambio sale mal; <b>no sustituyen</b> el respaldo descargado.</div>
+        <div id="rsSnapLista"></div>
+        <button type="button" class="btn btn-g" style="width:auto;margin-top:10px;font-size:12px" onclick="rsSnapAhora()">Crear copia interna ahora</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch"><div class="ct">Archivar año</div></div>
+      <div class="cb">
+        <div style="font-size:12px;color:var(--g1);line-height:1.5;margin-bottom:10px">Arma el respaldo completo marcado como archivo del año. No borra nada de la tablet.</div>
+        <button type="button" class="btn btn-g" style="width:auto" onclick="rsArchivarAnio()">Archivar año</button>
+      </div>
+    </div>
   </div>
 </div>
 
