@@ -6386,11 +6386,32 @@ async function abrirPlanDesdeOmar(planId){
 }
 
 async function saltarAOmar(mid){
-  _flushTomasDesdeDOM();
-  await guardarBorradorActual();
-  // AARMS lote35c: si estoy en la HOJA DE CAMPO, el botón de otra OMAR abre SU HOJA (antes abría la Orden de servicio)
-  const enHoja = !!(document.getElementById('pg1') && document.getElementById('pg1').classList.contains('on'));
-  await cargarMuestreo(mid, enHoja ? { irHoja: true } : undefined);
+  if(window.__lote46Saltando) return;   // AARMS lote46: un toque a la vez (varios toques seguidos congelaban la pantalla)
+  window.__lote46Saltando = true;
+  try{
+    _flushTomasDesdeDOM();
+    await guardarBorradorActual();
+    // AARMS lote35c: si estoy en la HOJA DE CAMPO, el botón de otra OMAR abre SU HOJA (antes abría la Orden de servicio)
+    const enHoja = !!(document.getElementById('pg1') && document.getElementById('pg1').classList.contains('on'));
+    await cargarMuestreo(mid, enHoja ? { irHoja: true } : undefined);
+  }catch(e){
+    console.warn('[saltarAOmar]', e);
+    try{ toast('No se pudo abrir esa OMAR; intenta de nuevo', 'r'); }catch(x){}
+  }finally{
+    setTimeout(() => { window.__lote46Saltando = false; }, 350);
+  }
+}
+
+// AARMS lote46: «Volver» de las bitácoras de campo. Se guarda, pero si el guardado tarda más de ~1.2 s la pantalla se
+// cierra de todos modos (el guardado sigue por detrás y no se pierde). Un solo toque a la vez.
+async function _lote46GuardarYSalir(clave, guardar, salir, despues){
+  const cerrando = window.__lote46Cerrando || (window.__lote46Cerrando = {});
+  if(cerrando[clave]) return;
+  cerrando[clave] = true;
+  const guardado = (async () => { try{ await guardar(); }catch(e){ console.warn('[volver ' + clave + ']', e); } })();
+  try{ await Promise.race([guardado, new Promise(r => setTimeout(r, 1200))]); }catch(e){}
+  try{ salir(); }catch(e){ console.warn('[volver ' + clave + ' salir]', e); }
+  guardado.then(() => { try{ if(despues) despues(); }catch(e){} }).finally(() => { setTimeout(() => { cerrando[clave] = false; }, 500); });
 }
 
 // Guarda los valores actualmente visibles en pg0 (OMAR) y pg1 (Hoja/Cadena) al
@@ -6627,7 +6648,7 @@ async function cargarMuestreo(id, opts){
   // AARMS lote3ba: la hoja se restaura antes de que goPage guarde la pantalla.
   // Sin folio la OMAR igual tiene campo; si no se pinta, el guardado lo borra.
   loadCampoFromOMAR();
-  const omarLlena = !!omar.folio || !!(omar.empresa && String(omar.empresa).trim()) || !!(omar.campo && omar.campo.emp && String(omar.campo.emp).trim()); // AARMS lote35c: con folio o con empresa ya se puede abrir la Hoja
+  const omarLlena = !!omar.folio || !!(omar.empresa && String(omar.empresa).trim()) || !!(omar.campo && omar.campo.emp && String(omar.campo.emp).trim()) || (Array.isArray(m.tomas) && m.tomas.length > 0); // AARMS lote46: con tomas ya tiene Hoja // AARMS lote35c: con folio o con empresa ya se puede abrir la Hoja
   // AARMS lote14a: cargar una OMAR abre su formulario. La Hoja solo si quien llama lo pide.
   const irHoja = !!opts.irHoja && omarLlena;
 
@@ -14257,17 +14278,16 @@ async function abrirBitacoraTemp(opts){
 window.abrirBitacoraTemp = abrirBitacoraTemp;
 
 async function cerrarBitacoraTemp(){
-  try{ await _persistPlanBitTemp(); }catch(e){}
-  _flushTomasDesdeDOM();
-  try{ await guardarBorradorActual(); }catch(e){}
-  if(typeof renderTomas==='function') renderTomas();
   const origen=_bitTempOrigen;
-  if(origen==='plan'){
-    goPage('pgPlan');
-    try{ renderPlanDocs(); }catch(_){}
-  }else{
-    goPage('pg1');
-  }
+  await _lote46GuardarYSalir('temp', async () => {
+    _flushTomasDesdeDOM();
+    try{ await _persistPlanBitTemp(); }catch(e){}
+    try{ await guardarBorradorActual(); }catch(e){}
+  }, () => {
+    if(typeof renderTomas==='function') renderTomas();
+    if(origen==='plan'){ goPage('pgPlan'); try{ renderPlanDocs(); }catch(_){} }
+    else { goPage('pg1'); }
+  }, () => { if(origen==='plan'){ try{ renderPlanDocs(); }catch(_){} } });
 }
 window.cerrarBitacoraTemp = cerrarBitacoraTemp;
 window.volverDeBitTemp = cerrarBitacoraTemp;
@@ -14605,17 +14625,16 @@ async function abrirBitacoraFlujos(opts){
 window.abrirBitacoraFlujos = abrirBitacoraFlujos;
 
 async function cerrarBitacoraFlujos(){
-  try{ await _persistPlanBitFlujos(); }catch(e){}
-  _flushTomasDesdeDOM();
-  try{ await guardarBorradorActual(); }catch(e){}
-  if(typeof renderTomas==='function') renderTomas();
   const origen=_bitFlujosOrigen;
-  if(origen==='plan'){
-    goPage('pgPlan');
-    try{ renderPlanDocs(); }catch(_){}
-  }else{
-    goPage('pg1');
-  }
+  await _lote46GuardarYSalir('flujos', async () => {
+    _flushTomasDesdeDOM();
+    try{ await _persistPlanBitFlujos(); }catch(e){}
+    try{ await guardarBorradorActual(); }catch(e){}
+  }, () => {
+    if(typeof renderTomas==='function') renderTomas();
+    if(origen==='plan'){ goPage('pgPlan'); try{ renderPlanDocs(); }catch(_){} }
+    else { goPage('pg1'); }
+  }, () => { if(origen==='plan'){ try{ renderPlanDocs(); }catch(_){} } });
 }
 window.cerrarBitacoraFlujos = cerrarBitacoraFlujos;
 window.volverDeBitFlujos = cerrarBitacoraFlujos;
@@ -15416,16 +15435,16 @@ async function abrirBitacoraOD(opts){
 window.abrirBitacoraOD = abrirBitacoraOD;
 
 async function cerrarBitacoraOD(){
-  try{ await _persistPlanBitOD(); }catch(e){}
-  _flushTomasDesdeDOM();
-  try{ await guardarBorradorActual(); }catch(e){}
-  if(typeof renderTomas === 'function') renderTomas();
-  if(_bitODOrigen === 'plan'){
-    goPage('pgPlan');
-    try{ renderPlanDocs(); }catch(_){}
-  }else{
-    goPage('pg1');
-  }
+  const origen = _bitODOrigen;
+  await _lote46GuardarYSalir('od', async () => {
+    _flushTomasDesdeDOM();
+    try{ await _persistPlanBitOD(); }catch(e){}
+    try{ await guardarBorradorActual(); }catch(e){}
+  }, () => {
+    if(typeof renderTomas === 'function') renderTomas();
+    if(origen === 'plan'){ goPage('pgPlan'); try{ renderPlanDocs(); }catch(_){} }
+    else { goPage('pg1'); }
+  }, () => { if(origen === 'plan'){ try{ renderPlanDocs(); }catch(_){} } });
 }
 window.cerrarBitacoraOD = cerrarBitacoraOD;
 window.volverDeBitOD = cerrarBitacoraOD;
@@ -16031,11 +16050,12 @@ async function abrirBitacoraPH(){
   goPage('pgBitPH');
 }
 async function cerrarBitacoraPH(){
-  try{ await _persistPlanBitPh(); }catch(e){}
-  _flushTomasDesdeDOM();
-  _bitAplicarPromediosAToma('ph');
-  try{ await guardarBorradorActual(); }catch(e){}
-  goPage('pg1');
+  await _lote46GuardarYSalir('ph', async () => {
+    _flushTomasDesdeDOM();
+    _bitAplicarPromediosAToma('ph');
+    try{ await _persistPlanBitPh(); }catch(e){}
+    try{ await guardarBorradorActual(); }catch(e){}
+  }, () => { goPage('pg1'); });
 }
 
 // AARMS v64: ordena registros cronológicamente manteniendo calibGrupo unidos
@@ -16702,18 +16722,17 @@ async function abrirBitacoraCond(){
   if(_condFlujoActivo) toast('Paso 2 · Entre tomas','');
 }
 async function cerrarBitacoraCond(){
-  try{ await _persistPlanBitCond(); }catch(e){}
-  _flushTomasDesdeDOM();
-  _bitAplicarPromediosAToma('cond');
-  try{ await guardarBorradorActual(); }catch(e){}
   const origen = _condFlujoOrigen;
-  _condFlujoActivo = false;
-  if(origen==='plan'){
-    goPage('pgPlan');
-    try{ renderPlanDocs(); }catch(_){}
-  }else{
-    goPage('pg1');
-  }
+  await _lote46GuardarYSalir('cond', async () => {
+    _flushTomasDesdeDOM();
+    _bitAplicarPromediosAToma('cond');
+    try{ await _persistPlanBitCond(); }catch(e){}
+    try{ await guardarBorradorActual(); }catch(e){}
+  }, () => {
+    _condFlujoActivo = false;
+    if(origen==='plan'){ goPage('pgPlan'); try{ renderPlanDocs(); }catch(_){} }
+    else { goPage('pg1'); }
+  }, () => { if(origen==='plan'){ try{ renderPlanDocs(); }catch(_){} } });
 }
 
 function _bitCondCalcAcepta(r){
