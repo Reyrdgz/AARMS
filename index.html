@@ -1900,40 +1900,6 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
       <input type="hidden" id="colab_ctrl_l1"><input type="hidden" id="colab_ctrl_l2"><input type="hidden" id="colab_ctrl_l3">
     </div></div>
 
-    <div class="card"><div class="ch"><div class="ct">4. Calibración campo (MRC)</div><span class="cbadge">Acepta manual</span></div><div class="cb g2">
-      <div class="f"><label>Fecha</label><input type="date" id="colab_campo_cal_fecha"></div>
-      <div class="f"><label>Hora</label><input type="time" id="colab_campo_cal_hora"></div>
-      <div class="f"><label>Lote</label><input type="text" id="colab_campo_cal_lote"></div>
-      <div class="f"><label>Marca</label><input type="text" id="colab_campo_cal_marca"></div>
-      <div class="f"><label>Valor Nominal</label><input type="text" id="colab_campo_cal_vn" inputmode="decimal" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('campo')"></div>
-      <div class="f"><label>Incertidumbre (±)</label><input type="text" id="colab_campo_cal_inc" inputmode="decimal" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('campo')"></div>
-      <div class="f"><label>VN + I (auto)</label><input type="text" id="colab_campo_cal_vnp" readonly style="opacity:.85"></div>
-      <div class="f"><label>VN − I (auto)</label><input type="text" id="colab_campo_cal_vnm" readonly style="opacity:.85"></div>
-      <div class="f"><label>Lectura equipo</label><input type="text" id="colab_campo_cal_lect"></div>
-      <div class="f"><label>Acepta o Rechaza (manual)</label><select id="colab_campo_cal_acep" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="ACEPTA">ACEPTA</option><option value="RECHAZA">RECHAZA</option></select></div>
-    </div></div>
-
-    <div class="card"><div class="ch"><div class="ct">5. Comprobación campo (MRC)</div><span class="cbadge">±5%</span></div><div class="cb g2">
-      <div class="f"><label>Fecha</label><input type="date" id="colab_campo_comp_fecha"></div>
-      <div class="f"><label>Hora</label><input type="time" id="colab_campo_comp_hora"></div>
-      <div class="f"><label>Lote</label><input type="text" id="colab_campo_comp_lote"></div>
-      <div class="f"><label>Marca</label><input type="text" id="colab_campo_comp_marca"></div>
-      <div class="f"><label>Valor Nominal</label><input type="text" id="colab_campo_comp_vn"></div>
-      <div class="f"><label>L1</label><input type="text" id="colab_campo_comp_l1"></div>
-      <div class="f"><label>L2</label><input type="text" id="colab_campo_comp_l2"></div>
-      <div class="f"><label>L3</label><input type="text" id="colab_campo_comp_l3"></div>
-    </div></div>
-
-    <div class="card"><div class="ch"><div class="ct">6. Verificación campo (control)</div><span class="cbadge">±5%</span></div><div class="cb g2">
-      <div class="f"><label>Fecha</label><input type="date" id="colab_campo_ver_fecha"></div>
-      <div class="f"><label>Hora</label><input type="time" id="colab_campo_ver_hora"></div>
-      <div class="f"><label>Lote</label><input type="text" id="colab_campo_ver_lote"></div>
-      <div class="f"><label>Marca</label><input type="text" id="colab_campo_ver_marca"></div>
-      <div class="f"><label>Valor Nominal</label><input type="text" id="colab_campo_ver_vn"></div>
-      <div class="f"><label>L1</label><input type="text" id="colab_campo_ver_l1"></div>
-      <div class="f"><label>L2</label><input type="text" id="colab_campo_ver_l2"></div>
-      <div class="f"><label>L3</label><input type="text" id="colab_campo_ver_l3"></div>
-    </div></div>
     <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
       <button class="btn btn-g" style="flex:1;min-width:140px" onclick="guardarInstrumentLab('colab')">Guardar</button>
       <button data-btn-continuar-lab class="btn btn-p" style="flex:1;min-width:180px" onclick="continuarAlSiguientePaso()">Guardar y continuar a Hoja de Campo</button>
@@ -2082,6 +2048,45 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
     <div class="f" style="margin-bottom:12px">
       <label>Folio</label>
       <input type="text" id="bitCondFolioDocInp" placeholder="Ej. folio bitácora campo" oninput="if(typeof _bitCondFolioDocSet==='function')_bitCondFolioDocSet(this.value);if(typeof guardarBorradorActual==='function')guardarBorradorActual();if(typeof _persistPlanBitCond==='function')void _persistPlanBitCond();">
+    </div>
+
+    <div id="condCampoBloques" style="margin-bottom:14px">
+      <div style="font-family:var(--syne);font-size:13px;font-weight:800;color:var(--w);margin:4px 0 4px">Actividad en campo</div>
+      <div style="font-size:11.5px;color:var(--g1);line-height:1.5;margin-bottom:10px">Calibración, comprobación y verificación del conductímetro en campo, antes de las tomas.</div>
+    <div class="card" style="margin-bottom:12px"><div class="ch"><div class="ct">4. Calibración campo (MRC)</div><span class="cbadge">Acepta manual</span></div><div class="cb g2">
+      <div class="f"><label>Fecha</label><input type="date" id="colab_campo_cal_fecha"></div>
+      <div class="f"><label>Hora</label><input type="time" id="colab_campo_cal_hora"></div>
+      <div class="f"><label>Lote</label><input type="text" id="colab_campo_cal_lote"></div>
+      <div class="f"><label>Marca</label><input type="text" id="colab_campo_cal_marca"></div>
+      <div class="f"><label>Valor Nominal</label><input type="text" id="colab_campo_cal_vn" inputmode="decimal" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('campo')"></div>
+      <div class="f"><label>Incertidumbre (±)</label><input type="text" id="colab_campo_cal_inc" inputmode="decimal" oninput="if(typeof _condRecalcVnPm==='function')_condRecalcVnPm('campo')"></div>
+      <div class="f"><label>VN + I (auto)</label><input type="text" id="colab_campo_cal_vnp" readonly style="opacity:.85"></div>
+      <div class="f"><label>VN − I (auto)</label><input type="text" id="colab_campo_cal_vnm" readonly style="opacity:.85"></div>
+      <div class="f"><label>Lectura equipo</label><input type="text" id="colab_campo_cal_lect"></div>
+      <div class="f"><label>Acepta o Rechaza (manual)</label><select id="colab_campo_cal_acep" style="width:100%;background:var(--bg2);border:1px solid var(--g3);border-radius:var(--r);color:var(--w);padding:10px"><option value="">—</option><option value="ACEPTA">ACEPTA</option><option value="RECHAZA">RECHAZA</option></select></div>
+    </div></div>
+
+    <div class="card" style="margin-bottom:12px"><div class="ch"><div class="ct">5. Comprobación campo (MRC)</div><span class="cbadge">±5%</span></div><div class="cb g2">
+      <div class="f"><label>Fecha</label><input type="date" id="colab_campo_comp_fecha"></div>
+      <div class="f"><label>Hora</label><input type="time" id="colab_campo_comp_hora"></div>
+      <div class="f"><label>Lote</label><input type="text" id="colab_campo_comp_lote"></div>
+      <div class="f"><label>Marca</label><input type="text" id="colab_campo_comp_marca"></div>
+      <div class="f"><label>Valor Nominal</label><input type="text" id="colab_campo_comp_vn"></div>
+      <div class="f"><label>L1</label><input type="text" id="colab_campo_comp_l1"></div>
+      <div class="f"><label>L2</label><input type="text" id="colab_campo_comp_l2"></div>
+      <div class="f"><label>L3</label><input type="text" id="colab_campo_comp_l3"></div>
+    </div></div>
+
+    <div class="card" style="margin-bottom:12px"><div class="ch"><div class="ct">6. Verificación campo (control)</div><span class="cbadge">±5%</span></div><div class="cb g2">
+      <div class="f"><label>Fecha</label><input type="date" id="colab_campo_ver_fecha"></div>
+      <div class="f"><label>Hora</label><input type="time" id="colab_campo_ver_hora"></div>
+      <div class="f"><label>Lote</label><input type="text" id="colab_campo_ver_lote"></div>
+      <div class="f"><label>Marca</label><input type="text" id="colab_campo_ver_marca"></div>
+      <div class="f"><label>Valor Nominal</label><input type="text" id="colab_campo_ver_vn"></div>
+      <div class="f"><label>L1</label><input type="text" id="colab_campo_ver_l1"></div>
+      <div class="f"><label>L2</label><input type="text" id="colab_campo_ver_l2"></div>
+      <div class="f"><label>L3</label><input type="text" id="colab_campo_ver_l3"></div>
+    </div></div>
     </div>
 
     <div id="bitCondRegistros"></div>

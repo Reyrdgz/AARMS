@@ -21441,3 +21441,84 @@ window.rsOptimizarFotos = pantallaOptimizar;
 window.rsRevisarFotos = () => renderInfo(true);
 window.rsBorrarOriginales = pantallaBorrarOriginales;
 })();
+
+/* =====================================================================
+ * AARMS lote45c — CONDUCTÍMETRO: la actividad de CAMPO (calibración, comprobación y verificación) vive en «entre tomas»
+ * Las 3 tarjetas salieron de la pantalla de laboratorio. Los datos son los MISMOS (omar.colabLab.campo_*) y el PDF no cambia.
+ * ===================================================================== */
+(function(){
+'use strict';
+const CAMPO_PARES = [
+  ['campo_cal_fecha','colab_campo_cal_fecha'], ['campo_cal_hora','colab_campo_cal_hora'], ['campo_cal_lote','colab_campo_cal_lote'], ['campo_cal_marca','colab_campo_cal_marca'],
+  ['campo_cal_vn','colab_campo_cal_vn'], ['campo_cal_inc','colab_campo_cal_inc'], ['campo_cal_lect','colab_campo_cal_lect'], ['campo_cal_acep','colab_campo_cal_acep'],
+  ['campo_comp_fecha','colab_campo_comp_fecha'], ['campo_comp_hora','colab_campo_comp_hora'], ['campo_comp_lote','colab_campo_comp_lote'], ['campo_comp_marca','colab_campo_comp_marca'],
+  ['campo_comp_vn','colab_campo_comp_vn'], ['campo_comp_l1','colab_campo_comp_l1'], ['campo_comp_l2','colab_campo_comp_l2'], ['campo_comp_l3','colab_campo_comp_l3'],
+  ['campo_ver_fecha','colab_campo_ver_fecha'], ['campo_ver_hora','colab_campo_ver_hora'], ['campo_ver_lote','colab_campo_ver_lote'], ['campo_ver_marca','colab_campo_ver_marca'],
+  ['campo_ver_vn','colab_campo_ver_vn'], ['campo_ver_l1','colab_campo_ver_l1'], ['campo_ver_l2','colab_campo_ver_l2'], ['campo_ver_l3','colab_campo_ver_l3']
+];
+function _pantallaCampoDeEste(){
+  const pg = document.getElementById('pgBitCond');
+  if(!omar || !omar.ts || !pg || !pg.classList.contains('on')) return false;
+  return String(pg.getAttribute('data-rs-campo-omar') || '') === String(omar.ts);
+}
+// Lee las tarjetas de campo hacia la OMAR (igual que el laboratorio: un cuadro vacío no borra el dato salvo que lo hayan borrado).
+function leerColabCampoAlOmar(){
+  if(!_pantallaCampoDeEste()) return;
+  const prev = omar.colabLab || {};
+  CAMPO_PARES.forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if(!el) return;
+    const v = (el.value || '').trim();
+    const dirty = el.getAttribute('data-lote21-dirty') === '1';
+    if(!dirty && !v && prev[k]) return;
+    prev[k] = v;
+  });
+  omar.colabLab = prev;
+  try{ _lote33CartaCond(prev); }catch(e){}
+}
+function poblarColabCampo(){
+  const c = (omar && omar.colabLab) || {};
+  CAMPO_PARES.forEach(([k, id]) => { _instS(id, c[k] || ''); const el = document.getElementById(id); if(el) el.removeAttribute('data-lote21-dirty'); });
+  try{ _condRecalcVnPm('campo'); }catch(e){}
+}
+// Al abrir «entre tomas»: se pintan los datos guardados de campo y se completan lote/marca/valor desde el Inventario si están vacíos.
+try{
+  const _abc = abrirBitacoraCond;
+  abrirBitacoraCond = async function(){
+    const r = await _abc.apply(this, arguments);
+    try{
+      const pg = document.getElementById('pgBitCond');
+      if(pg && pg.classList.contains('on') && omar && omar.ts){
+        pg.setAttribute('data-rs-campo-omar', String(omar.ts));
+        poblarColabCampo();
+        try{ _lote25AutoKcl(); }catch(e){}
+      }
+    }catch(e){ console.warn('[campo cond]', e); }
+    return r;
+  };
+}catch(e){ console.warn('[campo cond envoltura]', e); }
+// Mientras se capturan: se guardan en la OMAR y se autoguarda
+document.addEventListener('input', ev => {
+  const t = ev.target;
+  if(!t || !t.closest || !t.closest('#condCampoBloques')) return;
+  t.setAttribute('data-lote21-dirty', '1');
+  try{ leerColabCampoAlOmar(); _autoSaveDeferred(); }catch(e){}
+});
+document.addEventListener('change', ev => {
+  const t = ev.target;
+  if(!t || !t.closest || !t.closest('#condCampoBloques')) return;
+  t.setAttribute('data-lote21-dirty', '1');
+  try{ leerColabCampoAlOmar(); _autoSaveDeferred(); }catch(e){}
+});
+// El PDF se genera con lo último que se capturó en campo
+try{
+  const _gpdf = generarPDFColabCompleto;
+  generarPDFColabCompleto = async function(){
+    try{ leerColabCampoAlOmar(); }catch(e){}
+    return await _gpdf.apply(this, arguments);
+  };
+  window.generarPDFColabCompleto = generarPDFColabCompleto;
+}catch(e){ console.warn('[campo cond pdf]', e); }
+window.leerColabCampoAlOmar = leerColabCampoAlOmar;
+window.poblarColabCampo = poblarColabCampo;
+})();
