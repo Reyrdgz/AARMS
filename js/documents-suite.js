@@ -566,7 +566,7 @@ function _lote16CroquisFuente(plan){
   let elegido = null;
   for(const m of ms){
     const o = _lote16OmarDe(m);
-    const foto = m.photoData && m.photoData !== 'p' ? m.photoData : '';
+    const foto = m.photoData ? m.photoData : ''; // AARMS lote45b: 'p' = hay foto aparte (se lee al dibujar)
     const gps = _lote16Gps(o);
     if(foto || gps){ elegido = { m, o, foto, gps }; break; }
   }
@@ -796,7 +796,7 @@ async function _lote16Croquis(doc, plan, x, y, w, h){
   if(src && src.gps && typeof loadMapImage === 'function'){
     try { mapa = await loadMapImage(src.gps.lat, src.gps.lng, 16, 900, 700); } catch(e){ mapa = null; }
   }
-  if(src && src.foto) foto = src.foto;
+  if(src && src.foto){ foto = (src.foto === 'p') ? ((window.AARMS_FOTOS && src.m) ? await AARMS_FOTOS.resolver(src.m, 1) : null) : src.foto; } // AARMS lote45b
   const medM = mapa ? await _lote16Medir(mapa) : null;
   const medF = foto ? await _lote16Medir(foto) : null;
   const tiene = [];

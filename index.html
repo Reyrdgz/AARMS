@@ -598,6 +598,7 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 
     <div id="lote10Arranque" style="display:none"></div>
     <div id="rsBanner" style="display:none"></div>
+    <div id="rsBanner2" style="display:none"></div>
 
     <!-- Acción principal -->
     <button class="btn btn-p" style="width:100%;font-size:15px;padding:15px;font-family:var(--syne);font-weight:800;letter-spacing:.04em" onclick="abrirModalNuevoMuestreo()">+ Nuevo Muestreo</button>
@@ -1592,7 +1593,8 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
 
 
   <script>(function(){["pgHome","pgPlan","pg0","pg1","pgLVAR"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});["sec0","sec1","sec2"].forEach(function(id,i){var e=document.getElementById(id);if(e)e.classList.toggle("on",i===0);});})();</script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="js/jszip.min.js"></script>
+  <script>if(typeof JSZip==='undefined'){document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>');}</script>
   <script src="js/jspdf.umd.min.js"></script>
   <script src="js/app.js"></script>
   <script src="js/documents-suite.js"></script>
@@ -2458,6 +2460,21 @@ body{padding-top:calc(54px + env(safe-area-inset-top,0px));padding-bottom:env(sa
         <div style="font-size:12px;color:var(--g1);line-height:1.5;margin-bottom:8px">Se guardan solas dentro de la app (sin fotos), cada día y antes de restaurar. Se conservan las últimas 5. Ayudan si un cambio sale mal; <b>no sustituyen</b> el respaldo descargado.</div>
         <div id="rsSnapLista"></div>
         <button type="button" class="btn btn-g" style="width:auto;margin-top:10px;font-size:12px" onclick="rsSnapAhora()">Crear copia interna ahora</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="ch"><div class="ct">Fotos y espacio</div></div>
+      <div class="cb">
+        <div id="rsEspacio" style="margin-bottom:12px"></div>
+        <div id="rsFotosInfo" style="margin-bottom:12px"></div>
+        <div style="font-size:12px;color:var(--g1);line-height:1.5;margin-bottom:10px">Las fotos nuevas se reducen al tomarlas y se guardan aparte. Las viejas se pasan solas al guardar cada OMAR, o todas juntas aquí. El <b>original</b> se conserva hasta que lo borres.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button type="button" class="btn btn-p" style="width:auto;font-size:12px" onclick="rsOptimizarFotos()">Optimizar fotos</button>
+          <button type="button" class="btn btn-g" style="width:auto;font-size:12px" onclick="rsRevisarFotos()">Revisar fotos</button>
+          <button type="button" class="btn btn-g" style="width:auto;font-size:12px" onclick="rsBorrarOriginales()">Borrar originales…</button>
+        </div>
+        <div id="rsFotosProgreso" style="font-size:12px;color:var(--g1);margin-top:10px;line-height:1.4"></div>
       </div>
     </div>
 

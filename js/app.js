@@ -6575,6 +6575,9 @@ async function cargarMuestreo(id, opts){
     }
   }
   window._lote35OmarPlanId = m.planId || ''; // AARMS lote35b: de qué plan es lo que está en memoria
+  // AARMS lote45b: las fotos se leen de su base ANTES de abrir el guardado
+  let _fotoA = null, _fotoB = null;
+  try{ _fotoA = await AARMS_FOTOS.cargar(m, 1); _fotoB = await AARMS_FOTOS.cargar(m, 2); }catch(e){ console.warn('[fotos carga]', e); }
   window._lote30Cargando = false;
   // AARMS sub2-temp: migrar tomas de 1 lectura → 3 lecturas
   let tempMigrado = false;
@@ -6596,8 +6599,8 @@ async function cargarMuestreo(id, opts){
   sigData=m.sigData||null;
   sigData2=m.sigData2||null;
   // Restaurar fotos del muestreo (¡por OMAR!) — antes se perdían y se confundían entre OMARs
-  photoData = m.photoData || null;
-  photoData2 = m.photoData2 || null;
+  photoData = _fotoA;
+  photoData2 = _fotoB;
   if(photoData){
     const img=document.getElementById('photoImg');
     if(img){ img.src=photoData; }
@@ -8264,8 +8267,12 @@ async function _autoSaveNow(){
 function handlePhoto(input){
   if(!input.files||!input.files[0])return;
   const reader=new FileReader();
-  reader.onload=e=>{
-    photoData=e.target.result;
+  reader.onload=async e=>{
+    const _idCap = omar && omar.ts;
+    let _dato = e.target.result;
+    try{ _dato = await AARMS_FOTOS.reducirCaptura(_dato); }catch(err){} // AARMS lote45b: se reduce al tomarla
+    if(!omar || omar.ts !== _idCap){ toast('Cambiaste de OMAR mientras se procesaba la foto; tómala otra vez','w'); return; }
+    photoData=_dato;
     document.getElementById('photoImg').src=photoData;
     document.getElementById('photoPreview').style.display='block';
     document.getElementById('delPhotoBtn').style.display='inline-flex';
@@ -8275,6 +8282,7 @@ function handlePhoto(input){
   reader.readAsDataURL(input.files[0]);
 }
 function delPhoto(){
+  try{ AARMS_FOTOS.marcarBorrada(omar && omar.ts, 1); }catch(e){} // AARMS lote45b: borrar foto SOLO si el usuario lo pidió
   photoData=null;
   document.getElementById('photoPreview').style.display='none';
   document.getElementById('delPhotoBtn').style.display='none';
@@ -8284,8 +8292,12 @@ function delPhoto(){
 function handlePhoto2(input){
   if(!input.files||!input.files[0])return;
   const reader=new FileReader();
-  reader.onload=e=>{
-    photoData2=e.target.result;
+  reader.onload=async e=>{
+    const _idCap = omar && omar.ts;
+    let _dato = e.target.result;
+    try{ _dato = await AARMS_FOTOS.reducirCaptura(_dato); }catch(err){}
+    if(!omar || omar.ts !== _idCap){ toast('Cambiaste de OMAR mientras se procesaba la foto; tómala otra vez','w'); return; }
+    photoData2=_dato;
     document.getElementById('photoImg2').src=photoData2;
     document.getElementById('photoPreview2').style.display='block';
     document.getElementById('delPhotoBtn2').style.display='inline-flex';
@@ -8295,6 +8307,7 @@ function handlePhoto2(input){
   reader.readAsDataURL(input.files[0]);
 }
 function delPhoto2(){
+  try{ AARMS_FOTOS.marcarBorrada(omar && omar.ts, 2); }catch(e){}
   photoData2=null;
   document.getElementById('photoPreview2').style.display='none';
   document.getElementById('delPhotoBtn2').style.display='none';
@@ -8642,6 +8655,19 @@ function idbGetAll(){
   }));
 }
 
+// AARMS lote45b: un solo registro por id (texto o número), sin leer los demás.
+function _idbGetUno(id){
+  return openDB().then(db=>new Promise((res,rej)=>{
+    const st=db.transaction(STORE,'readonly').objectStore(STORE);
+    const r1=st.get(id);
+    r1.onsuccess=e=>{
+      if(e.target.result!==undefined || id==null || isNaN(Number(id)) || typeof id==='number'){ res(e.target.result); return; }
+      const r2=db.transaction(STORE,'readonly').objectStore(STORE).get(Number(id));
+      r2.onsuccess=ev=>res(ev.target.result); r2.onerror=ev=>rej(ev);
+    };
+    r1.onerror=e=>rej(e);
+  }));
+}
 function idbPut(record){
   return openDB().then(db=>new Promise((res,rej)=>{
     const tx=db.transaction(STORE,'readwrite');
@@ -9202,8 +9228,14 @@ async function _saveMuestreoActualInterno(){
     photoData2: photoData2 || null,
   };
   if(planId) entry.planId = planId;
+  // AARMS lote45b: las fotos van a su base aparte; en el registro queda la marca 'p'. Si algo falla, la foto se queda DENTRO del registro.
+  const _f1 = photoData, _f2 = photoData2;
+  let _fCamb = {};
+  try{ _fCamb = (await AARMS_FOTOS.persistirEntry(entry, prev)) || {}; }catch(e){ console.warn('[fotos guardar]', e); }
   try{ await idbPut(entry); }
   catch(e){ _lote32Log('idbPut', e); await _lote32GuardarSoloTomas(true); _lote32Aviso(); throw e; } // AARMS lote32
+  if(_fCamb[1] && photoData === _f1){ photoData = _fCamb[1]; AARMS_FOTOS.adoptar(mid, 1, _fCamb[1]); }
+  if(_fCamb[2] && photoData2 === _f2){ photoData2 = _fCamb[2]; AARMS_FOTOS.adoptar(mid, 2, _fCamb[2]); }
   // Si es nuevo, agregar al plan pendiente y limpiar flag
   if(_pendingNewPlanId && _pendingNewMuestreoId===mid){
     await planAgregarOmar(_pendingNewPlanId, mid);
@@ -9391,8 +9423,7 @@ async function _lote21HojaFuente(omarIdPedido){
     ? String(omarIdPedido)
     : (pantallaId || (omar && omar.ts ? String(omar.ts) : ''));
   if(!id) return null;
-  const todos = await idbGetAll();
-  const m = (todos || []).find(x => String(x.id) === id);
+  const m = await _idbGetUno(id); // AARMS lote45b: solo este registro (antes leía TODOS con sus fotos en cada PDF)
   if(!m) return null;
   let original = {};
   try { original = m.omar ? JSON.parse(m.omar) : {}; } catch(e){ original = {}; }
@@ -9450,8 +9481,8 @@ async function _lote21HojaFuente(omarIdPedido){
       || _lote21JsonEstable(tomasGuardar) !== _lote21JsonEstable(m.tomas || [])
       || sig !== (m.sigData || null)
       || sig2 !== (m.sigData2 || null)
-      || foto !== (m.photoData || null)
-      || foto2 !== (m.photoData2 || null);
+      || AARMS_FOTOS.cambio(id, 1, foto, m.photoData)
+      || AARMS_FOTOS.cambio(id, 2, foto2, m.photoData2);
     if(cambia){
       const base = JSON.parse(JSON.stringify(original));
       base.campo = o.campo;
@@ -9466,6 +9497,7 @@ async function _lote21HojaFuente(omarIdPedido){
         photoData: foto,
         photoData2: foto2,
       });
+      try{ await AARMS_FOTOS.persistirEntry(entry, m); }catch(e){ console.warn('[fotos hoja]', e); } // AARMS lote45b
       await idbPut(entry);
       await refreshCache();
       if(typeof omar !== 'undefined' && omar && String(omar.ts) === id){
@@ -9489,8 +9521,8 @@ async function _lote21HojaFuente(omarIdPedido){
     id,
     omar: o,
     tomas: _lote24gFiltrarTomas(_lote21TomasConSet(m.tomas || []), o),
-    photoData: m.photoData || null,
-    photoData2: m.photoData2 || null,
+    photoData: await AARMS_FOTOS.resolver(m, 1),   // AARMS lote45b: la foto sale de su base si va aparte
+    photoData2: await AARMS_FOTOS.resolver(m, 2),
     sigData: m.sigData || null,
     sigData2: m.sigData2 || null,
     campos: _lote21CamposDesdeRegistro(o),
@@ -20382,6 +20414,7 @@ async function _rsRecorrer(store, fn){
   });
 }
 async function _rsLeerUno(store, id){
+  if(store === 'fotos') return await AARMS_FOTOS._get(AARMS_FOTOS.ST_FOTOS, id);
   const db = await openDB();
   if(!db.objectStoreNames.contains(store)) return undefined;
   return await new Promise((res, rej) => {
@@ -20391,6 +20424,7 @@ async function _rsLeerUno(store, id){
   });
 }
 async function _rsEscribirUno(store, rec){
+  if(store === 'fotos'){ const r = Object.assign({}, rec); delete r.id; await AARMS_FOTOS._put(AARMS_FOTOS.ST_FOTOS, r); return; }
   const db = await openDB();
   await new Promise((res, rej) => {
     const tx = db.transaction(store, 'readwrite');
@@ -20487,8 +20521,8 @@ async function _rsConstruir({ conFotos, limite, etiqueta, alAvance }){
         if(rec && rec.id === '_catalogo_aarms') res.inventario = 1;
         else {
           res.omars++;
-          if(rec && rec.photoData) res.fotos++;
-          if(rec && rec.photoData2) res.fotos++;
+          if(rec && rec.photoData && rec.photoData !== 'p') res.fotos++;
+          if(rec && rec.photoData2 && rec.photoData2 !== 'p') res.fotos++;
           if(rec && rec.sigData) res.firmas++;
         }
       }
@@ -20496,6 +20530,11 @@ async function _rsConstruir({ conFotos, limite, etiqueta, alAvance }){
       else if(st === 'blmp_registros') res.blmp++;
       else if(st === 'doc_versiones') res.versiones++;
     });
+    await _rsPausa();
+  }
+  if(conFotos && window.AARMS_FOTOS){
+    if(alAvance) alAvance('Guardando fotos…');
+    await AARMS_FOTOS._recorrer(AARMS_FOTOS.ST_FOTOS, rec => { w.registro('fotos', Object.assign({ id: rec.k }, rec), false); res.fotos++; });
     await _rsPausa();
   }
   _rsLlavesLS().forEach(k => {
@@ -20590,6 +20629,8 @@ function rsBajarParte(i){
       }catch(e){}
     }
     toast('Respaldo guardado. Pásalo a tu computadora o a Drive.', 'g');
+    _rsPartesActuales = [];   // AARMS lote45b: se suelta el respaldo de la memoria
+    const pg = _rsEl('rsProgreso'); if(pg) pg.textContent = 'Guardado. Cuando lo pases a tu computadora o a Drive, borra el archivo de Descargas para no ocupar espacio.';
     _rsRenderEstado();
     _rsActualizarBanner();
   }
@@ -20643,7 +20684,7 @@ async function _rsSnapAuto(){
     try{
       if(navigator.storage && navigator.storage.estimate){
         const est = await navigator.storage.estimate();
-        if(est && est.usage > 150 * 1024 * 1024) return;
+        if(est && est.usage > 150 * 1024 * 1024 && !localStorage.getItem('aarms_fotos_optimizado')) return; // con las fotos ya aparte, la copia diaria es ligera
       }
     }catch(e){}
     _rsOcupado = true;
@@ -20712,11 +20753,11 @@ async function _rsValidar(archivos){
         if(o.t === 'r'){
           contadas[o.s] = (contadas[o.s] || 0) + 1;
           info.conteo[o.s] = (info.conteo[o.s] || 0) + 1;
-          if(RS_STORES.indexOf(o.s) < 0) return;
+          if(RS_STORES.indexOf(o.s) < 0 && o.s !== 'fotos') return;
           if(!o.d || o.d.id == null){ info.problemas.push(f.nombre + ': un registro sin identificador'); return; }
           const local = await _rsLeerUno(o.s, o.d.id);
           if(local === undefined) info.nuevos++;
-          else if(_rsSerializar(local, !hdr.conFotos) === _rsCuerpo(ln)) info.iguales++;
+          else if(o.s === 'fotos' ? (local.dataUrl === o.d.dataUrl) : (_rsSerializar(local, !hdr.conFotos) === _rsCuerpo(ln))) info.iguales++;
           else info.distintos++;
         }
       });
@@ -20783,14 +20824,14 @@ async function _rsAplicar(archivos, politica, alAvance){
       const m = _RS_PREFIJO_R.exec(ln);
       if(!m) return;
       const store = m[1];
-      if(RS_STORES.indexOf(store) < 0) return;
+      if(RS_STORES.indexOf(store) < 0 && store !== 'fotos') return;
       const rec = _rsRevivir(ln.slice(m[0].length, ln.length - 1));
       if(!rec || rec.id == null) return;
       const local = await _rsLeerUno(store, rec.id);
       if(local === undefined){
         await _rsEscribirUno(store, _rsSustituirMarcas(rec, undefined));
         r.agregados++;
-      } else if(_rsSerializar(local, omitir) === _rsSerializar(rec, false)){
+      } else if(store === 'fotos' ? (local.dataUrl === rec.dataUrl) : (_rsSerializar(local, omitir) === _rsSerializar(rec, false))){
         r.iguales++;
       } else if(politica === 'reciente' && _rsTsDe(rec) > _rsTsDe(local)){
         await _rsEscribirUno(store, _rsSustituirMarcas(rec, local));
@@ -20939,6 +20980,7 @@ async function _rsRenderEstado(){
 async function rsAbrir(){
   goPage('pgRespaldo');
   await _rsRenderEstado();
+  try{ if(window.AARMS_FOTOS) await AARMS_FOTOS.renderInfo(false); }catch(e){}
 }
 
 // ---------- AVISO EN INICIO ----------
@@ -20985,7 +21027,7 @@ try{
 try{
   const _gh = window.goHome;
   if(typeof _gh === 'function' && !_gh.__rs){
-    const env = async function(){ const r = await _gh.apply(this, arguments); try{ _rsActualizarBanner(); }catch(e){} return r; };
+    const env = async function(){ const r = await _gh.apply(this, arguments); try{ _rsActualizarBanner(); }catch(e){} try{ if(window.AARMS_FOTOS) AARMS_FOTOS.avisoEspacio(); }catch(e){} return r; };
     env.__rs = true;
     window.goHome = env;
   }
@@ -21005,7 +21047,397 @@ window.rsRestaurarPedir = rsRestaurarPedir;
 window.rsRestaurarArchivos = rsRestaurarArchivos;
 window.rsRestaurarInterna = rsRestaurarInterna;
 window.rsAbrir = rsAbrir;
+window._rsPedirAdmin = _rsPedirAdmin;
 window.rsPosponer = rsPosponer;
 // Para pruebas
 window._rsTest = { setLimite: n => { RS_PARTE_BYTES = n; }, leerUno: _rsLeerUno, escribirUno: _rsEscribirUno, construir: _rsConstruir, validar: _rsValidar, aplicar: _rsAplicar, snapCrear: _rsSnapCrear, snapLista: _rsSnapLista, snapAuto: _rsSnapAuto, aplicarLS: _rsAplicarLS, serializar: _rsSerializar, revivir: _rsRevivir };
+})();
+
+/* =====================================================================
+ * AARMS lote45b — FOTOS APARTE
+ *  · Las fotos ya no viven dentro del registro de la OMAR: van a su propia base (aarms_fotos_db),
+ *    reducidas (~1280 px, JPEG) y se leen UNA a la vez. En el registro queda la marca 'p' (= «hay foto aparte»).
+ *  · Los registros viejos (foto dentro del registro) siguen funcionando; se pasan solos al guardar la OMAR,
+ *    o todos juntos con «Optimizar fotos». La foto ORIGINAL se conserva en «originales» hasta que tú la borres.
+ *  · Si algo falla al guardar la foto aparte, la foto se queda dentro del registro: nunca se pierde.
+ *  · Espejo de configuración y folios (aarms_config, aarms_folios_log) fuera de localStorage + aviso si se llena.
+ * ===================================================================== */
+(function(){
+'use strict';
+
+const FDB_NAME = 'aarms_fotos_db', FDB_VER = 1;
+const ST_FOTOS = 'fotos', ST_ORIG = 'originales', ST_ESPEJO = 'espejo';
+const MAX_LADO = 1280, CALIDAD = 0.72, YA_CHICA = 450000;   // caracteres del dataURL
+const CAMPOS = [[1, 'photoData'], [2, 'photoData2']];
+
+let _fdb = null;
+let _reductor = null;                 // para pruebas
+const _estado = {};                   // _estado[omarId][slot] = dataURL que ya está guardada aparte (igual a lo que hay en memoria)
+const _borrada = {};                 // _borrada[omarId][slot] = true SOLO cuando el usuario toca «Quitar foto»
+const _perdida = {};                  // _perdida[omarId][slot] = true si la foto existe aparte pero NO se pudo leer: no se borra ni se sobrescribe
+
+function _esDataUrl(v){ return typeof v === 'string' && v.length > 1 && v !== 'p'; }
+function _kk(id, slot){ return String(id) + '|' + slot; }
+function _est(id){ id = String(id); return _estado[id] || (_estado[id] = {}); }
+function _per(id){ id = String(id); return _perdida[id] || (_perdida[id] = {}); }
+function _bor(id){ id = String(id); return _borrada[id] || (_borrada[id] = {}); }
+function marcarBorrada(id, slot){ if(id != null) _bor(id)[slot] = true; }
+// Para cuando quien llama cambia la foto en memoria por la reducida
+function adoptar(id, slot, red){ _est(id)[slot] = red; }
+
+// ---------- base de fotos ----------
+function _abrir(){
+  if(_fdb) return Promise.resolve(_fdb);
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open(FDB_NAME, FDB_VER);
+    rq.onupgradeneeded = e => {
+      const db = e.target.result;
+      [ST_FOTOS, ST_ORIG, ST_ESPEJO].forEach(n => { if(!db.objectStoreNames.contains(n)) db.createObjectStore(n, { keyPath: 'k' }); });
+    };
+    rq.onsuccess = e => {
+      _fdb = e.target.result;
+      _fdb.onversionchange = () => { try{ _fdb.close(); }catch(x){} _fdb = null; };
+      res(_fdb);
+    };
+    rq.onerror = e => rej(e.target.error || new Error('no se pudo abrir la base de fotos'));
+  });
+}
+async function _tx(store, modo, fn){
+  const _f = window.__AARMS_FOTOS_FALLA;   // solo para pruebas: simula que el disco falla al leer o al escribir
+  if(_f && (_f === true || _f === modo)) throw new Error('falla simulada de la base de fotos');
+  const db = await _abrir();
+  return await new Promise((res, rej) => {
+    const tx = db.transaction(store, modo);
+    let out;
+    const rq = fn(tx.objectStore(store));
+    if(rq){ rq.onsuccess = e => { out = e.target.result; }; rq.onerror = e => rej(e.target.error); }
+    tx.oncomplete = () => res(out);
+    tx.onerror = e => rej(e.target.error);
+    tx.onabort = e => rej(e.target.error || new Error('transacción cancelada'));
+  });
+}
+const _put = (st, rec) => _tx(st, 'readwrite', s => s.put(rec));
+const _get = (st, k) => _tx(st, 'readonly', s => s.get(k));
+const _del = (st, k) => _tx(st, 'readwrite', s => s.delete(k));
+async function _delRango(st, omarId){
+  const db = await _abrir();
+  await new Promise((res, rej) => {
+    const tx = db.transaction(st, 'readwrite');
+    tx.objectStore(st).delete(IDBKeyRange.bound(String(omarId) + '|', String(omarId) + '|\uffff'));
+    tx.oncomplete = () => res(); tx.onerror = e => rej(e.target.error); tx.onabort = e => rej(e.target.error);
+  });
+}
+async function _recorrer(st, fn){
+  const db = await _abrir();
+  await new Promise((res, rej) => {
+    const tx = db.transaction(st, 'readonly');
+    const rq = tx.objectStore(st).openCursor();
+    rq.onsuccess = e => { const c = e.target.result; if(!c){ res(); return; } try{ fn(c.value); }catch(x){ rej(x); return; } c.continue(); };
+    rq.onerror = e => rej(e.target.error);
+  });
+}
+
+// ---------- reducir ----------
+async function reducir(dataUrl){
+  if(_reductor) return await _reductor(dataUrl);
+  if(!_esDataUrl(dataUrl) || dataUrl.indexOf('data:image') !== 0) return dataUrl;
+  try{
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('img')); i.src = dataUrl; });
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    if(!w || !h) return dataUrl;
+    const esc = Math.min(1, MAX_LADO / Math.max(w, h));
+    if(esc === 1 && dataUrl.length < YA_CHICA) return dataUrl;
+    const cw = Math.max(1, Math.round(w * esc)), ch = Math.max(1, Math.round(h * esc));
+    const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+    const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cw, ch); cx.drawImage(img, 0, 0, cw, ch);
+    const out = c.toDataURL('image/jpeg', CALIDAD);
+    return (out && out.length > 100 && out.length < dataUrl.length) ? out : dataUrl;
+  }catch(e){ return dataUrl; }
+}
+
+// ---------- leer ----------
+// Devuelve el dataURL de la foto de una OMAR (de la base de fotos o, si es un registro viejo, del registro).
+async function cargar(m, slot){
+  if(!m) return null;
+  const campo = slot === 1 ? 'photoData' : 'photoData2';
+  const v = m[campo];
+  if(!v) return null;
+  if(v !== 'p') return v;                       // registro viejo: la foto viene dentro
+  try{
+    const r = await _get(ST_FOTOS, _kk(m.id, slot));
+    if(r && r.dataUrl){ _est(m.id)[slot] = r.dataUrl; return r.dataUrl; }
+    return null;                                // la marca existe pero no hay foto (p. ej. restaurado desde una copia interna): no hay foto
+  }catch(e){
+    console.warn('[fotos] no se pudo leer', e);
+    _per(m.id)[slot] = true;                    // existe pero no se pudo leer: NO se borra
+    return null;
+  }
+}
+async function resolver(m, slot){ return await cargar(m, slot); }
+
+// ¿La foto en memoria es distinta a lo que ya está guardado en el registro?
+function cambio(id, slot, memVal, recVal){
+  const mem = memVal || null, rec = recVal || null;
+  if(rec === 'p'){ if(!mem) return !!_bor(id)[slot]; return _est(id)[slot] !== mem; }
+  if(!mem && rec) return !!_bor(id)[slot];
+  return mem !== rec;
+}
+
+// ---------- guardar ----------
+// Antes de escribir el registro: manda las fotos a su base y deja 'p' en el registro. Si algo falla, la foto se queda DENTRO del registro.
+async function persistirEntry(entry, prev){
+  const id = String(entry.id);
+  const cambios = {};
+  for(const [slot, campo] of CAMPOS){
+    const v = entry[campo];
+    try{
+      if(!v){
+        if(_bor(id)[slot]){                                           // el usuario tocó «Quitar foto»
+          await _del(ST_FOTOS, _kk(id, slot)); await _del(ST_ORIG, _kk(id, slot));
+          delete _est(id)[slot]; delete _bor(id)[slot]; delete _per(id)[slot];
+          entry[campo] = null;
+        } else if(prev && prev[campo]){ entry[campo] = prev[campo]; } // memoria vacía (p. ej. a medio cargar): se conserva lo que había
+        else { entry[campo] = null; }
+        continue;
+      }
+      if(v === 'p'){ continue; }
+      if(_est(id)[slot] === v){ entry[campo] = 'p'; continue; }     // ya está guardada aparte
+      // Registro viejo con la foto dentro: se guarda también el ORIGINAL (se borra solo cuando tú lo decidas)
+      if(prev && _esDataUrl(prev[campo]) && prev[campo] === v){
+        const ya = await _get(ST_ORIG, _kk(id, slot));
+        if(!ya){
+          await _put(ST_ORIG, { k: _kk(id, slot), omarId: id, slot, dataUrl: v, bytes: v.length, ts: Date.now() });
+          const chk = await _get(ST_ORIG, _kk(id, slot));
+          if(!chk || chk.dataUrl !== v) throw new Error('no se pudo guardar el original');
+        }
+      }
+      const red = await reducir(v);
+      await _put(ST_FOTOS, { k: _kk(id, slot), omarId: id, slot, dataUrl: red, bytes: red.length, ts: Date.now() });
+      const back = await _get(ST_FOTOS, _kk(id, slot));
+      if(!back || back.dataUrl !== red) throw new Error('la foto no quedó guardada completa');
+      _est(id)[slot] = v;                                          // memoria == lo que se usó para comparar
+      if(red !== v) cambios[slot] = red;
+      entry[campo] = 'p';
+    }catch(e){
+      console.warn('[fotos] se deja la foto dentro del registro', e);
+      entry[campo] = v || null;                                    // NUNCA se pierde: se guarda como antes
+    }
+  }
+  return cambios;                                                  // {slot: dataUrlReducido} para actualizar la memoria
+}
+async function borrarOmar(id){
+  try{ await _delRango(ST_FOTOS, id); await _delRango(ST_ORIG, id); }catch(e){ console.warn('[fotos] no se pudo borrar', e); }
+  delete _estado[String(id)]; delete _perdida[String(id)];
+}
+
+// ---------- captura (ya reducida) ----------
+async function reducirCaptura(dataUrl){
+  try{ return await reducir(dataUrl); }catch(e){ return dataUrl; }
+}
+
+// ---------- optimizar todas ----------
+async function _idsConFotoDentro(){
+  const ids = [];
+  const db = await openDB();
+  await new Promise((res, rej) => {
+    const rq = db.transaction(STORE, 'readonly').objectStore(STORE).openCursor();
+    rq.onsuccess = e => {
+      const c = e.target.result; if(!c){ res(); return; }
+      const v = c.value;
+      if(v && v.id !== '_catalogo_aarms' && ((_esDataUrl(v.photoData)) || (_esDataUrl(v.photoData2)))) ids.push(v.id);
+      c.continue();
+    };
+    rq.onerror = e => rej(e);
+  });
+  return ids;
+}
+async function contar(conDentro){
+  const r = { dentro: 0, dentroBytes: 0, aparte: 0, aparteBytes: 0, originales: 0, origBytes: 0 };
+  if(conDentro !== false){
+  const db = await openDB();
+  await new Promise((res, rej) => {
+    const rq = db.transaction(STORE, 'readonly').objectStore(STORE).openCursor();
+    rq.onsuccess = e => {
+      const c = e.target.result; if(!c){ res(); return; }
+      const v = c.value;
+      if(v && v.id !== '_catalogo_aarms') CAMPOS.forEach(([s, f]) => { if(_esDataUrl(v[f])){ r.dentro++; r.dentroBytes += v[f].length; } });
+      c.continue();
+    };
+    rq.onerror = e => rej(e);
+  });
+  }
+  await _recorrer(ST_FOTOS, x => { r.aparte++; r.aparteBytes += x.bytes || (x.dataUrl || '').length; });
+  await _recorrer(ST_ORIG, x => { r.originales++; r.origBytes += x.bytes || (x.dataUrl || '').length; });
+  return r;
+}
+async function optimizarTodas(alAvance){
+  const ids = await _idsConFotoDentro();
+  const out = { total: ids.length, hechas: 0, fotos: 0, ahorroBytes: 0, errores: 0 };
+  for(const id of ids){
+    try{
+      const rec = await new Promise((res, rej) => { openDB().then(db => { const rq = db.transaction(STORE, 'readonly').objectStore(STORE).get(id); rq.onsuccess = e => res(e.target.result); rq.onerror = e => rej(e); }); });
+      if(!rec) continue;
+      const antes = CAMPOS.reduce((a, [s, f]) => a + (_esDataUrl(rec[f]) ? rec[f].length : 0), 0);
+      const entry = Object.assign({}, rec);
+      await persistirEntry(entry, rec);
+      const aun = CAMPOS.some(([s, f]) => _esDataUrl(entry[f]));
+      if(aun){ out.errores++; continue; }                          // no se pudo mover: el registro queda como estaba
+      await idbPut(entry);
+      out.hechas++; out.fotos += CAMPOS.filter(([s, f]) => entry[f] === 'p').length;
+      const reds = await Promise.all(CAMPOS.map(([s, f]) => entry[f] === 'p' ? _get(ST_FOTOS, _kk(id, s)) : null));
+      const despues = reds.reduce((a, r) => a + (r ? (r.bytes || r.dataUrl.length) : 0), 0);
+      out.ahorroBytes += Math.max(0, antes - despues);
+    }catch(e){ console.warn('[fotos] optimizar', id, e); out.errores++; }
+    if(alAvance) alAvance(out);
+    await new Promise(r => setTimeout(r, 0));
+  }
+  try{ await refreshCache(); }catch(e){}
+  try{ if(!out.errores) localStorage.setItem('aarms_fotos_optimizado', String(Date.now())); }catch(e){}
+  return out;
+}
+async function borrarOriginales(){
+  let n = 0;
+  const ks = [];
+  await _recorrer(ST_ORIG, x => ks.push(x.k));
+  for(const k of ks){
+    // solo se borra el original si la foto reducida está ahí
+    const r = await _get(ST_FOTOS, k);
+    if(r && r.dataUrl){ await _del(ST_ORIG, k); n++; }
+  }
+  return n;
+}
+async function huerfanas(){
+  const ids = new Set((await idbGetAll()).map(m => String(m.id)));
+  const lista = [];
+  await _recorrer(ST_FOTOS, x => { if(!ids.has(String(x.omarId))) lista.push(x.k); });
+  return lista;
+}
+
+// ---------- espejo de configuración y folios ----------
+const ESPEJO_KEYS = ['aarms_config', 'aarms_folios_log'];
+let _espTimer = null;
+const _origSet = Storage.prototype.setItem;
+let _avisoLlenoDado = false;
+function _avisarLleno(k){
+  if(_avisoLlenoDado) return; _avisoLlenoDado = true;
+  try{ toast('El almacenamiento de configuración está LLENO. Haz un respaldo y libera espacio.', 'r'); }catch(e){}
+  console.warn('[almacenamiento lleno]', k);
+}
+Storage.prototype.setItem = function(k, v){
+  try{ _origSet.call(this, k, v); }
+  catch(e){ if(String(k).indexOf('aarms_') === 0) _avisarLleno(k); throw e; }
+  try{ if(this === window.localStorage && ESPEJO_KEYS.indexOf(String(k)) >= 0) _programarEspejo(); }catch(e){}
+};
+function _programarEspejo(){
+  if(_espTimer) clearTimeout(_espTimer);
+  _espTimer = setTimeout(() => { _espTimer = null; espejar().catch(e => console.warn('[espejo]', e)); }, 1500);
+}
+async function espejar(){
+  for(const k of ESPEJO_KEYS){
+    let v = null; try{ v = localStorage.getItem(k); }catch(e){}
+    if(v != null) await _put(ST_ESPEJO, { k, v, ts: Date.now() });
+  }
+}
+// Al abrir: si localStorage perdió la configuración o los folios, se recuperan del espejo.
+async function verificarEspejo(){
+  const rec = [];
+  for(const k of ESPEJO_KEYS){
+    let v = null; try{ v = localStorage.getItem(k); }catch(e){}
+    let bueno = false;
+    if(v){ try{ JSON.parse(v); bueno = true; }catch(e){} }
+    const e = await _get(ST_ESPEJO, k);
+    if(!bueno && e && e.v){
+      try{ _origSet.call(localStorage, k, e.v); rec.push(k); }catch(x){ _avisarLleno(k); }
+    }
+  }
+  if(rec.length){ try{ toast('Se recuperó la configuración/folios guardados aparte', 'g'); }catch(e){} }
+  await espejar();
+  return rec;
+}
+
+// ---------- pantalla ----------
+function _mb(b){ return (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' MB'; }
+async function renderInfo(conDentro){
+  const el = document.getElementById('rsFotosInfo'), em = document.getElementById('rsEspacio');
+  try{
+    if(em && navigator.storage && navigator.storage.estimate){
+      const e = await navigator.storage.estimate();
+      const pct = e.quota ? Math.round(100 * e.usage / e.quota) : 0;
+      const color = pct >= 85 ? '#f87171' : (pct >= 70 ? '#fbbf24' : 'var(--green)');
+      em.innerHTML = '<div style="font-size:12.5px;color:var(--w);margin-bottom:6px">Espacio usado por la app: <b>' + _mb(e.usage) + '</b> de ' + _mb(e.quota) + ' (<b style="color:' + color + '">' + pct + ' %</b>)</div>' +
+        '<div style="height:8px;background:var(--bg3);border-radius:6px;overflow:hidden"><div style="height:100%;width:' + Math.min(100, pct) + '%;background:' + color + '"></div></div>' +
+        (pct >= 70 ? '<div style="font-size:12px;color:' + color + ';margin-top:6px">' + (pct >= 85 ? 'Casi lleno. ' : '') + 'Haz un respaldo y libera espacio.</div>' : '');
+    }
+    if(el){
+      const c = await contar(!!conDentro);
+      el.innerHTML = '<div style="font-size:12.5px;color:var(--w);line-height:1.6">' +
+        'Fotos aparte (optimizadas): <b>' + c.aparte + '</b> · ' + _mb(c.aparteBytes) + '<br>' +
+        (conDentro ? 'Fotos dentro de los registros (sin optimizar): <b>' + c.dentro + '</b> · ' + _mb(c.dentroBytes) + '<br>' : '<span style="color:var(--g1)">Toca «Revisar fotos» para contar las que faltan por optimizar.</span><br>') +
+        'Originales guardados de las fotos pasadas: <b>' + c.originales + '</b> · ' + _mb(c.origBytes) + '</div>';
+    }
+  }catch(e){ if(el) el.textContent = 'No se pudo leer el estado de las fotos.'; }
+}
+async function pantallaOptimizar(){
+  const prog = document.getElementById('rsFotosProgreso');
+  const msg = t => { if(prog) prog.textContent = t; };
+  let ult = null; try{ ult = JSON.parse(localStorage.getItem('aarms_respaldo_ultimo') || 'null'); }catch(e){}
+  if(!ult || (Date.now() - ult.ts) > 24 * 3600 * 1000){
+    const ir = await confirmAction({ title: 'Primero un respaldo', message: 'Antes de pasar las fotos a su lugar nuevo hay que tener un respaldo de hoy. Descárgalo y vuelve a tocar «Optimizar fotos».', okText: 'Ir a descargar', okDanger: false, cancelText: 'Cancelar' });
+    if(ir && typeof rsDescargar === 'function') rsDescargar();
+    return;
+  }
+  const c = await contar();
+  if(!c.dentro){ msg('No hay fotos por optimizar. Todo está al día.'); return; }
+  const ok = await confirmAction({ title: 'Optimizar fotos', message: 'Se van a pasar ' + c.dentro + ' fotos (' + _mb(c.dentroBytes) + ') a su lugar nuevo y se reducen. El ORIGINAL de cada una se conserva hasta que tú lo borres. Puede tardar unos minutos; no cierres la app.', okText: 'Optimizar', okDanger: false, cancelText: 'Cancelar' });
+  if(!ok) return;
+  msg('Pasando fotos…');
+  const r = await optimizarTodas(o => msg('Pasando fotos… ' + o.hechas + ' de ' + o.total + ' OMAR'));
+  msg('Listo: ' + r.hechas + ' OMAR, ' + r.fotos + ' fotos. Ahorro aproximado: ' + _mb(r.ahorroBytes) + (r.errores ? ' · ' + r.errores + ' no se pudieron mover y quedaron como estaban' : '') + '.');
+  renderInfo();
+}
+async function pantallaBorrarOriginales(){
+  const c = await contar();
+  if(!c.originales){ const p = document.getElementById('rsFotosProgreso'); if(p) p.textContent = 'No hay originales guardados.'; return; }
+  const pedir = window._rsPedirAdmin || (cb => cb());
+  pedir(async () => {
+    const ok = await confirmAction({ title: 'Borrar originales', message: 'Se borran ' + c.originales + ' fotos originales (' + _mb(c.origBytes) + '). Las fotos optimizadas se quedan. Esto no se puede deshacer.', okText: 'Borrar originales', okDanger: true, cancelText: 'Cancelar' });
+    if(!ok) return;
+    const n = await borrarOriginales();
+    const p = document.getElementById('rsFotosProgreso'); if(p) p.textContent = 'Se borraron ' + n + ' originales.';
+    renderInfo();
+  });
+}
+
+// ---------- arranque ----------
+window.addEventListener('load', () => {
+  setTimeout(() => { verificarEspejo().catch(e => console.warn('[espejo]', e)); }, 3000);
+});
+
+window.AARMS_FOTOS = {
+  cargar, resolver, cambio, persistirEntry, marcarBorrada, adoptar, borrarOmar, reducir, reducirCaptura, contar, optimizarTodas, borrarOriginales, huerfanas,
+  espejar, verificarEspejo, renderInfo,
+  _setReductor: f => { _reductor = f; }, _estado, _perdida, _abrir, _get, _put, _del, _recorrer,
+  ST_FOTOS, ST_ORIG, ST_ESPEJO
+};
+const _idbDel0 = idbDelete;
+idbDelete = function(id){ return _idbDel0(id).then(async r => { try{ await borrarOmar(id); }catch(e){} return r; }); };
+async function avisoEspacio(){
+  const el = document.getElementById('rsBanner2'); if(!el) return;
+  try{
+    if(!(navigator.storage && navigator.storage.estimate)){ el.style.display = 'none'; return; }
+    const e = await navigator.storage.estimate();
+    const pct = e.quota ? Math.round(100 * e.usage / e.quota) : 0;
+    if(pct < 70){ el.style.display = 'none'; return; }
+    const rojo = pct >= 85;
+    el.style.display = 'block';
+    el.innerHTML = '<div style="background:' + (rojo ? 'rgba(248,113,113,.12)' : 'rgba(251,191,36,.10)') + ';border:1px solid ' + (rojo ? 'rgba(248,113,113,.45)' : 'rgba(251,191,36,.40)') + ';border-radius:12px;padding:12px 14px;margin-bottom:12px">' +
+      '<div style="font-size:13px;color:var(--w);line-height:1.4;margin-bottom:8px">' + (rojo ? '<b>Almacenamiento casi lleno (' + pct + ' %).</b>' : 'Almacenamiento al <b>' + pct + ' %</b>.') + ' Haz un respaldo y optimiza las fotos.</div>' +
+      '<button type="button" class="btn btn-p" style="width:auto;font-size:12px;padding:8px 14px" onclick="rsAbrir()">Ir a Respaldos</button></div>';
+  }catch(x){}
+}
+AARMS_FOTOS.avisoEspacio = avisoEspacio;
+window.addEventListener('load', () => { setTimeout(() => { avisoEspacio(); }, 3500); });
+window.rsOptimizarFotos = pantallaOptimizar;
+window.rsRevisarFotos = () => renderInfo(true);
+window.rsBorrarOriginales = pantallaBorrarOriginales;
 })();
