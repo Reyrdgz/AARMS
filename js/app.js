@@ -20281,7 +20281,7 @@ setTimeout(() => { try{ _adminBindGatillo(); }catch(_){} }, 800);
 /* =====================================================================
  * AARMS lote45a — RESPALDOS
  *  · Descargar respaldo completo (planes, OMAR con fotos y firmas, bitácoras, cartas,
- *    Inventario, folios). Archivo de texto por líneas; se parte si pasa de ~50 MB.
+ *    Inventario, folios). Archivo de texto por líneas; se parte si pasa de ~100 MB (en partes parejas).
  *  · Restaurar respaldo: revisa TODO antes de tocar nada, mezcla SIN borrar.
  *  · Copias internas automáticas (sin fotos): diarias, y antes de restaurar. Se guardan las últimas 5.
  *  · Aviso a los 7 días sin respaldo. «Archivar año».
@@ -20294,7 +20294,7 @@ const RS_FMT = 'AARMS_RESPALDO_V1';
 const RS_LOTE = 'lote45a';
 const RS_MARCA = '__FOTO_OMITIDA__';          // lugar de un texto muy largo (foto) que una copia interna no guarda
 const RS_MAX_STR = 150000;                     // texto más largo que esto = foto (solo para copias internas)
-let RS_PARTE_BYTES = 50 * 1024 * 1024;       // tamaño máximo por archivo de respaldo
+let RS_PARTE_BYTES = 100 * 1024 * 1024;       // tamaño máximo por archivo de respaldo
 const RS_DIAS_AVISO = 7;
 const RS_CACHE = 'aarms-respaldos-internos';
 const RS_SNAP_MAX = 5;
@@ -20423,36 +20423,53 @@ function _rsConfigSinPin(txt){
 }
 
 // ---------- escritor de respaldos por partes ----------
+// Primero junta todo en trozos (cada uno termina en un registro completo); al final calcula cuántas partes hacen falta
+// y las REPARTE PAREJAS. Así no queda una parte pasada de tamaño ni una última parte casi vacía.
 function _rsEscritor(limite, meta){
-  const partes = [];
-  let n = 0, blobs = [], buf = [], bufLen = 0, parteBytes = 0, conteos = {};
-  function linea(s){
-    s += '\n'; buf.push(s); bufLen += s.length; parteBytes += s.length;
-    if(bufLen > 4000000){ blobs.push(new Blob(buf)); buf = []; bufLen = 0; }
+  const chunks = [];
+  let buf = [], bufLen = 0, bufC = {};
+  function volcar(){
+    if(!bufLen) return;
+    chunks.push({ blob: new Blob(buf), bytes: bufLen, conteos: bufC });
+    buf = []; bufLen = 0; bufC = {};
   }
-  function abrir(){
-    n++; blobs = []; buf = []; bufLen = 0; parteBytes = 0; conteos = {};
-    linea(JSON.stringify({ t: 'hdr', fmt: RS_FMT, id: meta.id, parte: n, creado: meta.creado, app: RS_LOTE, etiqueta: meta.etiqueta, conFotos: !!meta.conFotos }));
+  function agregar(linea, store){
+    const s = linea + '\n';
+    buf.push(s); bufLen += s.length; bufC[store] = (bufC[store] || 0) + 1;
+    if(bufLen >= 262144) volcar();
   }
-  function cerrar(ultima){
-    linea(JSON.stringify({ t: 'fin', parte: n, ultima: !!ultima, total: ultima ? n : null, conteos }));
-    if(buf.length) blobs.push(new Blob(buf));
-    const blob = new Blob(blobs, { type: 'application/octet-stream' });
-    partes.push({ n, blob, bytes: blob.size, conteos: Object.assign({}, conteos) });
-    blobs = []; buf = [];
-  }
-  abrir();
   return {
     registro(store, rec, omitir){
-      if(parteBytes > limite){ cerrar(false); abrir(); }
-      linea('{"t":"r","s":' + JSON.stringify(store) + ',"d":' + _rsSerializar(rec, omitir) + '}');
-      conteos[store] = (conteos[store] || 0) + 1;
+      agregar('{"t":"r","s":' + JSON.stringify(store) + ',"d":' + _rsSerializar(rec, omitir) + '}', store);
     },
-    ls(key, val){
-      linea(JSON.stringify({ t: 'ls', k: key, v: val }));
-      conteos['ls'] = (conteos['ls'] || 0) + 1;
-    },
-    terminar(){ cerrar(true); return partes; }
+    ls(key, val){ agregar(JSON.stringify({ t: 'ls', k: key, v: val }), 'ls'); },
+    terminar(){
+      volcar();
+      const total = chunks.reduce((a, c) => a + c.bytes, 0);
+      const n = total <= limite ? 1 : Math.ceil(total / (limite * 0.92));
+      const objetivo = total / n;
+      const grupos = [[]];
+      let cur = 0;
+      chunks.forEach(c => {
+        if(cur > 0 && (cur + c.bytes > limite || (grupos.length < n && cur >= objetivo))){ grupos.push([]); cur = 0; }
+        grupos[grupos.length - 1].push(c); cur += c.bytes;
+      });
+      // Si la última parte quedó casi vacía (solo las llaves del final), se pega a la anterior.
+      if(grupos.length > 1){
+        const ult = grupos[grupos.length - 1];
+        if(ult.reduce((a, c) => a + c.bytes, 0) < 0.1 * objetivo){ grupos.pop(); ult.forEach(c => grupos[grupos.length - 1].push(c)); }
+      }
+      const nPartes = grupos.length;
+      return grupos.map((g, i) => {
+        const conteos = {};
+        g.forEach(c => Object.keys(c.conteos).forEach(k => { conteos[k] = (conteos[k] || 0) + c.conteos[k]; }));
+        const ultima = i === nPartes - 1;
+        const hdr = JSON.stringify({ t: 'hdr', fmt: RS_FMT, id: meta.id, parte: i + 1, creado: meta.creado, app: RS_LOTE, etiqueta: meta.etiqueta, conFotos: !!meta.conFotos }) + '\n';
+        const fin = JSON.stringify({ t: 'fin', parte: i + 1, ultima, total: ultima ? nPartes : null, conteos }) + '\n';
+        const blob = new Blob([hdr].concat(g.map(c => c.blob), [fin]), { type: 'application/octet-stream' });
+        return { n: i + 1, blob, bytes: blob.size, conteos };
+      });
+    }
   };
 }
 
