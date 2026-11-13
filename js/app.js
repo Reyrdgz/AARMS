@@ -14217,12 +14217,19 @@ function _bitTempRender(){
     </div>`;
     return;
   }
+  // AARMS lote48: intercalado por HORA de la toma, luego OMAR y toma (no todas las de una OMAR y luego las de otra)
+  const _kT = (r) => { try{ const ft=_lote39FechaHoraToma(r.omarTs, r.toma); if(ft) return _bitPhSortKeyNum({fecha:ft.fecha, hora:ft.hora}); }catch(e){} return Infinity; };
   const sorted=[...regs].sort((a,b)=>{
-    const oa=String(a.omarTs).localeCompare(String(b.omarTs));
+    const ka=_kT(a), kb=_kT(b);
+    if(ka!==kb) return ka-kb;
+    const oa=(_bitPhFolioLegible(a.omarTs)||String(a.omarTs)).localeCompare(_bitPhFolioLegible(b.omarTs)||String(b.omarTs));
     if(oa!==0) return oa;
     return Number(a.toma)-Number(b.toma);
   });
-  c.innerHTML=sorted.map(r=>{
+  const _idT = String((omar && omar.ts) || '');
+  const _soloT = !_lote48VerTodas() && !!_idT && regs.some(r => String(r.omarTs) === _idT);
+  const _visT = sorted.filter(r => !_soloT || String(r.omarTs) === _idT);
+  c.innerHTML=_lote48Barra('temp', _visT.length, sorted.length) + _visT.map(r=>{
     const idx=regs.indexOf(r);
     return _renderBitTempCard(r, idx);
   }).join('');
@@ -15555,12 +15562,31 @@ function _lote25Comparar(ra, rb, tsa, tsb){
   const ba = ra.calibGrupo ? 1 : 0, bb = rb.calibGrupo ? 1 : 0;
   if(ba !== bb) return ba - bb;                                   // el bloque cierra su grupo
   const ka = _lote25ClaveOrden(ra), kb = _lote25ClaveOrden(rb);
-  if(ka.toma !== kb.toma) return ka.toma - kb.toma;
-  if(ka.sub !== kb.sub) return ka.sub - kb.sub;                   // verificación antes que muestra
-  if(tsa !== tsb) return tsa - tsb;
+  // AARMS lote48: intercalado por HORA de la toma → OMAR → toma; en cada toma la verificación (V) y luego la muestra (M).
+  const ta = _bitPhSortKeyNum(ra), tb = _bitPhSortKeyNum(rb);
+  if(ta !== tb) return ta - tb;
   const c = (_bitPhFolioLegible(ra.omarId) || '').localeCompare(_bitPhFolioLegible(rb.omarId) || '');
   if(c !== 0) return c;
+  if(ka.toma !== kb.toma) return ka.toma - kb.toma;
+  if(ka.sub !== kb.sub) return ka.sub - kb.sub;                   // verificación antes que muestra
   return (parseInt(ra.toma, 10) || 0) - (parseInt(rb.toma, 10) || 0);
+}
+// AARMS lote48: barra de vista por OMAR (pH, conductividad y temperatura)
+function _lote48VerTodas(){ return !!window.__bitVerTodasPlan; }
+function bitVerTodasToggle(){
+  window.__bitVerTodasPlan = !window.__bitVerTodasPlan;
+  try{ if(document.getElementById('pgBitPH') && document.getElementById('pgBitPH').classList.contains('on')) _bitPhRender(); }catch(e){}
+  try{ if(document.getElementById('pgBitCond') && document.getElementById('pgBitCond').classList.contains('on')) _bitCondRender(); }catch(e){}
+  try{ if(document.getElementById('pgBitTemp') && document.getElementById('pgBitTemp').classList.contains('on')) _bitTempRender(); }catch(e){}
+}
+window.bitVerTodasToggle = bitVerTodasToggle;
+function _lote48Barra(tipo, visibles, total){
+  const todas = _lote48VerTodas();
+  if(!todas && visibles === total) return '';
+  const fol = (typeof omar !== 'undefined' && omar && (omar.folio || omar.ts)) ? ('OMAR ' + (omar.folio || omar.ts)) : 'esta OMAR';
+  const txt = todas ? 'Mostrando <b>todo el plan</b>.' : 'Mostrando solo <b>' + fol + '</b> (' + visibles + ' de ' + total + ' renglones).';
+  return '<div data-lote48-barra style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;border-radius:10px;border:1px solid var(--ln);background:var(--bg3);font-size:12px;color:var(--g1)"><span>' + txt + '</span>' +
+    '<button type="button" class="btn btn-g" style="width:auto;font-size:11px;padding:6px 10px" onclick="bitVerTodasToggle()">' + (todas ? 'Solo esta OMAR' : 'Ver todo el plan') + '</button></div>';
 }
 function _bitPhOrdenarRegsPorFechaHora(regs){
   if(!regs||regs.length<2) return;
@@ -16250,12 +16276,18 @@ function _bitPhRender(){
     return;
   }
   _bitPhOrdenarRegsPorFechaHora(regs);
-  const segs=_bitPhGroupedSegments(regs);
+  const segsTodos=_bitPhGroupedSegments(regs);
+  // AARMS lote48: solo se ven los renglones de la OMAR en pantalla (y los bloques de calibración de su grupo)
+  const _idAct = String((omar && omar.ts) || '');
+  const _gAct = new Set(regs.filter(r => r && !r.calibGrupo && String(r.omarId) === _idAct).map(r => _lote36Grupo(r)));
+  const _solo = !_lote48VerTodas() && !!_idAct && _gAct.size > 0;
+  const segs = _solo ? segsTodos.filter(seg => { const r0 = regs[seg.indices[0]]; return (r0 && r0.calibGrupo) ? _gAct.has(_lote36Grupo(r0)) : String(r0.omarId) === _idAct; }) : segsTodos;
+  const _barra = _lote48Barra('ph', segs.length, segsTodos.length);
   const pend = _bitPhVerifsRechazadasPendientes();
   const aviso = pend.length
     ? `<div style="margin-bottom:12px;padding:10px 12px;border-radius:10px;border:1px solid rgba(248,113,113,.4);background:rgba(248,113,113,.1);color:#f87171;font-size:12px;font-weight:700">Hay ${pend.length} verificación(es) rechazada(s). Repítela(s) antes de avanzar.</div>`
     : '';
-  c.innerHTML = aviso + segs.map(seg=>{
+  c.innerHTML = _barra + aviso + segs.map(seg=>{
     if(seg.kind==='calib4') return _renderBitPhCalibBlock4(seg.indices);
     return _renderBitPhCard(regs[seg.indices[0]], seg.indices[0]);
   }).join('');
@@ -16802,7 +16834,12 @@ function _bitCondRender(){
     </div>`;
     return;
   }
-  c.innerHTML=regs.map((r,i)=>_renderBitCondCard(r,i)).join('');
+  // AARMS lote48: solo los renglones de la OMAR en pantalla (los de calibración sin OMAR se ven siempre)
+  const _idC = String((omar && omar.ts) || '');
+  const _hayC = regs.some(r => r && String(r.omarId) === _idC);
+  const _soloC = !_lote48VerTodas() && !!_idC && _hayC;
+  const _vis = regs.map((r,i)=>({r,i})).filter(x => !_soloC || !x.r.omarId || String(x.r.omarId) === _idC);
+  c.innerHTML=_lote48Barra('cond', _vis.length, regs.length) + _vis.map(x=>_renderBitCondCard(x.r,x.i)).join('');
 }
 
 function _renderBitCondCard(r, idx){
@@ -17756,13 +17793,17 @@ function _bitCondAutocompletarLoteMarca(reg){
     return nombre && String(p.nombre || '') === nombre;
   });
   if(!hit) return reg;
-  if(!reg.lote){
+  // AARMS lote48: el lote y la marca son del KCl elegido. Se reemplazan si están vacíos, vinieron del Inventario o son de OTRO KCl.
+  // Un lote escrito a mano que no es de ningún KCl del Inventario se respeta.
+  const lista = _catalogoCache.conductividad;
+  const esDeOtro = (campo) => !!reg[campo] && lista.some(p => p !== hit && String(p[campo] || '').trim() && String(p[campo]).trim() === String(reg[campo]).trim());
+  if(!reg.lote || reg.__lote_from_cat || esDeOtro('lote')){
     reg.lote = hit.lote || '';
-    if(reg.lote) reg.__lote_from_cat = true;
+    reg.__lote_from_cat = !!reg.lote;
   }
-  if(!reg.marca){
+  if(!reg.marca || reg.__marca_from_cat || esDeOtro('marca')){
     reg.marca = hit.marca || _catalogoMarcaDesdeNombre(hit.nombre) || '';
-    if(reg.marca) reg.__marca_from_cat = true;
+    reg.__marca_from_cat = !!reg.marca;
   }
   return reg;
 }

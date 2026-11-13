@@ -3741,15 +3741,19 @@ window.generarPDFBitacoraPHOficial = async function generarPDFBitacoraPHOficialV
 
     const out = [];
     days.forEach((day, di) => {
+      // AARMS lote48: por hora de la toma → OMAR → toma; en cada toma la verificación y luego la muestra.
       const dayRows = (byDay.get(day) || []).slice().sort((a, b) => {
-        const ta = Number(a.toma) || 0, tb = Number(b.toma) || 0;
-        if(ta !== tb) return ta - tb;
         const ha = String(a.hora || ''), hb = String(b.hora || '');
         if(ha !== hb) return ha.localeCompare(hb);
-        return folioOmarOf(a).localeCompare(folioOmarOf(b));
+        const fo = folioOmarOf(a).localeCompare(folioOmarOf(b));
+        if(fo !== 0) return fo;
+        const ta = Number(a.toma) || 0, tb = Number(b.toma) || 0;
+        if(ta !== tb) return ta - tb;
+        return (a.act === 'M' ? 1 : 0) - (b.act === 'M' ? 1 : 0);
       });
       dayRows.forEach(r => {
-        out.push(Object.assign({}, r, { act: 'V', _forcedV: true }));
+        // la muestra (M) se queda como «M»; lo demás sigue saliendo como verificación
+        out.push(r.act === 'M' ? Object.assign({}, r) : Object.assign({}, r, { act: 'V', _forcedV: true }));
       });
       // AARMS phfix2: al terminar las tomas del día (si hay día siguiente) → CA/CA/CO/CO
       if(di < days.length - 1){
@@ -5632,9 +5636,12 @@ window._condGenerarPdfFiel = async function _condGenerarPdfFiel(opts){
   };
 
   // Ordenar por fecha / omar / toma (numeración reinicia conceptualmente por día+OMAR vía columnas)
+  // AARMS lote48: por fecha → hora de la toma → OMAR → toma → verificación antes que muestra
   regs.sort((a, b) => {
     const fa = String(a.fecha || ''), fb = String(b.fecha || '');
     if(fa !== fb) return fa.localeCompare(fb);
+    const ha = String(a.hora || ''), hb = String(b.hora || '');
+    if(ha !== hb) return ha.localeCompare(hb);
     const oa = folioOmarOf(a), ob = folioOmarOf(b);
     if(oa !== ob) return oa.localeCompare(ob);
     if((Number(a.toma) || 0) !== (Number(b.toma) || 0)) return (Number(a.toma) || 0) - (Number(b.toma) || 0);
