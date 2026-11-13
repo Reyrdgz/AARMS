@@ -1374,24 +1374,37 @@ window._pdfBmAplicarRoboto = _pdfBmAplicarRoboto;
 
 
 const PARAMS_TOMA=['FQ','TOC','Hg','MP','CIAN','FOS.','SAAM','GYA','DQO','DBO5','N.TOT','CTYF','ENTE.','NO2','NO3','HELM','CLR','ECOL','TOX','CLOR','CrHx','OTRS'];
-// AARMS sub1-equipos: bug F-06 — falta código 11 en CONS_O + nomenclatura Unicode
-const CONS_O = {
-  '1':  'H₂SO₄',
-  '2':  'NaOH',
-  '3':  'K₂Cr₂O₇ 25%',
-  '4':  'Hielo (4°C)',
-  '5':  'No Aplica',
-  '6':  'HNO₃',
-  '7':  'Bolsa Estéril con Tiosulfato',
-  '8':  'HCl',
-  '9':  'HNO₃ Suprapuro',
-  '10': 'H₂SO₄ 25%',
-  '11': 'Bolsa Estéril sin Tiosulfatos',
-  '12': 'Disolución Buffer',
-  '13': 'Formaldehído',
-  '14': 'Otro'
-};
-const ENV_O=[['1','Vidrio BA 1L'],['2','Plást 1L'],['3','Plást 4L'],['4','Plást 500mL'],['5','Plást 5L'],['6','Bolsa Est. 300mL'],['8','V.Amb 1L'],['9','Bolsa Est. 100mL'],['10','V.Amb 40mL'],['11','V.Amb 250mL'],['13','Plást 2L']];
+// AARMS lote47: UNA SOLA tabla de códigos, la de la hoja de custodia F-AA-01A-15. La usan la Cadena, el Machiote, la Hoja y la pantalla.
+// Si algún día cambia un código, se cambia AQUÍ y en ningún otro lugar.
+const AARMS_CONSERVADORES = [
+  [1,'H₂SO₄'], [2,'NaOH'], [3,'K₂Cr₂O₇ al 25%'], [4,'Hielo (4°C)'], [5,'NA'], [6,'HNO₃'],
+  [7,'Bolsas Estériles con Tiosulfato'], [8,'HCl'], [9,'HNO₃ Suprapuro'], [10,'H₂SO₄ 25%'],
+  [11,'Bolsas Estériles sin Tiosulfato'], [12,'Disolución Buffer'], [13,'Formaldehído al 10%'], [14,'Otro']
+];
+const AARMS_ENVASES = [
+  [1,'Frasco boca ancha vidrio 1Lt'], [2,'Frasco Plástico 1Lt'], [3,'Frasco Plástico 4Lt'], [4,'Frasco Plástico 500mL'], [5,'Frasco Plástico 5Lt'],
+  [6,'Bolsa Estéril 300mL'], [7,'Bolsa Estéril 300mL C/Tiosulfato de Sodio'], [8,'Frasco de Vidrio Ámbar 1Lt'],
+  [9,'Bolsa Estéril 100mL C/Tiosulfato de Sodio'], [10,'Frasco de Vidrio Ámbar 40mL'], [11,'Frasco de Vidrio Ámbar 250mL'],
+  [12,'Bolsa Estéril 100mL'], [13,'Frasco Plástico 2Lt']
+];
+const CONS_O = Object.fromEntries(AARMS_CONSERVADORES.map(([n, t]) => [String(n), t]));
+const ENV_O = AARMS_ENVASES.map(([n, t]) => [String(n), t]);
+// Para los PDFs con letra estándar (sin subíndices): H₂SO₄ → H2SO4
+function aarmsAscii(t){ return String(t).replace(/₀/g,'0').replace(/₁/g,'1').replace(/₂/g,'2').replace(/₃/g,'3').replace(/₄/g,'4').replace(/₅/g,'5').replace(/₆/g,'6').replace(/₇/g,'7').replace(/₈/g,'8').replace(/₉/g,'9'); }
+function aarmsLeyendaConservadores(opts){
+  const o = opts || {};
+  const txt = AARMS_CONSERVADORES.map(([n, t]) => n + '.- ' + t).join(o.sep || ', ');
+  return o.ascii ? aarmsAscii(txt) : txt;
+}
+function aarmsLeyendaEnvases(opts){
+  const o = opts || {};
+  return AARMS_ENVASES.map(([n, t]) => n + '.- ' + t).join(o.sep || ', ');
+}
+window.AARMS_CONSERVADORES = AARMS_CONSERVADORES;
+window.AARMS_ENVASES = AARMS_ENVASES;
+window.aarmsLeyendaConservadores = aarmsLeyendaConservadores;
+window.aarmsLeyendaEnvases = aarmsLeyendaEnvases;
+window.aarmsAscii = aarmsAscii;
 const VOLS={FQ:4000,TOC:1000,Hg:500,MP:500,CIAN:1000,'FOS.':500,SAAM:1000,GYA:1000,DQO:500,DBO5:1000,'N.TOT':2000,CTYF:100,'ENTE.':250,NO2:500,NO3:500,HELM:5000,CLR:250,ECOL:100,TOX:40,CLOR:500,CrHx:500,OTRS:500};
 
 let omar={},tomas=[],tid=1,analitosSel=new Set(),sigData=null,sigData2=null,toastT;
@@ -7750,46 +7763,61 @@ function _machioteParamsDeToma(t){
   return [];
 }
 
-// AARMS lote7c: la Cadena traduce la página 4 del Machiote. No cambia esa tabla.
-const _LOTE7C_MACH_A_CADENA = {
-  '4':'1', '6':'2', '8':'3', '2':'4', '13':'5', '1':'6',
-  '3':'7', '9':'8', '7':'9', '11':'10', '10':'11', '12':'12'
-};
-function _lote7cTraducir(codigoMachiote){
-  const raw = String(codigoMachiote || '').trim();
-  if(!raw) return '';
-  const out = [];
-  raw.split('/').forEach(p => {
-    const n = String(p).trim();
-    if(n === '5' || n === '14') return;
-    const c = _LOTE7C_MACH_A_CADENA[n];
-    if(c) out.push(c);
+// AARMS lote47: la Cadena imprime LOS MISMOS códigos que el Machiote (misma numeración, misma tabla, mismo orden: los conservadores primero y el hielo al final), sin traducir.
+// Cloro de una OMAR: 'si' (todas las tomas con micro dicen Sí), 'no' (todas No), 'mezcla' (hay Sí y No), 'falta' (alguna sin contestar)
+function _aarmsEstadoCloro(listaTomas){
+  const arr = (Array.isArray(listaTomas) ? listaTomas : tomas) || [];
+  const micro = arr.filter(t => t && (typeof MACHIOTE_CLORO_ANALITOS !== 'undefined' ? MACHIOTE_CLORO_ANALITOS : ['CTYF','ENTE.','ECOL']).some(k => _machioteParamsDeToma(t).indexOf(k) >= 0));
+  if(!micro.length) return 'nada';
+  const sin = micro.filter(t => t.cloro !== true && t.cloro !== false);
+  if(sin.length) return 'falta';
+  const si = micro.filter(t => t.cloro === true).length;
+  if(si === micro.length) return 'si';
+  if(si === 0) return 'no';
+  return 'mezcla';
+}
+function _aarmsFaltaCloro(listaTomas){
+  const arr = (Array.isArray(listaTomas) ? listaTomas : tomas) || [];
+  const faltan = [];
+  arr.forEach((t, i) => {
+    if(!t) return;
+    const lleva = ['CTYF','ENTE.','ECOL'].some(k => _machioteParamsDeToma(t).indexOf(k) >= 0);
+    if(lleva && t.cloro !== true && t.cloro !== false) faltan.push(i + 1);
   });
-  return out.join('/');
+  return { faltan, mezcla: _aarmsEstadoCloro(arr) === 'mezcla' };
 }
 function _lote7cPres(analitoKey, listaTomas){
   const def = (typeof MACHIOTE_CONSERVADORES === 'object') ? MACHIOTE_CONSERVADORES[analitoKey] : null;
   if(!def) return '';
-  let codigo = '';
   if(def.cloro){
-    // AARMS lote21e: el cloro es el de las tomas que se pasan (la OMAR pedida). Sin lista, la pantalla.
-    const con = tieneCloro(listaTomas);
-    codigo = con ? '7/4' : '11/4';
-  } else {
-    codigo = def.codigo || '';
+    const e = _aarmsEstadoCloro(listaTomas);
+    return e === 'si' ? '7/4' : (e === 'no' ? '11/4' : '7 ó 11/4');
   }
-  return _lote7cTraducir(codigo);
+  return def.codigo || '';
 }
-window._lote7cTraducir = _lote7cTraducir;
+// Envase del análisis; los de microbiología dependen del cloro de LAS TOMAS DE ESA OMAR (no de la pantalla abierta)
+function _aarmsEnvase(analitoKey, listaTomas){
+  const base = (CADENA_DATA[analitoKey] || {}).env || '';
+  if(analitoKey === 'CTYF' || analitoKey === 'ECOL' || analitoKey === 'ENTE.'){
+    const e = _aarmsEstadoCloro(listaTomas);
+    const par = analitoKey === 'ENTE.' ? ['6', '7'] : ['12', '9'];     // [sin tiosulfato, con tiosulfato]
+    return e === 'si' ? par[1] : (e === 'no' ? par[0] : par[0] + ' ó ' + par[1]);
+  }
+  return base;
+}
 window._lote7cPres = _lote7cPres;
+window._aarmsEnvase = _aarmsEnvase;
+window._aarmsEstadoCloro = _aarmsEstadoCloro;
+window._aarmsFaltaCloro = _aarmsFaltaCloro;
 
 // AARMS sub4-cons: solo Cadena. AARMS lote7c: ya no lee CADENA_DATA.pres.
 function _cadenaPresParaAnalito(analitoKey, listaTomas){
   return _lote7cPres(analitoKey, listaTomas);
 }
 
-// AARMS bmconserv: tabla propia Machiote (leyenda F-AA-114-18). Hielo (4) al final.
-// pH se LEE de CADENA_DATA.ph — no duplicar. NO tocar CADENA_DATA.pres ni Cadena.
+// AARMS bmconserv: tabla propia Machiote (leyenda F-AA-114-18). Primero los conservadores y el HIELO (4) AL FINAL.
+// AARMS lote47: la Cadena imprime ESTOS mismos códigos, en el mismo orden («1/4», no «4/1»).
+// pH se LEE de CADENA_DATA.ph — no duplicar.
 const MACHIOTE_CONSERVADORES = {
   'FQ':    { codigo: '4',     ml: '5', phCadena: false },
   'FOS.':  { codigo: '4',     ml: '5', phCadena: false },
@@ -7809,11 +7837,23 @@ const MACHIOTE_CONSERVADORES = {
   'Hg':    { codigo: '9/3/4', ml: '1', phCadena: true },
   'CIAN':  { codigo: '2/4',   ml: '1', phCadena: true },
   'CrHx':  { codigo: '12/4',  ml: '1', phCadena: true },
-  // AARMS bmconserv: cloro por toma — 7/4 / 11/4 / vacío; ml y pH siempre 5
+  // AARMS bmconserv: cloro por toma — 7/4 (con tiosulfato) / 11/4 (sin) / vacío; ml y pH siempre 5
   'CTYF':  { cloro: true, ml: '5', phCadena: false },
   'ENTE.': { cloro: true, ml: '5', phCadena: false },
   'ECOL':  { cloro: true, ml: '5', phCadena: false }
 };
+// AARMS lote47: si alguna casilla guardada quedó con el hielo PRIMERO («4/1»), vuelve al orden correcto («1/4»). Solo si era el valor automático.
+const MACHIOTE_CODIGO_ANTIGUO = {
+  'SAAM': '4/1', 'GYA': '4/1', 'DQO': '4/1', 'N.TOT': '4/1', 'TOC': '4/10', 'MP': '4/9', 'Hg': '4/9/3', 'CIAN': '4/2', 'CrHx': '4/12'
+};
+const MACHIOTE_CLORO_ANTIGUO = { '4/7': '7/4', '4/11': '11/4' };
+function _machioteCodigoMigrado(analitoKey, codigo){
+  const c = String(codigo || '').trim();
+  const def = MACHIOTE_CONSERVADORES[analitoKey];
+  if(!def) return codigo;
+  if(def.cloro) return MACHIOTE_CLORO_ANTIGUO[c] || codigo;
+  return (MACHIOTE_CODIGO_ANTIGUO[analitoKey] === c) ? def.codigo : codigo;
+}
 window.MACHIOTE_CONSERVADORES = MACHIOTE_CONSERVADORES;
 
 const MACHIOTE_CLORO_ANALITOS = ['CTYF', 'ENTE.', 'ECOL'];
@@ -7903,6 +7943,8 @@ function _machioteInicializarConservadores(omarOpt){
     if(!o.machiote.conservadores[a.key]) o.machiote.conservadores[a.key] = {};
     for(let i = 0; i < totalTomas; i++){
       const key = 'toma' + (i + 1);
+      const _vieja = o.machiote.conservadores[a.key][key];
+      if(_vieja && _vieja.codigo){ _vieja.codigo = _machioteCodigoMigrado(a.key, _vieja.codigo); } // AARMS lote47: «4/1» → «1/4» solo si era el valor automático (los conservadores primero, el hielo al final)
       if(!o.machiote.conservadores[a.key][key]){
         const enToma = _analitoEnToma(o, i, a.key);
         // AARMS bmconserv: celda completa; sin marca manual vs auto (no inventar)
@@ -8012,11 +8054,7 @@ function tieneCloro(lista){
 }
 
 function buildCusTable(){
-  const conCloro=tieneCloro();
-  // AARMS lote7c: el código de preservación sale de _lote7cPres. El envase sigue en pantalla.
-  CADENA_DATA['CTYF'].env=conCloro?'9':'12';
-  CADENA_DATA['ENTE.'].env=conCloro?'7':'6';
-  CADENA_DATA['ECOL'].env=conCloro?'9':'12';
+  // AARMS lote47: el código y el envase salen de las tomas de ESTA OMAR (ya no se cambia CADENA_DATA a escondidas)
   // Active params from tomas — solo los seleccionados por el usuario
   const activeSet=new Set([
     ...tomas.flatMap(t=>[...t.params])
@@ -8039,7 +8077,7 @@ function buildCusTable(){
   const ROWS=[
     ['Cód. Preserv.',  p=>_lote7cPres(p)||'—'], // AARMS lote7c
     ['Volumen (mL)',    p=>CADENA_DATA[p]?.vol||'—'],
-    ['Tipo de Envase', p=>CADENA_DATA[p]?.env||'—'],
+    ['Tipo de Envase', p=>_aarmsEnvase(p, tomas)||'—'], // AARMS lote47
     ['N° Frascos',     p=>CADENA_DATA[p]?.env?((['GYA','CTYF','ENTE.','ECOL'].includes(p))?String(tomas.length||1):'1'):'—'],
     ['pH Preserv.',    p=>CADENA_DATA[p]?.ph||'—'],
     ['Analizó',        p=>''],
@@ -9843,15 +9881,7 @@ async function buildPDF(omarIdPedido){
   // ── CODIFICACIÓN DE TIPO DE ENVASE ──
   // Full table from F-AA-45A-12
   y+=3;
-  const ENVASES=[
-    ['1','Frasco boca ancha vidrio 1Lt'],['2','Frasco Plástico 1Lt'],
-    ['3','Frasco Plástico 4Lt'],['4','Frasco Plástico 500mL'],
-    ['5','Frasco Plástico 5Lt'],['6','Bolsa Estéril 300mL'],
-    ['7','Bolsa Estéril 300mL c/Tiosulfato'],['8','Frasco Vidrio Ámbar 1Lt'],
-    ['9','Bolsa Estéril 100mL c/Tiosulfato'],['10','Frasco Vidrio Ámbar 40mL'],
-    ['11','Frasco Vidrio Ámbar 250mL'],['12','Bolsa Estéril 100mL'],
-    ['13','Frasco Plástico 2Lt'],
-  ];
+  const ENVASES=AARMS_ENVASES.map(([n,t])=>[String(n),t]); // AARMS lote47: tabla única
   // Section header
   doc.setFillColor(...NAVY);doc.rect(M,y,CW,10,'F');
   doc.setTextColor(...WHITE);doc.setFont('helvetica','bold');doc.setFontSize(7);
@@ -10764,6 +10794,16 @@ async function buildPDFCadena(omarIdPedido){
   if(!fuente){ toast('No hay OMAR para la Cadena de Custodia','w'); return; }
   const tomas = fuente.tomas;
   const omar = fuente.omar;
+  // AARMS lote47: el cloro (Sí/No) es OBLIGATORIO en las tomas con microbiología; sin eso la Cadena no sale con una opción adivinada.
+  const _cl = _aarmsFaltaCloro(tomas);
+  if(_cl.faltan.length){
+    const msg = 'Cadena: falta contestar el cloro (Sí/No) en la toma ' + _cl.faltan.join(', ') + ' de la OMAR ' + ((omar && omar.folio) || '');
+    window.__aarmsUltimoMotivo = msg; toast(msg, 'w'); return null;
+  }
+  if(_cl.mezcla){
+    const msg = 'Cadena: las tomas de la OMAR ' + ((omar && omar.folio) || '') + ' no coinciden en cloro (hay Sí y No). Corrígelo en la Hoja de campo.';
+    window.__aarmsUltimoMotivo = msg; toast(msg, 'w'); return null;
+  }
   const gv = id => fuente.campos[id] != null ? String(fuente.campos[id]) : '';
   const tipoDoc = String((omar && omar.tipo) || '').trim() || gv('h_tipo');
   const {jsPDF}=window.jspdf;
@@ -10788,7 +10828,7 @@ async function buildPDFCadena(omarIdPedido){
   const DATA={};
   PARAMS.forEach(p=>{
     const base=CADENA_DATA[p]||{vol:'',env:'',ph:''};
-    DATA[p]={ pres:_lote7cPres(p, tomas), vol:base.vol||'', env:base.env||'', ph:base.ph||'' };
+    DATA[p]={ pres:_lote7cPres(p, tomas), vol:base.vol||'', env:_aarmsEnvase(p, tomas)||'', ph:base.ph||'' }; // AARMS lote47: código y envase de ESTA OMAR
   });
   // Parámetros cuyo número de frascos = número de tomas simples
   const DYNAMIC_FRASCOS=['GYA','CTYF','ENTE.','ECOL'];
@@ -10840,7 +10880,7 @@ async function buildPDFCadena(omarIdPedido){
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(12);
   doc.text('CADENA DE CUSTODIA INTERNA AR',titleX,y+12,{align:'center'});
   doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(...MGRAY);
-  doc.text('F-AA-01A-13',titleX,y+20,{align:'center'}); // AARMS lote7a
+  doc.text('F-AA-01A-15',titleX,y+20,{align:'center'}); // AARMS lote47: revisión 15 de la hoja de custodia
 
   // Folios — right column
   const fX=W-M-72;
@@ -10920,10 +10960,11 @@ async function buildPDFCadena(omarIdPedido){
   y+=TH;
 
   // Data rows
-  // AARMS lote7a: sin fila de envase. Rótulos como la hoja ccustodia.
+  // AARMS lote47: como la hoja F-AA-01A-15, que ya trae la fila «TIPO DE ENVASE» entre el volumen y el número de frascos.
   const ROWS=[
     ['CODIFICACIÓN DE LA PRESERVACIÓN', p=>DATA[p]?.pres||'', AMBER2], // AARMS lote8ba
     ['VOLUMEN (mL)',       p=>DATA[p]?.vol||'',  LGRAY],
+    ['TIPO DE ENVASE',     p=>DATA[p]?.env||'',  AMBER2],
     ['No. DE FRASCOS',   p=>DATA[p]?.env?(DYNAMIC_FRASCOS.includes(p)?String(nTomas):'1'):'',LGRAY],
     ['pH PRESERVACIÓN',  p=>DATA[p]?.ph||'',   LGRAY], // AARMS lote8ba
   ];
@@ -10987,16 +11028,17 @@ async function buildPDFCadena(omarIdPedido){
     y+=RH;
   });
   y+=2;
-  // AARMS lote7a: leyenda tal cual de la hoja ccustodia. Sin leyenda de envases.
-  // AARMS lote8ba: tildes y fórmulas; el orden y los números no cambian
-  const LEYENDA_OFICIAL='CODIFICACIÓN DE LA PRESERVACIÓN:  1.- Hielo, 2.- HNO3, 3.- HCl, 4.- NaOH, 5.- Formaldehído al 10%, 6.- H2SO4, 7.- K2Cr2O7 al 25%,   8.- HNO3 Suprapuro,   9.- Bolsas Estériles con Tiosulfato 10.- Bolsas Estériles sin Tiosulfato,  11.-H2SO4 25%  12.- Disolución Buffer';
+  // AARMS lote47: las DOS leyendas de la hoja de custodia (conservación y tipo de envase), leídas de la tabla única.
   const notaH=22;
-  fillRect(M,y,CW,notaH,AMBER);
-  outerRect(M,y,CW,notaH);
-  doc.setTextColor(...AMBER_TXT);doc.setFont('helvetica','normal');doc.setFontSize(4.6);
-  const leyLines=doc.splitTextToSize(LEYENDA_OFICIAL, CW-8);
-  leyLines.slice(0,2).forEach((ln,i)=>doc.text(ln, M+4, y+8+i*7));
-  y+=notaH+2;
+  [aarmsLeyendaConservadores({ ascii:true, sep:', ' }), aarmsLeyendaEnvases({ sep:', ' })].forEach((cuerpo, k) => {
+    const titulo = k === 0 ? 'CODIFICACIÓN DE LA PRESERVACIÓN:  ' : 'CODIFICACIÓN DE TIPO DE ENVASE:  ';
+    fillRect(M,y,CW,notaH, k === 0 ? AMBER : [255,236,150]);
+    outerRect(M,y,CW,notaH);
+    doc.setTextColor(...AMBER_TXT);doc.setFont('helvetica','normal');doc.setFontSize(4.6);
+    const leyLines=doc.splitTextToSize(titulo + cuerpo, CW-8);
+    leyLines.slice(0,2).forEach((ln,i)=>doc.text(ln, M+4, y+8+i*7));
+    y+=notaH+2;
+  });
 
   // ── FIRMAS MATRIZ — campos editables PDF ──
   const FW=CW/3;
@@ -11293,7 +11335,7 @@ async function buildPDFCadena(omarIdPedido){
   fillRect(M,py,CW,pieRowH,[248,250,253]);
   lineField(M+4, py+2, 280, pieRowH-4, 'SUPERVISÓ:', lab.sup || _lote25SupNombrePara(omar) || _lote27SupNombre() || '', 7, 40); // AARMS lote8ba / lote25e / lote27
   doc.setFont('helvetica','bold');doc.setTextColor(...ACCENT);doc.setFontSize(7);
-  doc.text('F-AA-01A-13', W-M-4, py+pieRowH/2+2.5, {align:'right'});
+  doc.text('F-AA-01A-15', W-M-4, py+pieRowH/2+2.5, {align:'right'}); // AARMS lote47
 
   // ── SAVE ──
   const folio=gv('h_omar')||'000';

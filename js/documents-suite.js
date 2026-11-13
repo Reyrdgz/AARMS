@@ -1965,10 +1965,8 @@ function _pdfBmMatrizConservadores(doc, omarRef, y, opts){
     y = HDR + 10;
   }
   // AARMS sub10-std: leyenda de conservadores en caja (wording oficial intacto)
-  const leyenda =
-    'Código de conservador: 1.- H₂SO₄  2.- NaOH  3.- K₂Cr₂O₇ al 25%  4.- Hielo (4°C)  5.- No Aplica  6.- HNO₃  ' +
-    '7.- Bolsa Estéril con Tiosulfato  8.- HCl  9.- HNO₃ Suprapuro  10.- H₂SO₄ 25%  11.- Bolsa Estéril sin Tiosulfatos  ' +
-    '12.- Disolución Buffer  13.- Formaldehído  14.- Otro＿＿＿';
+  // AARMS lote47: la leyenda sale de la tabla ÚNICA de códigos (la misma que usa la Cadena)
+  const leyenda = 'Código de conservador: ' + window.aarmsLeyendaConservadores({ sep:'  ' }).replace(/14\.- Otro$/, '14.- Otro＿＿＿');
   if(typeof _pdfCajaLeyenda === 'function'){
     y = _pdfCajaLeyenda(doc, leyenda, M, y, CW, FONT, { fontSize:5.8 });
   } else {
